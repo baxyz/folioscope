@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-10-19
-- **Design reference:** D5, [design.md § 6.2](../design.md#62-package-manager-pnpm)
+- **Decision ID:** D5
 
 ## Context
 
