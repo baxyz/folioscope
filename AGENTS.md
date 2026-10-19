@@ -28,18 +28,18 @@ Credit reference projects and Apache-2.0 dependencies in `NOTICE` when they are 
 
 Defined in `scopes.json`:
 
-| Scope | Covers |
-| --- | --- |
-| `core` | `crates/folioscope-core`: IR, importers, instance resolution |
-| `bake` | `crates/folioscope-bake`: layer split, state enumeration, `.folio` writer |
-| `wasm` | `crates/folioscope-wasm`: wasm-bindgen bindings |
-| `cli` | `crates/folioscope-cli`: `folioscope bake`, `inspect`, `fonts` |
-| `player` | `packages/folioscope`: custom elements, runtime, lite and full players |
-| `vite` | `folioscope/vite` plugin |
-| `site` | `apps/site`: VitePress site on folioscope.baxyz.dev |
-| `playground` | `apps/playground` |
-| `fixtures` | `fixtures/` |
-| `build`, `test`, `docs`, `deps`, `ci`, `ai` | As usual |
+| Scope                                       | Covers                                                                    |
+| ------------------------------------------- | ------------------------------------------------------------------------- |
+| `core`                                      | `crates/folioscope-core`: IR, importers, instance resolution              |
+| `bake`                                      | `crates/folioscope-bake`: layer split, state enumeration, `.folio` writer |
+| `wasm`                                      | `crates/folioscope-wasm`: wasm-bindgen bindings                           |
+| `cli`                                       | `crates/folioscope-cli`: `folioscope bake`, `inspect`, `fonts`            |
+| `player`                                    | `packages/folioscope`: custom elements, runtime, lite and full players    |
+| `vite`                                      | `folioscope/vite` plugin                                                  |
+| `site`                                      | `apps/site`: VitePress site on folioscope.baxyz.dev                       |
+| `playground`                                | `apps/playground`                                                         |
+| `fixtures`                                  | `fixtures/`                                                               |
+| `build`, `test`, `docs`, `deps`, `ci`, `ai` | As usual                                                                  |
 
 ## Structure
 
@@ -47,8 +47,8 @@ Defined in `scopes.json`:
 folioscope/
   crates/
     folioscope-core/   ← IR + importers (Rust lib, native and WASM)
-    folioscope-wasm/   ← wasm-bindgen bindings for the full player
     folioscope-cli/    ← `folioscope` binary
+                         (folioscope-bake and folioscope-wasm join in Phases 1 and 4)
   packages/
     folioscope/        ← npm package, defines <folioscope-player>
   apps/                ← site and playground (Phase 1)
@@ -67,7 +67,7 @@ vp run -r test                              # Vitest in every package
 vp run -r build                             # vp pack in every package
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
-cargo nextest run --workspace
+cargo nextest run --workspace --no-tests=pass
 cargo deny check
 ```
 
