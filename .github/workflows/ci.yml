@@ -42,3 +42,22 @@ jobs:
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo nextest run --workspace --no-tests=pass
       - run: cargo deny check
+
+  # The single status to mark as required in branch protection, so adding or renaming jobs
+  # never needs a settings change.
+  required:
+    name: Required checks passed
+    if: always()
+    needs: [js, rust]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail unless every needed job succeeded
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Results: $RESULTS"
+          for result in $RESULTS; do
+            if [ "$result" != "success" ]; then
+              exit 1
+            fi
+          done
