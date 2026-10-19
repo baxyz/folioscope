@@ -5,12 +5,24 @@ This repository inherits the [canonical workspace rules](https://github.com/baxy
 ## Scope
 
 `<folioscope-player>`: a web component that plays the interactive prototype stored in a `.fig`,
-`.sketch`, `.xd` or `.penpot` file, with no Figma, Sketch or Adobe account. The full design —
-architecture, IR, `.folio` format, roadmap — is in [docs/design.md](docs/design.md). Read it before
-any structural change.
+`.sketch`, `.xd` or `.penpot` file, with no Figma, Sketch or Adobe account.
 
 **Status:** design phase, nothing implemented yet. Next up is Phase 0 (spikes), see
-[docs/design.md § 8](docs/design.md#8-roadmap).
+[PROJECT.md § 8](PROJECT.md#8-roadmap).
+
+## The project plan: `PROJECT.md`
+
+[PROJECT.md](PROJECT.md) holds the design and the roadmap that are not implemented or documented
+elsewhere yet: architecture, IR, `.folio` format, fonts, open decisions. Read it before any
+structural change. It is a **temporary** document that shrinks as the project advances:
+
+- When something lands, delete the matching text from `PROJECT.md` **in the same PR**: a finished
+  roadmap item, a decision now recorded in an ADR, a spec now covered by code, the README or the
+  site. Don't tick checkboxes, remove the line.
+- Before deleting, check that what is still useful has a permanent home (ADR, README, code docs,
+  site). Rationale goes into an ADR, not into a code comment.
+- Section numbers stay stable; a deleted section leaves a gap. Update links that point at it.
+- Once the file is empty, delete it, and remove the links to it (README, this file, `CLAUDE.md`).
 
 ## License
 
@@ -54,8 +66,8 @@ folioscope/
   apps/                ← site and playground (Phase 1)
   fixtures/            ← test files we created ourselves, one folder per format
   docs/
-    design.md          ← the design document (source of truth)
     adr/               ← decisions D1–D7
+  PROJECT.md           ← temporary project plan, shrinks to nothing (see above)
 ```
 
 ## Commands
@@ -76,7 +88,7 @@ cargo deny check
 - **helpers4 first.** Before writing a generic helper (geometry, binary reading, easing, FSM, DOM,
   glob…), look in `helpers4` (TS: one dependency, `helpers4`, imported by sub-path such as
   `helpers4/function`; Rust: crate `helpers4` with one feature per module). If it is missing and
-  generic, propose it for helpers4 instead of coding it locally. See [docs/design.md § 6.4](docs/design.md#64-helpers4-libraries).
+  generic, propose it for helpers4 instead of coding it locally. See [PROJECT.md § 6.4](PROJECT.md#64-helpers4-libraries).
 - **No UI framework** in the component: vanilla custom elements, no Lit, no React.
 - **Performance budgets are features**: the lite player stays under 15 KB of JS gzipped, with no
   WASM and no fonts.

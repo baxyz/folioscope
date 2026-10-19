@@ -1,37 +1,11 @@
-# Folioscope — design document
+# Folioscope — project plan
 
-> Web player for interactive `.fig`, `.sketch`, `.xd` and `.penpot` prototypes, with no Figma,
-> Sketch or Adobe account or licence.
-> A web component that loads a design file from the current site and plays it: clicks, hovers,
-> navigation between screens.
-
-- **Repository**: `github.com/baxyz/folioscope`
-- **Website**: `folioscope.baxyz.dev` (GitHub Pages)
-- **npm package**: `folioscope`, which defines the `<folioscope-player>` element
-- **Rust crate**: `folioscope-core`, on crates.io
-- **License**: `AGPL-3.0-or-later`
-- **Status**: design phase, nothing implemented yet
-
----
+> **Temporary working document.** It holds what is not implemented or documented elsewhere yet.
+> When something lands — code, an ADR in `docs/adr/`, the README, the site — delete the matching
+> text here in the same PR. Section numbers stay stable, so deleted sections leave gaps. The file is
+> deleted once it is empty.
 
 ## 1. The name
-
-### Why "Folioscope"
-
-A **folioscope** is the French word for a _flip book_: a small booklet of still pictures that come
-to life when you thumb through it. It is one of the ancestors of cinema.
-
-That is exactly what the project does. A Figma or Sketch mockup is a sequence of still screens.
-Folioscope "flips" through them following the prototype links the designer defined, and the mockup
-comes to life.
-
-The name also carries the word **"folio"**, as in **portfolio**: the use case the project was born
-for — showing archived mockups on one's own site.
-
-The README explains the name on its first screen, because the word is little known, especially to
-English speakers.
-
-Short tagline: **"Flip through your prototypes."**
 
 ### Why `<folioscope-player>`
 
@@ -39,12 +13,6 @@ Short tagline: **"Flip through your prototypes."**
 - **"player" rather than "viewer" or "reader".** A viewer is looked at, a player is played: you
   start, you click, it reacts, you go back to the start.
 - **`folioscope-` is a prefix** for possible future elements, such as `<folioscope-thumbnail>`.
-
-### Trademarks
-
-- Never use "Figma", "Sketch", "Adobe", "XD" or "Penpot" in the name of a package, element or logo.
-- Wording to use: "compatible with `.fig`, `.sketch`, `.xd` and `.penpot` files".
-- The README carries a non-affiliation notice.
 
 ---
 
@@ -423,7 +391,7 @@ player.fonts = fonts;
 
 ## 5. Open decisions
 
-These are settled with ADRs, in [`docs/adr/`](adr/).
+These are settled with ADRs, in [`docs/adr/`](docs/adr/).
 
 | ID     | Question                                                                                          | Starting recommendation                                                                                                                                                                                                                                                    | How to decide                                                                      |
 | ------ | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
@@ -431,7 +399,6 @@ These are settled with ADRs, in [`docs/adr/`](adr/).
 | **D2** | `.fig` decoding: in-house in Rust, or `openfig-core` on the JS side                               | In-house in Rust, with `openfig-core` as a test oracle                                                                                                                                                                                                                     | Compare outputs on the fixtures                                                    |
 | **D3** | Transitions: CSS or frame-by-frame rendering                                                      | Instant and dissolve first, then slide and push by compositing two bitmaps. Smart animate later                                                                                                                                                                            | Phase 3                                                                            |
 | **D4** | Pre-compiled `.folio` format                                                                      | A folder: `index.json`, `poster.avif`, and layers named by hash, in AVIF or WebP and at several densities (see "Instant display")                                                                                                                                          | Phase 1: measure weight and display time on the fixtures                           |
-| **D5** | Package manager                                                                                   | **pnpm**, see 6.2 — [ADR 0005](adr/0005-package-manager-pnpm.md)                                                                                                                                                                                                           | Accepted                                                                           |
 | **D6** | Raster or SVG layers                                                                              | Raster by default. SVG as an option for simple layers (shapes and vectorized text), crisp at every zoom                                                                                                                                                                    | Compare weight and effect rendering (blurs, blend modes)                           |
 | **D7** | Combinatorial explosion threshold                                                                 | Maximum number of pre-rendered states per frame, configurable; beyond it, dynamic layer                                                                                                                                                                                    | Measure on real files                                                              |
 
@@ -455,16 +422,6 @@ These are settled with ADRs, in [`docs/adr/`](adr/).
 | Cached tasks, monorepo  | `vp run`                                                |
 
 - No UI framework: the component is vanilla, without Lit or React, to stay light.
-
-### 6.2 Package manager: pnpm
-
-- **pnpm** for workspaces and the lockfile. Vite+ keeps the existing package manager, and
-  `vp install` delegates installation to it.
-- **nub** remains possible as a script runner, since it reads pnpm lockfiles without imposing a
-  format.
-  - Not recommended as a base until its maturity is established.
-  - It also partly overlaps with Vite+ (Node management, script execution).
-- Pin the version in `package.json` (`devEngines.packageManager`).
 
 ### 6.3 Rust
 
@@ -600,7 +557,7 @@ Goal: remove the risks before writing the real code.
       IR v1 covers them without structural change.
 - [ ] Create 5 to 10 fixtures covering the basic cases (§ 10).
 - [ ] Add `geometry` and `binary` to helpers4.
-- [ ] Write ADRs D1, D2 and D4 (D5 is done).
+- [ ] Write ADRs D1, D2 and D4.
 
 **Exit criterion**: a `.fig` frame rendered natively, the list of navigation links printed to the
 console, and the pre-render spike displaying almost instantly.
@@ -820,7 +777,7 @@ To be decided in phase 4, when performance is measured. GitHub Pages does serve 
   - no third-party file redistributed.
   - Other projects do it publicly (Sketch, Grida, OpenPencil). To be checked with a lawyer if the
     project grows.
-- **Trademarks**: see § 1.
+- **Trademarks**: see the rules in `AGENTS.md`.
 
 ---
 
@@ -854,5 +811,4 @@ One session per roadmap phase, with the § 8 checkboxes as the task list.
 - `.penpot` format: https://help.penpot.app/technical-guide/developer/data-model/penpot-file-format/
 - xd2svg (`.xd` structure): https://www.npmjs.com/package/xd2svg
 - Vite+: https://voidzero.dev
-- nub: https://www.npmjs.com/package/@nubjs/nub
 - helpers4: https://helpers4.dev (TS: https://github.com/helpers4/typescript, Rust: https://github.com/helpers4/rust)

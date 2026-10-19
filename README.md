@@ -15,7 +15,7 @@ in the browser, with no account and no Figma, Sketch or Adobe licence.
 
 > [!WARNING]
 > **Status: design phase.** Nothing is implemented yet. The API below is the target, not something
-> you can install today. See the [design document](docs/design.md) and its roadmap.
+> you can install today. See the [project plan](PROJECT.md) and its roadmap.
 
 ## Usage (planned)
 
@@ -45,7 +45,7 @@ Made for archiving and showcasing work — portfolios, case studies.
 ## Documentation
 
 - Website: <https://folioscope.baxyz.dev> (coming with v0.1)
-- [Design document](docs/design.md) — architecture, `.folio` format, fonts, roadmap
+- [Project plan](PROJECT.md) — architecture, `.folio` format, fonts, roadmap
 - [Architecture decision records](docs/adr/)
 
 ## License
