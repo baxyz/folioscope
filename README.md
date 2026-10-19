@@ -7,11 +7,11 @@
 in the browser, with no account and no Figma, Sketch or Adobe licence.
 
 > **Why "Folioscope"?**
-> *Folioscope* is the French word for a flip book: a stack of still pictures that come to life when
+> _Folioscope_ is the French word for a flip book: a stack of still pictures that come to life when
 > you thumb through them. That is what this player does with your design files: it takes static
 > screens from a `.fig`, `.sketch`, `.xd` or `.penpot` file and flips through them following the
 > prototype links you designed, so the mockup moves again. And yes, the "folio" is a nod to
-> *portfolio*, where it all started.
+> _portfolio_, where it all started.
 
 > [!WARNING]
 > **Status: design phase.** Nothing is implemented yet. The API below is the target, not something
@@ -37,10 +37,10 @@ Made for archiving and showcasing work — portfolios, case studies.
 
 ## Packages
 
-| Registry | Name | Contents |
-| --- | --- | --- |
-| npm | [`folioscope`](https://www.npmjs.com/package/folioscope) | `<folioscope-player>`, `folioscope/full`, `folioscope/vite` |
-| crates.io | `folioscope-core`, `folioscope-cli` | Importers, IR, the `folioscope` CLI |
+| Registry  | Name                                                     | Contents                                                    |
+| --------- | -------------------------------------------------------- | ----------------------------------------------------------- |
+| npm       | [`folioscope`](https://www.npmjs.com/package/folioscope) | `<folioscope-player>`, `folioscope/full`, `folioscope/vite` |
+| crates.io | `folioscope-core`, `folioscope-cli`                      | Importers, IR, the `folioscope` CLI                         |
 
 ## Documentation
 

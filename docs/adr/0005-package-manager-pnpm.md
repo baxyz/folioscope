@@ -12,12 +12,12 @@ package manager: `vp install` delegates to the one the project declares.
 
 Options considered:
 
-| Option | For | Against |
-| --- | --- | --- |
-| **pnpm** | Workspaces and catalogs, strict `node_modules` (no phantom dependencies), shared content-addressed store already mounted in the devcontainer, used by every other baxyz repo, first-class in Vite+ templates | — |
-| npm | No setup | Weaker workspaces, no catalogs, hoisting hides missing dependencies |
-| Bun | Fast installs | Second runtime to track; its lockfile is not read by the rest of the chain |
-| nub | Reads pnpm lockfiles, fast script runner | Young project, maturity not established; overlaps Vite+ (Node management, script running) |
+| Option   | For                                                                                                                                                                                                          | Against                                                                                   |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| **pnpm** | Workspaces and catalogs, strict `node_modules` (no phantom dependencies), shared content-addressed store already mounted in the devcontainer, used by every other baxyz repo, first-class in Vite+ templates | —                                                                                         |
+| npm      | No setup                                                                                                                                                                                                     | Weaker workspaces, no catalogs, hoisting hides missing dependencies                       |
+| Bun      | Fast installs                                                                                                                                                                                                | Second runtime to track; its lockfile is not read by the rest of the chain                |
+| nub      | Reads pnpm lockfiles, fast script runner                                                                                                                                                                     | Young project, maturity not established; overlaps Vite+ (Node management, script running) |
 
 ## Decision
 

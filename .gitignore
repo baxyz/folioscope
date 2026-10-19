@@ -1,0 +1,20 @@
+# Node
+node_modules
+dist
+coverage
+*.log
+*.local
+
+# Rust
+target
+
+# Editors
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea
+.DS_Store
+.history
+
+# AI agent worktrees
+.claude/worktrees/
