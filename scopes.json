@@ -1,0 +1,17 @@
+[
+  "core",
+  "bake",
+  "wasm",
+  "cli",
+  "player",
+  "vite",
+  "site",
+  "playground",
+  "fixtures",
+  "build",
+  "test",
+  "docs",
+  "deps",
+  "ci",
+  "ai"
+]
