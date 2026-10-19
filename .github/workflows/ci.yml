@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  js:
+    name: JS (check, test, build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.8.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec vp check
+      - run: pnpm exec vp run -r test
+      - run: pnpm exec vp run -r build
+
+  rust:
+    name: Rust (fmt, clippy, nextest, deny)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # rustup installs the toolchain pinned in rust-toolchain.toml on first use.
+      - run: rustup show active-toolchain || rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest,cargo-deny
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo nextest run --workspace --no-tests=pass
+      - run: cargo deny check
