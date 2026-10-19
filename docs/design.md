@@ -18,7 +18,7 @@
 
 ### Why "Folioscope"
 
-A **folioscope** is the French word for a *flip book*: a small booklet of still pictures that come
+A **folioscope** is the French word for a _flip book_: a small booklet of still pictures that come
 to life when you thumb through it. It is one of the ancestors of cinema.
 
 That is exactly what the project does. A Figma or Sketch mockup is a sequence of still screens.
@@ -76,7 +76,7 @@ service.
   - pick the starting point when there are several;
   - pick the page;
   - fullscreen;
-  - show the clickable areas (*hotspots*), as InVision does.
+  - show the clickable areas (_hotspots_), as InVision does.
 - Work offline: no network call other than the file itself and the provided fonts.
 
 ### Out of scope
@@ -93,17 +93,17 @@ service.
 
 **There is no standalone, open-source interactive prototype player.** The building blocks do exist:
 
-| Building block | Role | License | Use in Folioscope |
-|---|---|---|---|
-| `openfig-core` | Isomorphic `.fig` parser (ZIP, Kiwi, zstd) | MIT | Reference, and failing that a decoding dependency |
-| `kiwi` (Evan Wallace) | Binary format of `.fig` | MIT | Schema embedded in every file |
-| `@grida/refig`, `@grida/canvas-wasm` | `.fig` rendering in Rust, Skia and WASM, in Node and in the browser | Apache-2.0 | Rendering engine candidate (decision D1) |
-| OpenPencil | `.fig`-compatible editor | MIT | Code reference for rendering and the format |
-| `fig2sketch` (Sketch) | `.fig` to `.sketch` conversion | MIT | Reference for the mapping between the two models. **Not** used as a pipeline, since it loses interactivity |
-| Sketch file format | ZIP of documented JSON, with an official schema | MIT | Basis of the `.sketch` importer |
-| `sketch-web-viewer` (Anima) | Static `.sketch` viewer | MIT | Counter-example: flattened, single page, not interactive |
-| `.penpot` v3 format (official docs) | ZIP of documented JSON: `manifest.json`, `files/` (pages, one shape per JSON file, components, typographies), `objects/` (images, fonts). `flows` on pages, `interactions` on shapes | Open format, documented by Penpot | Basis of the `.penpot` importer. The v1 (binary) format is obsolete and will not be supported |
-| `xd2svg` | `.xd` to SVG conversion. Documents the structure: ZIP with `manifest`, `artwork/artboard-*/graphics/graphicContent.agc` (JSON; the `.agc` or `.ags` extension varies between sources, to be checked on real files), `resources/`, `interactions/interactions.json` | MIT | Reference for the `.xd` importer. Format not documented by Adobe |
+| Building block                       | Role                                                                                                                                                                                                                                                               | License                           | Use in Folioscope                                                                                          |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `openfig-core`                       | Isomorphic `.fig` parser (ZIP, Kiwi, zstd)                                                                                                                                                                                                                         | MIT                               | Reference, and failing that a decoding dependency                                                          |
+| `kiwi` (Evan Wallace)                | Binary format of `.fig`                                                                                                                                                                                                                                            | MIT                               | Schema embedded in every file                                                                              |
+| `@grida/refig`, `@grida/canvas-wasm` | `.fig` rendering in Rust, Skia and WASM, in Node and in the browser                                                                                                                                                                                                | Apache-2.0                        | Rendering engine candidate (decision D1)                                                                   |
+| OpenPencil                           | `.fig`-compatible editor                                                                                                                                                                                                                                           | MIT                               | Code reference for rendering and the format                                                                |
+| `fig2sketch` (Sketch)                | `.fig` to `.sketch` conversion                                                                                                                                                                                                                                     | MIT                               | Reference for the mapping between the two models. **Not** used as a pipeline, since it loses interactivity |
+| Sketch file format                   | ZIP of documented JSON, with an official schema                                                                                                                                                                                                                    | MIT                               | Basis of the `.sketch` importer                                                                            |
+| `sketch-web-viewer` (Anima)          | Static `.sketch` viewer                                                                                                                                                                                                                                            | MIT                               | Counter-example: flattened, single page, not interactive                                                   |
+| `.penpot` v3 format (official docs)  | ZIP of documented JSON: `manifest.json`, `files/` (pages, one shape per JSON file, components, typographies), `objects/` (images, fonts). `flows` on pages, `interactions` on shapes                                                                               | Open format, documented by Penpot | Basis of the `.penpot` importer. The v1 (binary) format is obsolete and will not be supported              |
+| `xd2svg`                             | `.xd` to SVG conversion. Documents the structure: ZIP with `manifest`, `artwork/artboard-*/graphics/graphicContent.agc` (JSON; the `.agc` or `.ags` extension varies between sources, to be checked on real files), `resources/`, `interactions/interactions.json` | MIT                               | Reference for the `.xd` importer. Format not documented by Adobe                                           |
 
 **Adobe XD** has been in maintenance mode since 2023: many designers have `.xd` archives they can no
 longer open easily. It is the format where archiving is most valuable.
@@ -165,15 +165,15 @@ Full player in detail:
 
 ### Rust / TypeScript split
 
-| Layer | Language | Reason |
-|---|---|---|
-| Decompression (ZIP, zstd, deflate), Kiwi decoding, JSON parsing (Sketch, XD, Penpot), IR construction | **Rust** compiled to WASM | Compute-heavy on large files, also runs in the CLI |
-| Resolution of instances, overrides and variants | **Rust** | Complex logic, to be tested on fixtures |
-| Layer split and state enumeration, for pre-rendering | Native **Rust** | Done once, outside the browser |
-| Prototype runtime (state machine), shared by both players | **TypeScript** | Lightweight, tightly bound to the DOM and events, easy to debug |
-| Rendering | Skia (see D1): native in the CLI, WASM in the browser only for the full player | Fidelity: blurs, blend modes, gradients, text |
-| Web component, controls, accessibility | **TypeScript** | It is the public API |
-| Pre-compilation CLI (`folioscope bake`) | Native **Rust** | Same core, no browser |
+| Layer                                                                                                 | Language                                                                       | Reason                                                          |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | --------------------------------------------------------------- |
+| Decompression (ZIP, zstd, deflate), Kiwi decoding, JSON parsing (Sketch, XD, Penpot), IR construction | **Rust** compiled to WASM                                                      | Compute-heavy on large files, also runs in the CLI              |
+| Resolution of instances, overrides and variants                                                       | **Rust**                                                                       | Complex logic, to be tested on fixtures                         |
+| Layer split and state enumeration, for pre-rendering                                                  | Native **Rust**                                                                | Done once, outside the browser                                  |
+| Prototype runtime (state machine), shared by both players                                             | **TypeScript**                                                                 | Lightweight, tightly bound to the DOM and events, easy to debug |
+| Rendering                                                                                             | Skia (see D1): native in the CLI, WASM in the browser only for the full player | Fidelity: blurs, blend modes, gradients, text                   |
+| Web component, controls, accessibility                                                                | **TypeScript**                                                                 | It is the public API                                            |
+| Pre-compilation CLI (`folioscope bake`)                                                               | Native **Rust**                                                                | Same core, no browser                                           |
 
 ### The intermediate model (IR)
 
@@ -183,7 +183,7 @@ Full player in detail:
 - Each importer declares what it supports, so the compatibility matrix is generated automatically.
 - It is **serializable**: it is also the output format of `folioscope bake`.
 - Main contents:
-  - `Document`: pages and starting points (*flows*);
+  - `Document`: pages and starting points (_flows_);
   - `Frame`: size, scrolling, render tree;
   - `Node`: already-resolved geometry, styles, text;
   - `Interaction`: trigger, action, transition;
@@ -196,30 +196,32 @@ Pre-rendering to images does not break interactivity: it comes from the interact
 state machine, which are kept. What would break it is flattening **each frame into a single image**.
 Pre-rendering therefore splits each frame **into layers**, like video-game compositing:
 
-| Prototype element | Pre-render treatment | In the browser |
-|---|---|---|
-| Static frame background | One image | `<img>` |
-| Interactive component (hover, press, variants) | One image **per state**, over the component's area only | Image swapped by state, no re-render |
-| Scrolling content | Separate layer, the size of the content | Real `overflow: scroll` container, native scrolling |
-| Elements fixed on scroll | Separate layers | Positioned above the scrolling content |
-| Overlays | Separate layers | Positioned above the frame |
-| Transitions (dissolve, slide, push…) | Parameters and curves | Web Animations or CSS, GPU-accelerated |
-| Smart animate and auto-animate (XD) | Layers paired between the two frames, and computed keyframes | CSS transforms (position, size, opacity, rotation) |
-| Interactive zones | Rectangles, triggers and actions | Transparent, focusable DOM elements: keyboard-accessible, no canvas |
-| High-density screens | Several densities per layer (1x, 2x, 3x) | `srcset`, the browser picks |
-| Variables, conditions, typed text | **Not pre-renderable** | Layer flagged "dynamic": rendered on the fly by the full player, loaded only in that case |
+| Prototype element                              | Pre-render treatment                                         | In the browser                                                                            |
+| ---------------------------------------------- | ------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| Static frame background                        | One image                                                    | `<img>`                                                                                   |
+| Interactive component (hover, press, variants) | One image **per state**, over the component's area only      | Image swapped by state, no re-render                                                      |
+| Scrolling content                              | Separate layer, the size of the content                      | Real `overflow: scroll` container, native scrolling                                       |
+| Elements fixed on scroll                       | Separate layers                                              | Positioned above the scrolling content                                                    |
+| Overlays                                       | Separate layers                                              | Positioned above the frame                                                                |
+| Transitions (dissolve, slide, push…)           | Parameters and curves                                        | Web Animations or CSS, GPU-accelerated                                                    |
+| Smart animate and auto-animate (XD)            | Layers paired between the two frames, and computed keyframes | CSS transforms (position, size, opacity, rotation)                                        |
+| Interactive zones                              | Rectangles, triggers and actions                             | Transparent, focusable DOM elements: keyboard-accessible, no canvas                       |
+| High-density screens                           | Several densities per layer (1x, 2x, 3x)                     | `srcset`, the browser picks                                                               |
+| Variables, conditions, typed text              | **Not pre-renderable**                                       | Layer flagged "dynamic": rendered on the fly by the full player, loaded only in that case |
 
 **Limits:**
+
 - **Combinatorial explosion.** If interactive components are nested or depend on each other, states
   multiply. As long as they are independent, they only add up. Past a configurable threshold, the
   layer switches to dynamic mode, with a warning at pre-render time.
 - **Dynamic content** goes through the full player, as above.
 
 **Why it is fast:**
+
 - **No fonts to download**: text is rasterized at pre-render. Fonts are only needed at bake time.
 - **No WASM** in the lite player: target under 15 KB of JS gzipped.
 - **Display before the JS even runs**: the `poster` attribute (an image) shows straight from the
-  HTML; a blurred placeholder (*ThumbHash*), included in `index.json`, takes over.
+  HTML; a blurred placeholder (_ThumbHash_), included in `index.json`, takes over.
 - **Loading in reachability order**: the starting frame first, then those reachable in one
   interaction, then the rest.
 - **Preloading**: on hovering an interactive zone, and during idle time (`requestIdleCallback`), the
@@ -242,6 +244,7 @@ app.folio/
 ```
 
 **Build integration**:
+
 - **CLI**: `folioscope bake app.fig -o public/app.folio`.
 - **Vite plugin**: `folioscope/vite`, a sub-path of the same package. It pre-renders files
   automatically when the site is built, and caches by hash of the source file. For a portfolio,
@@ -256,8 +259,8 @@ app.folio/
    - `document.json` → `.sketch`;
    - a `mimetype` file containing `application/vnd.adobe.sparkler.project+dcxucf` → `.xd`;
    - `manifest.json` and a `files/` folder → `.penpot` v3.
-   Each importer is a module loaded on demand: one `.wasm` per format, built with Cargo features. Only
-   the code for the format in use is downloaded.
+     Each importer is a module loaded on demand: one `.wasm` per format, built with Cargo features. Only
+     the code for the format in use is downloaded.
 3. Decoding in a Web Worker, so as not to block the page.
 4. Lazy rendering: only the current frame and its direct neighbours.
 5. If a `.folio` exists next to the source file (`app.folio/` for `app.fig`), the player uses it
@@ -268,11 +271,11 @@ app.folio/
 
 This is the first practical problem:
 
-| Format | Embedded fonts |
-|---|---|
-| `.fig` | No |
-| `.sketch` | Only if the designer ticked the option |
-| `.xd` | No |
+| Format    | Embedded fonts                                                                    |
+| --------- | --------------------------------------------------------------------------------- |
+| `.fig`    | No                                                                                |
+| `.sketch` | Only if the designer ticked the option                                            |
+| `.xd`     | No                                                                                |
 | `.penpot` | Yes for custom fonts (in `objects/`). No for Google Fonts, which must be provided |
 
 Fonts embedded in the file take priority.
@@ -292,7 +295,12 @@ layers.
   <folioscope-font src="/fonts/Inter.var.woff2"></folioscope-font>
 
   <!-- 2. Forced family; weight and style optional (otherwise read from the file) -->
-  <folioscope-font family="Roboto" weight="700" style="italic" src="/fonts/Roboto-BoldItalic.woff2"></folioscope-font>
+  <folioscope-font
+    family="Roboto"
+    weight="700"
+    style="italic"
+    src="/fonts/Roboto-BoldItalic.woff2"
+  ></folioscope-font>
 
   <!-- 3. Rule-based substitution: glob, or regex between slashes -->
   <folioscope-font match="SF Pro*" src="/fonts/Inter.var.woff2"></folioscope-font>
@@ -312,13 +320,13 @@ nested inside it. A custom element must be closed explicitly (`</folioscope-font
 
 **The five modes:**
 
-| Mode | Attributes | Loading | Use |
-|---|---|---|---|
-| Auto-detection | `src` alone | **Eager**: the file must be downloaded to know its family (`name` and `OS/2` tables) | Simplest, for a few fonts |
-| Forced family | `family`, `src`, optionally `weight` and `style` | **Lazy**: only if the mockup uses that family | Recommended as soon as the family is known |
-| Substitution | `match`, `src` | Lazy | Replace a proprietary font (SF Pro, Helvetica…) you may not serve with a free font of similar metrics |
-| Directory | `base` | Lazy | Drop fonts into a folder. Since a browser cannot list a folder over HTTP, the CLI generates a manifest: `folioscope fonts ./public/fonts` writes `./public/fonts/folioscope-fonts.json`, with each file's family, weight and style |
-| CSS | `css` | Lazy | Reuse an existing site's `@font-face` rules: the player reads the stylesheet and downloads the `src` URLs it needs |
+| Mode           | Attributes                                       | Loading                                                                              | Use                                                                                                                                                                                                                                |
+| -------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Auto-detection | `src` alone                                      | **Eager**: the file must be downloaded to know its family (`name` and `OS/2` tables) | Simplest, for a few fonts                                                                                                                                                                                                          |
+| Forced family  | `family`, `src`, optionally `weight` and `style` | **Lazy**: only if the mockup uses that family                                        | Recommended as soon as the family is known                                                                                                                                                                                         |
+| Substitution   | `match`, `src`                                   | Lazy                                                                                 | Replace a proprietary font (SF Pro, Helvetica…) you may not serve with a free font of similar metrics                                                                                                                              |
+| Directory      | `base`                                           | Lazy                                                                                 | Drop fonts into a folder. Since a browser cannot list a folder over HTTP, the CLI generates a manifest: `folioscope fonts ./public/fonts` writes `./public/fonts/folioscope-fonts.json`, with each file's family, weight and style |
+| CSS            | `css`                                            | Lazy                                                                                 | Reuse an existing site's `@font-face` rules: the player reads the stylesheet and downloads the `src` URLs it needs                                                                                                                 |
 
 - `match` rules use a glob by default (`*`, `?`, case-insensitive). A value between slashes is a
   regex (`/…/flags`).
@@ -329,6 +337,7 @@ nested inside it. A custom element must be closed explicitly (`</folioscope-font
   console.
 
 **Resolution order**, for each family used by the mockup:
+
 1. Font embedded in the design file.
 2. Exact `family` (with the closest weight and style).
 3. First matching `match` rule, in HTML order.
@@ -360,12 +369,12 @@ HTML is only one way to use the API. Each `<folioscope-font>` calls the same met
 watches its children (`MutationObserver`) to react to additions and removals.
 
 ```ts
-player.registerFont({ src: "/fonts/Inter.var.woff2" });                    // auto-detection
+player.registerFont({ src: "/fonts/Inter.var.woff2" }); // auto-detection
 player.registerFont({ family: "Roboto", weight: 700, src: "/fonts/Roboto-Bold.woff2" });
 player.registerFont({ match: "SF Pro*", src: "/fonts/Inter.var.woff2" });
 player.registerFont({ base: "/fonts/" });
 player.registerFont({ css: "/fonts/fonts.css" });
-player.registerFont({ family: "Brand", data: arrayBuffer });                // bytes already loaded
+player.registerFont({ family: "Brand", data: arrayBuffer }); // bytes already loaded
 
 // Shorthand:
 player.registerFont("Roboto", "/fonts/Roboto-Regular.woff2");
@@ -384,21 +393,22 @@ player.fonts = fonts;
   page="1"
   fit="contain"
   hotspots="on-miss"
-  controls>
+  controls
+>
 </folioscope-player>
 ```
 
-| Attribute | Values | Role |
-|---|---|---|
-| `src` | URL | `.folio` folder (recommended), or `.fig`, `.sketch`, `.xd`, `.penpot` file |
-| `poster` | URL | Image shown before the JS even loads; usually `app.folio/poster.avif` |
-| `preload` | `none`, `start`, `neighbors`, `all` | Layer preloading strategy; `neighbors` by default |
-| `flow` | name or index | Starting point; the first one by default |
-| `page` | name or index | Page; the first one by default |
-| `fit` | `contain`, `width`, `none` | Scaling |
-| `hotspots` | `never`, `on-miss`, `always` | Clickable-area display. `on-miss` flashes them when clicking beside one |
-| `controls` | boolean | Control bar |
-| `fonts` | id | Shared font set (`<folioscope-fonts id="…">`); see "Fonts" |
+| Attribute  | Values                              | Role                                                                       |
+| ---------- | ----------------------------------- | -------------------------------------------------------------------------- |
+| `src`      | URL                                 | `.folio` folder (recommended), or `.fig`, `.sketch`, `.xd`, `.penpot` file |
+| `poster`   | URL                                 | Image shown before the JS even loads; usually `app.folio/poster.avif`      |
+| `preload`  | `none`, `start`, `neighbors`, `all` | Layer preloading strategy; `neighbors` by default                          |
+| `flow`     | name or index                       | Starting point; the first one by default                                   |
+| `page`     | name or index                       | Page; the first one by default                                             |
+| `fit`      | `contain`, `width`, `none`          | Scaling                                                                    |
+| `hotspots` | `never`, `on-miss`, `always`        | Clickable-area display. `on-miss` flashes them when clicking beside one    |
+| `controls` | boolean                             | Control bar                                                                |
+| `fonts`    | id                                  | Shared font set (`<folioscope-fonts id="…">`); see "Fonts"                 |
 
 - **Elements**: `<folioscope-player>`, `<folioscope-font>`, `<folioscope-fonts>`.
 - **Methods**: `restart()`, `goTo(frameId)`, `back()`, `setFlow(name)`, `registerFont(…)`.
@@ -415,15 +425,15 @@ player.fonts = fonts;
 
 These are settled with ADRs, in [`docs/adr/`](adr/).
 
-| ID | Question | Starting recommendation | How to decide |
-|---|---|---|---|
+| ID     | Question                                                                                          | Starting recommendation                                                                                                                                                                                                                                                    | How to decide                                                                      |
+| ------ | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | **D1** | Rendering engine, used mostly at pre-render (native), and in the browser only for the full player | Reuse Grida (Apache-2.0): its engine is Rust and Skia, so presumably usable natively in the CLI (to check: is it published as a crate?) and as WASM via `@grida/canvas-wasm`. Alternatives: CanvasKit (BSD), or an in-house Rust engine with `tiny-skia` and a text module | Phase 0 spike: can it take our IR, or only `.fig` files? WASM weight, text quality |
-| **D2** | `.fig` decoding: in-house in Rust, or `openfig-core` on the JS side | In-house in Rust, with `openfig-core` as a test oracle | Compare outputs on the fixtures |
-| **D3** | Transitions: CSS or frame-by-frame rendering | Instant and dissolve first, then slide and push by compositing two bitmaps. Smart animate later | Phase 3 |
-| **D4** | Pre-compiled `.folio` format | A folder: `index.json`, `poster.avif`, and layers named by hash, in AVIF or WebP and at several densities (see "Instant display") | Phase 1: measure weight and display time on the fixtures |
-| **D5** | Package manager | **pnpm**, see 6.2 — [ADR 0005](adr/0005-package-manager-pnpm.md) | Accepted |
-| **D6** | Raster or SVG layers | Raster by default. SVG as an option for simple layers (shapes and vectorized text), crisp at every zoom | Compare weight and effect rendering (blurs, blend modes) |
-| **D7** | Combinatorial explosion threshold | Maximum number of pre-rendered states per frame, configurable; beyond it, dynamic layer | Measure on real files |
+| **D2** | `.fig` decoding: in-house in Rust, or `openfig-core` on the JS side                               | In-house in Rust, with `openfig-core` as a test oracle                                                                                                                                                                                                                     | Compare outputs on the fixtures                                                    |
+| **D3** | Transitions: CSS or frame-by-frame rendering                                                      | Instant and dissolve first, then slide and push by compositing two bitmaps. Smart animate later                                                                                                                                                                            | Phase 3                                                                            |
+| **D4** | Pre-compiled `.folio` format                                                                      | A folder: `index.json`, `poster.avif`, and layers named by hash, in AVIF or WebP and at several densities (see "Instant display")                                                                                                                                          | Phase 1: measure weight and display time on the fixtures                           |
+| **D5** | Package manager                                                                                   | **pnpm**, see 6.2 — [ADR 0005](adr/0005-package-manager-pnpm.md)                                                                                                                                                                                                           | Accepted                                                                           |
+| **D6** | Raster or SVG layers                                                                              | Raster by default. SVG as an option for simple layers (shapes and vectorized text), crisp at every zoom                                                                                                                                                                    | Compare weight and effect rendering (blurs, blend modes)                           |
+| **D7** | Combinatorial explosion threshold                                                                 | Maximum number of pre-rendered states per frame, configurable; beyond it, dynamic layer                                                                                                                                                                                    | Measure on real files                                                              |
 
 ---
 
@@ -436,13 +446,13 @@ These are settled with ADRs, in [`docs/adr/`](adr/).
   - Before pinning the version, check that every tool in the chain supports it.
 - **Vite+** (`vite-plus`, `vp` command, MIT) as the single toolchain:
 
-| Need | Command |
-|---|---|
-| Playground dev server | `vp dev` |
-| Format, lint, typecheck | `vp check` (Oxfmt, Oxlint, TS) |
-| Tests | `vp test` (Vitest, with browser mode for the component) |
-| Library build | `vp pack` (tsdown) |
-| Cached tasks, monorepo | `vp run` |
+| Need                    | Command                                                 |
+| ----------------------- | ------------------------------------------------------- |
+| Playground dev server   | `vp dev`                                                |
+| Format, lint, typecheck | `vp check` (Oxfmt, Oxlint, TS)                          |
+| Tests                   | `vp test` (Vitest, with browser mode for the component) |
+| Library build           | `vp pack` (tsdown)                                      |
+| Cached tasks, monorepo  | `vp run`                                                |
 
 - No UI framework: the component is vanilla, without Lit or React, to stay light.
 
@@ -490,37 +500,37 @@ as in Rust (crate `helpers4`, one feature per module).
 
 **Planned uses:**
 
-| Folioscope need | helpers4 TS | helpers4 Rust |
-|---|---|---|
-| Resize debounce, `once` for initialization | `helpers4/function` (`debounce`, `throttle`, `once`, `memoize`) | — |
-| Type guards on the IR received from WASM | `helpers4/guard`, `helpers4/type` | — |
-| Colors (RGBA, hex, conversions) | `helpers4/color` | feature `color` |
-| Bounds, interpolation, rounding | `helpers4/math`, `helpers4/number` | feature `number` |
-| URL resolution (`src`, fonts, images) | `helpers4/url` | feature `url` |
-| Delays (`after delay`), load cancellation | `helpers4/promise` | feature `future` |
-| Node and frame identifiers | `helpers4/id` | — |
-| Structures (history stack, index by id) | `helpers4/structure`, `helpers4/map`, `helpers4/set` | features `map`, `set`, `iter` |
-| Reading bytes and binary buffers | — | features `bytes`, `hex` |
-| IR version and `.folio` compatibility | `helpers4/version` | feature `version` |
-| Durations (transitions, delays) | `helpers4/date` (to check) | features `duration`, `time` |
-| Rendered-frame cache | — | feature `cache` |
-| CI: badges, build status table | `helpers4/ci` | feature `ci` |
-| License header and `NOTICE` generation | `helpers4/license` | feature `license` |
-| Conventional commit messages | `helpers4/commit` | feature `commit` |
+| Folioscope need                            | helpers4 TS                                                     | helpers4 Rust                 |
+| ------------------------------------------ | --------------------------------------------------------------- | ----------------------------- |
+| Resize debounce, `once` for initialization | `helpers4/function` (`debounce`, `throttle`, `once`, `memoize`) | —                             |
+| Type guards on the IR received from WASM   | `helpers4/guard`, `helpers4/type`                               | —                             |
+| Colors (RGBA, hex, conversions)            | `helpers4/color`                                                | feature `color`               |
+| Bounds, interpolation, rounding            | `helpers4/math`, `helpers4/number`                              | feature `number`              |
+| URL resolution (`src`, fonts, images)      | `helpers4/url`                                                  | feature `url`                 |
+| Delays (`after delay`), load cancellation  | `helpers4/promise`                                              | feature `future`              |
+| Node and frame identifiers                 | `helpers4/id`                                                   | —                             |
+| Structures (history stack, index by id)    | `helpers4/structure`, `helpers4/map`, `helpers4/set`            | features `map`, `set`, `iter` |
+| Reading bytes and binary buffers           | —                                                               | features `bytes`, `hex`       |
+| IR version and `.folio` compatibility      | `helpers4/version`                                              | feature `version`             |
+| Durations (transitions, delays)            | `helpers4/date` (to check)                                      | features `duration`, `time`   |
+| Rendered-frame cache                       | —                                                               | feature `cache`               |
+| CI: badges, build status table             | `helpers4/ci`                                                   | feature `ci`                  |
+| License header and `NOTICE` generation     | `helpers4/license`                                              | feature `license`             |
+| Conventional commit messages               | `helpers4/commit`                                               | feature `commit`              |
 
 **Candidates to add to helpers4** when something is missing. Each function is written in helpers4
 rather than locally in Folioscope, with tests:
 
-| Candidate | TS | Rust | Contents | Why it is generic |
-|---|---|---|---|---|
-| **`geometry`** | `helpers4/geometry` | feature `geometry` | `Rect`, `Point`, `Size`, 2D affine matrices (`compose`, `invert`, `apply`), `intersects`, `contains`, `fitContain`, `fitCover` | Hit-testing, scaling and transforms are useful in any graphics project |
-| **`easing`** | `helpers4/easing` | feature `easing` | Cubic Bézier curves (`cubicBezier(x1, y1, x2, y2)`), springs, standard easings (`ease-in-out`, etc.), `lerp` | Prototype transitions; useful for any animation |
-| **`binary`** | `helpers4/binary` | merge into `bytes` | `DataView` reader and writer with a cursor, varint and zigzag (LEB128), little-endian `f32` and `u32` | Kiwi uses varints; useful for any binary format |
-| **`color` (extension)** | `helpers4/color` | feature `color` | Blend modes (multiply, screen, overlay…), premultiplied alpha, HSL and HSB conversion, as in Figma and Sketch | Style rendering requires it; likely not covered yet |
-| **`dom` or `web`** | `helpers4/dom` | — | Custom Element helpers (typed, reflected attributes, `observedAttributes`), debounced `ResizeObserver`, pointer handling (hover, press, and the tap / drag distinction), `prefers-reduced-motion` | Every web component needs it |
-| **`fsm`** | `helpers4/fsm` | feature `fsm` | Small typed state machine, with a history stack (*back*) | The prototype runtime, and many UIs |
-| **`font`** | `helpers4/font` | — | Font loading with `FontFace`, fallback, missing-font detection, closest weight and style selection | Any text rendering on canvas |
-| **`glob`** | in `helpers4/string` | feature `string` | `globToRegExp`, `matchGlob` (with `*`, `?`, case-insensitive), and `parsePatternOrRegExp` for the `/…/flags` syntax | Font `match` rules; useful wherever names are filtered |
+| Candidate               | TS                   | Rust               | Contents                                                                                                                                                                                          | Why it is generic                                                      |
+| ----------------------- | -------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| **`geometry`**          | `helpers4/geometry`  | feature `geometry` | `Rect`, `Point`, `Size`, 2D affine matrices (`compose`, `invert`, `apply`), `intersects`, `contains`, `fitContain`, `fitCover`                                                                    | Hit-testing, scaling and transforms are useful in any graphics project |
+| **`easing`**            | `helpers4/easing`    | feature `easing`   | Cubic Bézier curves (`cubicBezier(x1, y1, x2, y2)`), springs, standard easings (`ease-in-out`, etc.), `lerp`                                                                                      | Prototype transitions; useful for any animation                        |
+| **`binary`**            | `helpers4/binary`    | merge into `bytes` | `DataView` reader and writer with a cursor, varint and zigzag (LEB128), little-endian `f32` and `u32`                                                                                             | Kiwi uses varints; useful for any binary format                        |
+| **`color` (extension)** | `helpers4/color`     | feature `color`    | Blend modes (multiply, screen, overlay…), premultiplied alpha, HSL and HSB conversion, as in Figma and Sketch                                                                                     | Style rendering requires it; likely not covered yet                    |
+| **`dom` or `web`**      | `helpers4/dom`       | —                  | Custom Element helpers (typed, reflected attributes, `observedAttributes`), debounced `ResizeObserver`, pointer handling (hover, press, and the tap / drag distinction), `prefers-reduced-motion` | Every web component needs it                                           |
+| **`fsm`**               | `helpers4/fsm`       | feature `fsm`      | Small typed state machine, with a history stack (_back_)                                                                                                                                          | The prototype runtime, and many UIs                                    |
+| **`font`**              | `helpers4/font`      | —                  | Font loading with `FontFace`, fallback, missing-font detection, closest weight and style selection                                                                                                | Any text rendering on canvas                                           |
+| **`glob`**              | in `helpers4/string` | feature `string`   | `globToRegExp`, `matchGlob` (with `*`, `?`, case-insensitive), and `parsePatternOrRegExp` for the `/…/flags` syntax                                                                               | Font `match` rules; useful wherever names are filtered                 |
 
 Suggested order: `geometry` and `binary` first (phase 0), then `fsm` and `dom` (phase 1), then
 `easing` (phase 3).
@@ -577,17 +587,17 @@ Each phase ends with a demo in the playground and a published release.
 Goal: remove the risks before writing the real code.
 
 - [ ] Rendering spike (D1): render to PNG, **natively** from Rust (or failing that with
-  `@grida/refig` under Node), a frame of a `.fig`, then a single node of that frame in isolation,
-  which conditions the layer split.
+      `@grida/refig` under Node), a frame of a `.fig`, then a single node of that frame in isolation,
+      which conditions the layer split.
 - [ ] Pre-render spike: by hand, split a fixture frame into layers (background, a button with its two
-  states), write a minimal `index.json`, and display it with a few lines of HTML. Measure the time
-  to display the first frame.
+      states), write a minimal `index.json`, and display it with a few lines of HTML. Measure the time
+      to display the first frame.
 - [ ] Decoding spike: in Rust, decode a `.fig` (ZIP, zstd, Kiwi) and list the frames and the
-  `prototypeInteractions`.
+      `prototypeInteractions`.
 - [ ] Sketch spike: list the artboards and `flow`s of a `.sketch`.
 - [ ] XD and Penpot spikes: list the artboards and interactions of an `.xd`
-  (`interactions/interactions.json`) and of a `.penpot` v3 (`flows` and `interactions`). Check that
-  IR v1 covers them without structural change.
+      (`interactions/interactions.json`) and of a `.penpot` v3 (`flows` and `interactions`). Check that
+      IR v1 covers them without structural change.
 - [ ] Create 5 to 10 fixtures covering the basic cases (§ 10).
 - [ ] Add `geometry` and `binary` to helpers4.
 - [ ] Write ADRs D1, D2 and D4 (D5 is done).
@@ -601,19 +611,19 @@ The fast path comes first: it is the one portfolio visitors will see.
 
 - [ ] IR v1 and `.fig` importer: frames, nodes, navigation interactions.
 - [ ] `folioscope bake` (Rust CLI): one layer per frame to start with, plus interactive zones;
-  `index.json`, `poster.avif`, layers named by hash, several densities.
+      `index.json`, `poster.avif`, layers named by hash, several densities.
 - [ ] `folioscope/vite` Vite plugin, with a cache keyed on the source file's hash.
 - [ ] Lite player, no WASM: layers as `<img>`, interactive zones as DOM, neighbour preloading,
-  ThumbHash and `poster`.
-- [ ] Runtime: click trigger, *navigate* and *back* actions, starting points.
+      ThumbHash and `poster`.
+- [ ] Runtime: click trigger, _navigate_ and _back_ actions, starting points.
 - [ ] `<folioscope-player>`: `src`, `poster`, `preload`, `flow`, `page`, `fit`, `restart()`.
 - [ ] Minimal control bar: restart, flow picker.
 - [ ] Budgets measured in CI: under 15 KB of JS gzipped for the lite player, first frame displayed
-  in under a second on an average mobile on 4G (Lighthouse CI; values to adjust after phase 0).
+      in under a second on an average mobile on 4G (Lighthouse CI; values to adjust after phase 0).
 - [ ] Add `fsm` and `dom` to helpers4.
 - [ ] Publish to npm from CI, with provenance.
 - [ ] Minimal site on `folioscope.baxyz.dev`: home, the name explained, a playable demo, a "Getting
-  started" page.
+      started" page.
 
 **Exit criterion**: a simple `.fig` prototype, pre-rendered at build time, clickable end to end and
 displayed almost instantly on a portfolio page.
@@ -622,15 +632,15 @@ displayed almost instantly on a portfolio page.
 
 - [ ] `.sketch` importer to the IR, with the same pre-rendering.
 - [ ] Layer split at pre-render: background, scrolling content, fixed elements, overlays, interactive
-  components.
+      components.
 - [ ] Overlays: position, backdrop, close on outside click.
-- [ ] Frame scrolling (native scrolling), fixed elements, *scroll to* action.
-- [ ] Hover, press and *after delay* triggers.
-- [ ] Interactive components: instance and variant resolution, one image per state, *change to*
-  action. Combinatorial explosion threshold (D7).
+- [ ] Frame scrolling (native scrolling), fixed elements, _scroll to_ action.
+- [ ] Hover, press and _after delay_ triggers.
+- [ ] Interactive components: instance and variant resolution, one image per state, _change to_
+      action. Combinatorial explosion threshold (D7).
 - [ ] Visible hotspots (`hotspots="on-miss"`).
 - [ ] Fonts for pre-rendering: `folioscope.config.ts` and `--fonts`, with the five modes; bake-time
-  warning for any missing font.
+      warning for any missing font.
 - [ ] `folioscope fonts <folder>` CLI: generates the `folioscope-fonts.json` manifest.
 
 **Exit criterion**: the same test scenarios work from a `.fig` and from a `.sketch`.
@@ -653,6 +663,7 @@ displayed almost instantly on a portfolio page.
 passing everywhere.
 
 **Points of attention:**
+
 - **XD**: format not documented by Adobe and frozen since 2023. It will not move any more, which is an
   advantage for stability. Creating fixtures requires the XD app: use personal archive files, or
   create them while the app can still be installed.
@@ -664,7 +675,7 @@ passing everywhere.
 - [ ] Dissolve, slide, push, move in and move out, with easings from `helpers4/easing`.
 - [ ] Honour `prefers-reduced-motion`.
 - [ ] Smart animate and auto-animate, basic version: layer pairing by name and path at pre-render,
-  computed keyframes, interpolation of position, size and opacity played in CSS.
+      computed keyframes, interpolation of position, size and opacity played in CSS.
 
 ### Phase 4 — Full player: raw files in the browser (v0.7 to v0.9)
 
@@ -673,10 +684,10 @@ The "works right away" path with no build step, and the fallback for dynamic lay
 - [ ] WASM build of `folioscope-core`: one `.wasm` per format, loaded on demand.
 - [ ] WASM rendering engine (D1), loaded only when needed.
 - [ ] The component accepts a raw file in `src`, and automatically uses the sibling `.folio` if it
-  exists.
+      exists.
 - [ ] Decoding in a Web Worker, with progress; result caching (Cache API).
 - [ ] Fonts in the browser: `<folioscope-font>` (the five modes), `<folioscope-fonts>`,
-  `registerFont()`, resolution order, fallback, `folioscope:font-missing` event.
+      `registerFont()`, resolution order, fallback, `folioscope:font-missing` event.
 - [ ] Dynamic layers of a `.folio` (variables, conditions) rendered on the fly.
 - [ ] Full player budget: WASM weight measured and tracked in CI.
 - [ ] Publish `folioscope-cli` and `folioscope-core` to crates.io.
@@ -684,7 +695,7 @@ The "works right away" path with no build step, and the fallback for dynamic lay
 ### v1.0
 
 - [ ] Stable, documented API. Complete site: demo gallery, playground, compatibility matrix, API
-  reference.
+      reference.
 - [ ] Published compatibility matrix (what is supported for each format).
 - [ ] Verified accessibility: keyboard, screen readers, reduced motion.
 
@@ -698,13 +709,13 @@ The "works right away" path with no build step, and the fallback for dynamic lay
 
 ## 9. Publishing
 
-| Registry | Contents | Note |
-|---|---|---|
-| **npm** | `folioscope` (ESM, `.d.ts`, `.wasm` included) with three entry points: `folioscope` (lite player, which loads the full one only when needed), `folioscope/full` (full player loaded up front), `folioscope/vite` (plugin) | Published from CI with OIDC and `--provenance`, as for helpers4 |
-| **JSR** | `@baxyz/folioscope` | Optional, from the same sources |
-| **CDN** | jsDelivr and unpkg, automatic from npm | The `dist/folioscope.js` bundle is self-contained |
-| **crates.io** | `folioscope-core`, `folioscope-cli` | From phase 4 |
-| **GitHub Releases** | CLI binaries (Linux, macOS, Windows) | Built with cargo-dist or equivalent |
+| Registry            | Contents                                                                                                                                                                                                                  | Note                                                            |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| **npm**             | `folioscope` (ESM, `.d.ts`, `.wasm` included) with three entry points: `folioscope` (lite player, which loads the full one only when needed), `folioscope/full` (full player loaded up front), `folioscope/vite` (plugin) | Published from CI with OIDC and `--provenance`, as for helpers4 |
+| **JSR**             | `@baxyz/folioscope`                                                                                                                                                                                                       | Optional, from the same sources                                 |
+| **CDN**             | jsDelivr and unpkg, automatic from npm                                                                                                                                                                                    | The `dist/folioscope.js` bundle is self-contained               |
+| **crates.io**       | `folioscope-core`, `folioscope-cli`                                                                                                                                                                                       | From phase 4                                                    |
+| **GitHub Releases** | CLI binaries (Linux, macOS, Windows)                                                                                                                                                                                      | Built with cargo-dist or equivalent                             |
 
 - SemVer versioning, with Changesets (or equivalent) for the changelog.
 - Conventional commits, checked with `helpers4/commit`.
@@ -730,6 +741,7 @@ Both options combined: the site is **hosted on GitHub Pages** and **served on
 
 **When moving to Cloudflare (Worker or Pages) becomes necessary**: GitHub Pages cannot set HTTP
 headers. WASM threads (`SharedArrayBuffer`) need the COOP and COEP headers. Two options:
+
 - move to Cloudflare, on the account that holds the domains, to avoid cross-account domain binding
   problems;
 - use a workaround service worker (`coi-serviceworker`).
@@ -739,15 +751,15 @@ To be decided in phase 4, when performance is measured. GitHub Pages does serve 
 
 ### Contents
 
-| Section | Contents |
-|---|---|
-| **Home** | Tagline ("Flip through your prototypes."), the name explained (§ 1), a prototype playable right in the page |
-| **Demos** | Gallery of playable fixtures (`.fig`, `.sketch`, `.xd`, `.penpot`), each with the feature it illustrates and the HTML to copy |
-| **Playground** | Drop your own file to play it. **Everything stays in the browser, nothing is uploaded**: say so clearly, it is a strong argument |
-| **Getting started** | Installation (npm, CDN), minimal example, attributes, methods and events |
-| **Compatibility** | Matrix of what is supported for each format, generated from the tests |
-| **API** | Reference generated from the types (TypeDoc or equivalent) |
-| **About** | AGPL license, non-affiliation notice, credits (`NOTICE`) |
+| Section             | Contents                                                                                                                         |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| **Home**            | Tagline ("Flip through your prototypes."), the name explained (§ 1), a prototype playable right in the page                      |
+| **Demos**           | Gallery of playable fixtures (`.fig`, `.sketch`, `.xd`, `.penpot`), each with the feature it illustrates and the HTML to copy    |
+| **Playground**      | Drop your own file to play it. **Everything stays in the browser, nothing is uploaded**: say so clearly, it is a strong argument |
+| **Getting started** | Installation (npm, CDN), minimal example, attributes, methods and events                                                         |
+| **Compatibility**   | Matrix of what is supported for each format, generated from the tests                                                            |
+| **API**             | Reference generated from the types (TypeDoc or equivalent)                                                                       |
+| **About**           | AGPL license, non-affiliation notice, credits (`NOTICE`)                                                                         |
 
 ### Technical
 
@@ -817,16 +829,16 @@ To be decided in phase 4, when performance is measured. GitHub Pages does serve 
 Models available today: Claude Fable 5.1, Opus 5.5, Sonnet 5.5 and Haiku 5.5. The effort level is set
 per tool (Claude Code, the app, the API).
 
-| Step | Model | Effort | Why |
-|---|---|---|---|
-| Architecture, ADRs, IR schema | **Opus 5.5** | high | Structural decisions are expensive to change |
-| `.fig` prototyping reverse engineering (decoding, Kiwi field mapping) | **Opus 5.5** | high | Reasoning about an undocumented format, hypotheses to verify |
-| Instance and variant resolution, smart animate | **Opus 5.5**, or **Fable 5.1** if Opus gets stuck | high | The hardest part of the project |
-| Day-to-day implementation (importers, runtime, component, CLI) | **Sonnet 5.5** | medium | Good quality / speed / cost balance for well-specified code |
-| Tests, fixtures, CI, Vite+ and Cargo configuration | **Sonnet 5.5** | medium to low | Well-scoped tasks |
-| helpers4 contributions (`geometry`, `easing`, `binary`…) | **Sonnet 5.5** | medium | Isolated functions, easy to test |
-| Docs, README, changelog, commit messages, small fixes | **Haiku 5.5** | low | Fast and cheap |
-| Code review before a release | **Opus 5.5** | medium | A second look at security and edge cases |
+| Step                                                                  | Model                                             | Effort        | Why                                                          |
+| --------------------------------------------------------------------- | ------------------------------------------------- | ------------- | ------------------------------------------------------------ |
+| Architecture, ADRs, IR schema                                         | **Opus 5.5**                                      | high          | Structural decisions are expensive to change                 |
+| `.fig` prototyping reverse engineering (decoding, Kiwi field mapping) | **Opus 5.5**                                      | high          | Reasoning about an undocumented format, hypotheses to verify |
+| Instance and variant resolution, smart animate                        | **Opus 5.5**, or **Fable 5.1** if Opus gets stuck | high          | The hardest part of the project                              |
+| Day-to-day implementation (importers, runtime, component, CLI)        | **Sonnet 5.5**                                    | medium        | Good quality / speed / cost balance for well-specified code  |
+| Tests, fixtures, CI, Vite+ and Cargo configuration                    | **Sonnet 5.5**                                    | medium to low | Well-scoped tasks                                            |
+| helpers4 contributions (`geometry`, `easing`, `binary`…)              | **Sonnet 5.5**                                    | medium        | Isolated functions, easy to test                             |
+| Docs, README, changelog, commit messages, small fixes                 | **Haiku 5.5**                                     | low           | Fast and cheap                                               |
+| Code review before a release                                          | **Opus 5.5**                                      | medium        | A second look at security and edge cases                     |
 
 One session per roadmap phase, with the § 8 checkboxes as the task list.
 
