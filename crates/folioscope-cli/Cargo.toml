@@ -1,0 +1,23 @@
+[package]
+name = "folioscope-cli"
+description = "Command-line tool to bake .fig, .sketch, .xd and .penpot prototypes into .folio folders"
+keywords = ["prototype", "design", "mockup", "cli"]
+categories = ["command-line-utilities", "multimedia::images"]
+readme = "../../README.md"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+
+[[bin]]
+name = "folioscope"
+path = "src/main.rs"
+
+[dependencies]
+folioscope-core.workspace = true
+
+[lints]
+workspace = true
