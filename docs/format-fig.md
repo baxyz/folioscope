@@ -9,12 +9,16 @@ marked _unverified_ has not been checked against such a file.
 
 A ZIP archive (entries stored, not deflated) with:
 
-| Entry           | Contents                                       |
-| --------------- | ---------------------------------------------- |
-| `canvas.fig`    | The document, see below                        |
-| `meta.json`     | File name, background color, export metadata   |
-| `thumbnail.png` | Optional preview                               |
-| `images/<sha1>` | Image fills, named by the SHA-1 of their bytes |
+| Entry           | Contents                                                   |
+| --------------- | ---------------------------------------------------------- |
+| `canvas.fig`    | The document, see below                                    |
+| `meta.json`     | File name, background color, export metadata               |
+| `thumbnail.png` | Preview, **required**: Figma rejects the import without it |
+| `images/<sha1>` | Image fills, named by the SHA-1 of their bytes             |
+
+Figma's import fails with "Internal error during import", without detail, when `thumbnail.png`
+is missing; any valid PNG will do. A `meta.json` reduced to `{"file_name", "version"}` is
+accepted. Checked by importing generated files into Figma (October 2026).
 
 ## `canvas.fig`
 

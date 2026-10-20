@@ -136,8 +136,7 @@ export class FigBuilder {
     });
     const canvasFig = assembleCanvasFig({ ...parts, messageCompressed });
     const { meta, thumbnail } = this.metaAndThumbnail();
-    // Figma rejects an archive without a thumbnail and a full meta.json. Fixed dates keep
-    // regeneration a no-op.
+    // Figma rejects an archive without a thumbnail. Fixed dates keep regeneration a no-op.
     const stored = { level: 0, mtime: FIXED_DATE } as const;
     return zipSync({
       "canvas.fig": [canvasFig, stored],
