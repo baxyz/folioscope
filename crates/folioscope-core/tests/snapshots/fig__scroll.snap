@@ -1,0 +1,8 @@
+---
+source: crates/folioscope-core/tests/fig.rs
+expression: summarize(&file).to_string()
+---
+fig-kiwi v101
+page "Prototype" (0:1)
+  frame "Feed" (1:1) 375x812 at 0,0, starts flow "Scroll flow"
+    "Back to top" (1:12) ON_CLICK -> scroll_to "Card 1" (1:2) with SCROLL_ANIMATE 400ms INOUT_CUBIC

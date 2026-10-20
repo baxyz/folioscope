@@ -1,0 +1,10 @@
+---
+source: crates/folioscope-core/tests/fig.rs
+expression: summarize(&file).to_string()
+---
+fig-kiwi v101
+page "Prototype" (0:1)
+  frame "Home" (1:1) 375x812 at 0,0, starts flow "Overlay flow"
+    "Open menu" (1:3) ON_CLICK -> overlay "Menu" (1:2) with MOVE_FROM_BOTTOM 250ms OUT_CUBIC
+  frame "Menu" (1:2) 280x320 at 475,0
+    "Close" (1:8) ON_CLICK -> close overlay

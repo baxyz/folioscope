@@ -23,8 +23,16 @@ export type Trigger = "ON_CLICK" | "ON_HOVER" | "ON_PRESS" | "AFTER_TIMEOUT";
 export type Action =
   | { kind: "navigate"; to: FigGuid; transition?: Transition }
   | { kind: "overlay"; to: FigGuid; transition?: Transition }
+  | { kind: "scrollTo"; to: FigGuid; transition?: Transition }
   | { kind: "back" }
   | { kind: "close" };
+
+export interface OverlaySettings {
+  position: "CENTER" | "TOP_CENTER" | "BOTTOM_CENTER";
+  closeOnClickOutside: boolean;
+  /** Backdrop color, e.g. `#00000066`; none when absent. */
+  backdrop?: string;
+}
 
 export interface Transition {
   type:
@@ -32,7 +40,9 @@ export interface Transition {
     | "DISSOLVE"
     | "SLIDE_FROM_RIGHT"
     | "PUSH_FROM_RIGHT"
-    | "SMART_ANIMATE";
+    | "MOVE_FROM_BOTTOM"
+    | "SMART_ANIMATE"
+    | "SCROLL_ANIMATE";
   durationMs: number;
   easing?: "LINEAR" | "IN_CUBIC" | "OUT_CUBIC" | "INOUT_CUBIC";
 }
@@ -49,6 +59,7 @@ function position(index: number): string {
 export class FigBuilder {
   readonly doc: FigDocument = createEmptyFigDoc();
   private nextLocalId = 1;
+  private pageNamed = false;
   private readonly childCount = new Map<string, number>();
 
   private guid(): FigGuid {
@@ -71,11 +82,26 @@ export class FigBuilder {
     return guid;
   }
 
-  /** The first page of the empty document, renamed. */
+  /** Renames the empty document's page on the first call, then adds pages after it. */
   page(name: string): FigGuid {
-    const canvas = this.doc.message.nodeChanges.find((n: FigNode) => n.type === "CANVAS");
-    canvas.name = name;
-    return canvas.guid;
+    const canvases = this.doc.message.nodeChanges.filter(
+      (n: FigNode) => n.type === "CANVAS" && !n.internalOnly,
+    );
+    const first = canvases[0];
+    if (!this.pageNamed) {
+      this.pageNamed = true;
+      first.name = name;
+      return first.guid;
+    }
+    const guid = this.guid();
+    // The first page sits at "a" and the internal canvas at "b": new pages go in between.
+    this.doc.message.nodeChanges.push({
+      ...structuredClone(first),
+      guid,
+      name,
+      parentIndex: { ...first.parentIndex, position: `a${position(canvases.length - 1)}` },
+    });
+    return guid;
   }
 
   frame(parent: FigGuid, name: string, box: Box, fill = "#FFFFFF"): FigGuid {
@@ -85,7 +111,30 @@ export class FigBuilder {
       size: { x: box.width, y: box.height },
       transform: { m00: 1, m01: 0, m02: box.x, m10: 0, m11: 1, m12: box.y },
       fillPaints: [solid(fill)],
+      frameMaskDisabled: false,
     });
+  }
+
+  /** Lets a frame scroll; its content is whatever overflows its size. */
+  scrollable(frame: FigGuid, direction: "VERTICAL" | "HORIZONTAL" | "BOTH" = "VERTICAL"): void {
+    this.node(frame).scrollDirection = direction;
+  }
+
+  /** Keeps a child of a scrolling frame in place while the rest scrolls. */
+  fixed(node: FigGuid): void {
+    this.node(node).scrollBehavior = "FIXED_WHEN_CHILD_OF_SCROLLING_FRAME";
+  }
+
+  /** How a frame shows when it is opened as an overlay. */
+  overlay(frame: FigGuid, settings: OverlaySettings): void {
+    const node = this.node(frame);
+    node.overlayPositionType = settings.position;
+    node.overlayBackgroundInteraction = settings.closeOnClickOutside
+      ? "CLOSE_ON_CLICK_OUTSIDE"
+      : "NONE";
+    node.overlayBackgroundAppearance = settings.backdrop
+      ? { backgroundType: "SOLID_COLOR", backgroundColor: hexToFigColor(settings.backdrop) }
+      : { backgroundType: "NONE" };
   }
 
   rect(parent: FigGuid, name: string, box: Box, fill: string, radius = 0): FigGuid {
@@ -96,11 +145,16 @@ export class FigBuilder {
       transform: { m00: 1, m01: 0, m02: box.x, m10: 0, m11: 1, m12: box.y },
       fillPaints: [solid(fill)],
       strokeWeight: 0,
-      cornerRadius: radius,
-      rectangleTopLeftCornerRadius: radius,
-      rectangleTopRightCornerRadius: radius,
-      rectangleBottomLeftCornerRadius: radius,
-      rectangleBottomRightCornerRadius: radius,
+      // Figma drops zero radii when it saves.
+      ...(radius
+        ? {
+            cornerRadius: radius,
+            rectangleTopLeftCornerRadius: radius,
+            rectangleTopRightCornerRadius: radius,
+            rectangleBottomLeftCornerRadius: radius,
+            rectangleBottomRightCornerRadius: radius,
+          }
+        : {}),
     });
   }
 
@@ -124,6 +178,7 @@ export class FigBuilder {
         ...(trigger === "AFTER_TIMEOUT" ? { transitionTimeout: timeoutMs / 1000 } : {}),
       },
       actions: [prototypeAction(action)],
+      isDeleted: false,
     });
   }
 
@@ -213,10 +268,13 @@ function prototypeAction(action: Action) {
   switch (action.kind) {
     case "navigate":
     case "overlay":
+    case "scrollTo":
       return {
         connectionType: "INTERNAL_NODE",
         transitionNodeID: action.to,
-        navigationType: action.kind === "navigate" ? "NAVIGATE" : "OVERLAY",
+        navigationType: { navigate: "NAVIGATE", overlay: "OVERLAY", scrollTo: "SCROLL_TO" }[
+          action.kind
+        ],
         ...transition(action.transition),
       };
     case "back":

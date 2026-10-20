@@ -7,10 +7,19 @@ fn fixture(name: &str) -> Vec<u8> {
     std::fs::read(&path).unwrap_or_else(|e| panic!("{path}: {e}"))
 }
 
+/// Every fixture written by `tools/fixtures`, summarized: pages, frames, flows and links.
 #[test]
-fn navigation_lists_frames_flows_and_links() {
-    let file = decode(&fixture("navigation.fig")).unwrap();
-    insta::assert_snapshot!(summarize(&file).to_string());
+fn generated_fixtures_list_frames_flows_and_links() {
+    for name in [
+        "navigation",
+        "overlay",
+        "scroll",
+        "triggers",
+        "flows-and-pages",
+    ] {
+        let file = decode(&fixture(&format!("{name}.fig"))).unwrap();
+        insta::assert_snapshot!(name, summarize(&file).to_string());
+    }
 }
 
 #[test]
