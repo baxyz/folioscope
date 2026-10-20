@@ -18,3 +18,7 @@ target
 
 # AI agent worktrees
 .claude/worktrees/
+
+# Third-party design files and fixture experiments, never committed
+fixtures/external/
+tools/fixtures/out/

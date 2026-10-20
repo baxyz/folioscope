@@ -2,8 +2,8 @@
 
 Working notes on the parts of the `.fig` format Folioscope reads. Figma does not document it; these
 notes come from [openfig-core](https://github.com/OpenFig-org/openfig-core)'s documentation and
-from decoding our own fixtures. Anything marked _unverified_ has not been checked against a file
-saved by Figma itself.
+from decoding real files saved by Figma (versions 80 to 106) with `folioscope inspect`. Anything
+marked _unverified_ has not been checked against such a file.
 
 ## Container
 
@@ -51,7 +51,8 @@ the schema, then the root definition `Message`.
 
 A top-level frame that starts a flow carries `prototypeStartingPoint`:
 `{ name, description, position }`, where `position` orders the flows like sibling positions.
-Older files may only have `CANVAS.prototypeStartNodeID` (_unverified_).
+Files from before named flows have no `prototypeStartingPoint`; their single starting frame is
+`CANVAS.prototypeStartNodeID`.
 
 ### Interactions
 
@@ -81,7 +82,22 @@ Any node can carry `prototypeInteractions: PrototypeInteraction[]`:
 | `connectionURL`, `openUrlInNewTab`              | For `URL`                                                                                        |
 
 Overlay settings (`overlayPositionType`, `overlayBackgroundInteraction`,
-`overlayBackgroundAppearance`) live on the **destination** frame, not on the action
-(_unverified_). Older files may store a single interaction directly on the node (`transitionNodeID`,
-`interactionType`, `transitionType`… as `NodeChange` fields) instead of `prototypeInteractions`
-(_unverified_).
+`overlayBackgroundAppearance`) live on the **destination** frame or component, not on the action.
+
+An absent field takes its schema default, so a missing `transitionType` means
+`INSTANT_TRANSITION`. `easingFunction` holds the four cubic Bézier control points of a
+`CUSTOM_CUBIC` easing.
+
+The GUID `0xFFFFFFFF:0xFFFFFFFF` means "no node": an `INTERNAL_NODE` action pointing at it has no
+destination.
+
+### Legacy links
+
+Before `prototypeInteractions`, a node held a single link in its own fields (`transitionNodeID`,
+`connectionType`, `interactionType`, `transitionType`…). Figma migrated such files: the node keeps
+those fields **and** gets a `prototypeInteractions` copy, with an `id` of `0:0`. In the copy:
+
+- `event.interactionType` is often `NONE`, or `event` is empty: the link was a click, the only
+  trigger at the time;
+- a node without a link gets a placeholder interaction whose only action has `connectionType: NONE`;
+  skip it.
