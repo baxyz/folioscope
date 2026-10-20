@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { zstdCompressSync, constants } from "node:zlib";
+import { constants, crc32, deflateSync, zstdCompressSync } from "node:zlib";
 import { zipSync } from "fflate";
 import {
   assembleCanvasFig,
@@ -135,12 +135,60 @@ export class FigBuilder {
       params: { [constants.ZSTD_c_compressionLevel]: 3 },
     });
     const canvasFig = assembleCanvasFig({ ...parts, messageCompressed });
-    // Same layout as openfig-core's createFigZip, with a fixed date so regenerating is a no-op.
+    const { meta, thumbnail } = this.metaAndThumbnail();
+    // Figma rejects an archive without a thumbnail and a full meta.json. Fixed dates keep
+    // regeneration a no-op.
     const stored = { level: 0, mtime: FIXED_DATE } as const;
     return zipSync({
       "canvas.fig": [canvasFig, stored],
-      "meta.json": [new TextEncoder().encode(JSON.stringify(this.doc.meta)), stored],
+      "thumbnail.png": [thumbnail, stored],
+      "meta.json": [new TextEncoder().encode(JSON.stringify(meta)), stored],
     });
+  }
+
+  /** `meta.json` as Figma writes it, and a plain thumbnail of the first page's bounds. */
+  metaAndThumbnail(): { meta: object; thumbnail: Uint8Array } {
+    const page = this.doc.message.nodeChanges.find((n: FigNode) => n.type === "CANVAS");
+    const boxes: Box[] = this.doc.message.nodeChanges
+      .filter(
+        (n: FigNode) =>
+          n.parentIndex?.guid.sessionID === page.guid.sessionID &&
+          n.parentIndex?.guid.localID === page.guid.localID,
+      )
+      .map((f: FigNode) => {
+        const x = f.transform?.m02 ?? 0;
+        const y = f.transform?.m12 ?? 0;
+        return { x, y, width: f.size?.x ?? 0, height: f.size?.y ?? 0 };
+      });
+    const bounds = boxes.length
+      ? {
+          x: Math.min(...boxes.map((b) => b.x)),
+          y: Math.min(...boxes.map((b) => b.y)),
+          right: Math.max(...boxes.map((b) => b.x + b.width)),
+          bottom: Math.max(...boxes.map((b) => b.y + b.height)),
+        }
+      : { x: 0, y: 0, right: 100, bottom: 100 };
+    const width = bounds.right - bounds.x;
+    const height = bounds.bottom - bounds.y;
+    const scale = Math.min(1, 400 / width);
+    const thumbnailSize = {
+      width: Math.max(1, Math.round(width * scale)),
+      height: Math.max(1, Math.round(height * scale)),
+    };
+    const background = page.backgroundColor ?? { r: 0.96, g: 0.96, b: 0.96, a: 1 };
+    return {
+      meta: {
+        client_meta: {
+          background_color: background,
+          thumbnail_size: thumbnailSize,
+          render_coordinates: { x: bounds.x, y: bounds.y, width, height },
+        },
+        file_name: page.name,
+        developer_related_links: [],
+        exported_at: FIXED_DATE.toISOString(),
+      },
+      thumbnail: solidPng(thumbnailSize.width, thumbnailSize.height, background),
+    };
   }
 
   private node(guid: FigGuid): FigNode {
@@ -186,4 +234,32 @@ function transition(t: Transition = { type: "INSTANT_TRANSITION", durationMs: 0 
     easingType: t.easing ?? "OUT_CUBIC",
     transitionShouldSmartAnimate: t.type === "SMART_ANIMATE",
   };
+}
+
+/** A PNG of a single color: 8-bit RGB, unfiltered rows. */
+function solidPng(width: number, height: number, color: { r: number; g: number; b: number }) {
+  const rgb = [color.r, color.g, color.b].map((c) => Math.round(c * 255));
+  const row = Buffer.alloc(1 + width * 3);
+  for (let x = 0; x < width; x++) row.set(rgb, 1 + x * 3);
+  const raw = Buffer.concat(Array.from({ length: height }, () => row));
+  const chunk = (type: string, data: Buffer) => {
+    const head = Buffer.alloc(8);
+    head.writeUInt32BE(data.length, 0);
+    head.write(type, 4, "ascii");
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(crc32(Buffer.concat([head.subarray(4), data])), 0);
+    return Buffer.concat([head, data, crc]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr.set([8, 2, 0, 0, 0], 8);
+  return new Uint8Array(
+    Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      chunk("IHDR", ihdr),
+      chunk("IDAT", deflateSync(raw)),
+      chunk("IEND", Buffer.alloc(0)),
+    ]),
+  );
 }
