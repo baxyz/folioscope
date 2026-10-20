@@ -1,0 +1,10 @@
+---
+source: crates/folioscope-core/tests/fig.rs
+expression: summarize(&file).to_string()
+---
+fig-kiwi v101
+page "Prototype" (0:1)
+  frame "Home" (1:1) 375x812 at 0,0, starts flow "Main flow" (Open the details screen and come back)
+    "Open details" (1:4) ON_CLICK -> navigate "Details" (1:2) with DISSOLVE 300ms OUT_CUBIC
+  frame "Details" (1:2) 375x812 at 475,0
+    "Back" (1:6) ON_CLICK -> back
