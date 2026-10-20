@@ -2,48 +2,66 @@
 
 use std::process::ExitCode;
 
-const USAGE: &str = "usage: folioscope inspect <file.fig>";
+use folioscope_core::fig::{self, prototype::summarize, tree::Tree};
+
+const USAGE: &str = "usage:
+  folioscope inspect <file.fig>
+  folioscope render <file.fig> <node-id> <out.png> [scale]   (also writes <out>.svg)";
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    match args
-        .iter()
-        .map(String::as_str)
-        .collect::<Vec<_>>()
-        .as_slice()
-    {
+    let args: Vec<&str> = args.iter().map(String::as_str).collect();
+    let result = match args.as_slice() {
         ["inspect", path] => inspect(path),
+        ["render", path, node, out] => render(path, node, out, "1"),
+        ["render", path, node, out, scale] => render(path, node, out, scale),
         ["--version" | "-V"] => {
             println!(
                 "folioscope {} (IR v{})",
                 env!("CARGO_PKG_VERSION"),
                 folioscope_core::IR_VERSION
             );
-            ExitCode::SUCCESS
+            Ok(())
         }
         _ => {
             eprintln!("{USAGE}");
-            ExitCode::from(2)
+            return ExitCode::from(2);
+        }
+    };
+    match result {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(e) => {
+            eprintln!("folioscope: {e}");
+            ExitCode::FAILURE
         }
     }
 }
 
-fn inspect(path: &str) -> ExitCode {
-    let bytes = match std::fs::read(path) {
-        Ok(bytes) => bytes,
-        Err(e) => {
-            eprintln!("folioscope: cannot read {path}: {e}");
-            return ExitCode::FAILURE;
-        }
-    };
-    match folioscope_core::fig::decode(&bytes) {
-        Ok(file) => {
-            print!("{}", folioscope_core::fig::prototype::summarize(&file));
-            ExitCode::SUCCESS
-        }
-        Err(e) => {
-            eprintln!("folioscope: {path}: {e}");
-            ExitCode::FAILURE
-        }
-    }
+fn load(path: &str) -> Result<fig::FigFile, String> {
+    let bytes = std::fs::read(path).map_err(|e| format!("cannot read {path}: {e}"))?;
+    fig::decode(&bytes).map_err(|e| format!("{path}: {e}"))
+}
+
+fn inspect(path: &str) -> Result<(), String> {
+    print!("{}", summarize(&load(path)?));
+    Ok(())
+}
+
+fn render(path: &str, node: &str, out: &str, scale: &str) -> Result<(), String> {
+    let file = load(path)?;
+    let tree = Tree::new(&file);
+    let id = node.parse()?;
+    let scale: f32 = scale.parse().map_err(|e| format!("scale {scale:?}: {e}"))?;
+    let svg = folioscope_bake::svg::render_node(&tree, id).ok_or(format!("no node {node}"))?;
+    let png = folioscope_bake::rasterize(&svg.markup, scale).map_err(|e| e.to_string())?;
+    let svg_path = std::path::Path::new(out).with_extension("svg");
+    std::fs::write(&svg_path, &svg.markup).map_err(|e| format!("{}: {e}", svg_path.display()))?;
+    std::fs::write(out, png).map_err(|e| format!("{out}: {e}"))?;
+    eprintln!(
+        "{out}: {}x{} at {scale}x, {} bytes of SVG",
+        svg.width,
+        svg.height,
+        svg.markup.len()
+    );
+    Ok(())
 }

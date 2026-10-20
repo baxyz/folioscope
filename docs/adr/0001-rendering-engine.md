@@ -1,6 +1,6 @@
 # ADR 0001 — Rendering engine
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-20
 - **Decision ID:** D1
 
@@ -35,7 +35,7 @@ Alternatives looked at (not spiked yet):
 | C. **IR → SVG, rasterized by `resvg`**   | MIT / Apache-2.0 | **Yes**           | Small (pure Rust → WASM) | Our IR                 | One emitter yields both raster and SVG layers (D6); blurs, blend modes, gradients, text with given fonts |
 | D. Own engine on `tiny-skia` + `parley`  | BSD / MIT        | Yes               | Small                    | Our IR                 | Most control, most work                                                                                  |
 
-## Proposed decision
+## Decision
 
 **C: the IR is rendered by emitting SVG, rasterized natively by `resvg`.**
 
@@ -44,11 +44,26 @@ Alternatives looked at (not spiked yet):
 - Answers D6 at the same time: a layer is an SVG first, rasterized or not.
 - **refig stays as a test oracle** for `.fig` (pixel comparison in visual regression), the same
   role `openfig-core` plays for decoding (ADR 0002).
-- Fallback if fidelity falls short on real files (Figma-specific effects such as background blur,
-  angular gradients, smoothed corners): B for the offending layers.
+- Fallback if fidelity falls short on real files (background blur, angular gradients, smoothed
+  corners): B for the offending layers.
 
-## To confirm before accepting
+## Spike C results
 
-- Spike C on the fixtures: frame and isolated node, compare with refig's output.
-- Text: line breaking and metrics against Figma's on a real file.
-- WASM size of `resvg` with the features we need.
+`folioscope render <file.fig> <node-id> <out.png>` (crate `folioscope-bake`), on our fixture and on
+a real community file, compared with refig:
+
+- **Shapes need no geometry code**: Figma stores each node's outline (`fillGeometry`,
+  `strokeGeometry`) as path commands; the SVG just fills them.
+- **Text needs no font**: Figma stores the outline of every laid-out glyph
+  (`derivedTextData.glyphs`). We draw them as paths, so the bake reproduces the designer's fonts
+  exactly, where refig substitutes Inter for any font it is not given. Fonts remain needed for the
+  other formats and for dynamic layers.
+- Solid and linear gradient fills, image fills (FILL, FIT), drop shadows, frame clipping and
+  component instances (without overrides) match refig closely. Drop shadows are lighter, and text
+  sits 1–2 px lower; to fix in Phase 1.
+- A 428×907 frame with 30 text nodes and 9 photos: 1.6 MB of SVG (images inlined), rendered in
+  about 250 ms; simple frames in 20–100 ms.
+- `resvg` is built without its text and system-font features, since glyphs arrive as outlines.
+
+Not covered yet: instance overrides, radial and angular gradients, blend modes, blurs, image
+transforms and tiling.

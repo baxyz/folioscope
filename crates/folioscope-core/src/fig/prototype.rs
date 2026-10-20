@@ -3,23 +3,13 @@
 //! Phase 0 spike: lists the pages, top-level frames, flows and prototype interactions of a `.fig`.
 //! This is a read-only summary, not the IR.
 
-use std::collections::HashMap;
 use std::fmt;
 
 use crate::fig::FigFile;
+use crate::fig::tree::{Node, Tree, node_id};
 use crate::kiwi::Value;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct NodeId {
-    pub session: u32,
-    pub local: u32,
-}
-
-impl fmt::Display for NodeId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}:{}", self.session, self.local)
-    }
-}
+pub use crate::fig::tree::NodeId;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Summary {
@@ -89,115 +79,50 @@ pub struct Transition {
     pub easing: Option<String>,
 }
 
-struct Node<'a> {
-    id: NodeId,
-    kind: &'a str,
-    name: &'a str,
-    value: &'a Value,
-}
-
-struct Tree<'a> {
-    nodes: HashMap<NodeId, Node<'a>>,
-    children: HashMap<NodeId, Vec<NodeId>>,
-}
-
-impl<'a> Tree<'a> {
-    fn new(file: &'a FigFile) -> Self {
-        let mut nodes = HashMap::new();
-        let mut children: HashMap<NodeId, Vec<(&str, NodeId)>> = HashMap::new();
-        for value in file
-            .message
-            .get("nodeChanges")
-            .map_or(&[][..], Value::as_array)
-        {
-            if value.get("phase").and_then(Value::as_str) == Some("REMOVED") {
-                continue;
-            }
-            let Some(id) = value.get("guid").and_then(node_id) else {
-                continue;
-            };
-            if let Some(parent) = value.get("parentIndex") {
-                let position = parent.get("position").and_then(Value::as_str).unwrap_or("");
-                if let Some(parent_id) = parent.get("guid").and_then(node_id) {
-                    children.entry(parent_id).or_default().push((position, id));
-                }
-            }
-            let kind = value.get("type").and_then(Value::as_str).unwrap_or("NONE");
-            let name = value.get("name").and_then(Value::as_str).unwrap_or("");
-            nodes.insert(
-                id,
-                Node {
-                    id,
-                    kind,
-                    name,
-                    value,
-                },
-            );
+fn collect_interactions<'a>(tree: &Tree<'a>, node: &Node<'a>, out: &mut Vec<Interaction>) {
+    for interaction in node
+        .value
+        .get("prototypeInteractions")
+        .map_or(&[][..], Value::as_array)
+    {
+        if bool_field(interaction, "isDeleted") {
+            continue;
         }
-        let children = children
-            .into_iter()
-            .map(|(parent, mut list)| {
-                // Figma orders siblings by comparing their position keys as strings.
-                list.sort_by(|a, b| a.0.cmp(b.0));
-                (parent, list.into_iter().map(|(_, id)| id).collect())
-            })
+        let actions: Vec<Action> = interaction
+            .get("actions")
+            .map_or(&[][..], Value::as_array)
+            .iter()
+            .filter_map(|a| to_action(a, tree))
             .collect();
-        Self { nodes, children }
-    }
-
-    fn children(&self, id: NodeId) -> impl Iterator<Item = &Node<'a>> {
-        self.children
-            .get(&id)
-            .into_iter()
-            .flatten()
-            .filter_map(|child| self.nodes.get(child))
-    }
-
-    fn collect_interactions(&self, node: &Node<'a>, out: &mut Vec<Interaction>) {
-        for interaction in node
-            .value
-            .get("prototypeInteractions")
-            .map_or(&[][..], Value::as_array)
+        // Migrated legacy links keep an empty placeholder when the node had no connection.
+        if actions.is_empty() {
+            continue;
+        }
+        let event = interaction.get("event");
+        // Before triggers existed, every link was a click: migrated ones carry `NONE`.
+        let trigger = match event
+            .and_then(|e| e.get("interactionType"))
+            .and_then(Value::as_str)
         {
-            if bool_field(interaction, "isDeleted") {
-                continue;
-            }
-            let actions: Vec<Action> = interaction
-                .get("actions")
-                .map_or(&[][..], Value::as_array)
-                .iter()
-                .filter_map(|a| to_action(a, &self.nodes))
-                .collect();
-            // Migrated legacy links keep an empty placeholder when the node had no connection.
-            if actions.is_empty() {
-                continue;
-            }
-            let event = interaction.get("event");
-            // Before triggers existed, every link was a click: migrated ones carry `NONE`.
-            let trigger = match event
-                .and_then(|e| e.get("interactionType"))
-                .and_then(Value::as_str)
-            {
-                None | Some("NONE") => "ON_CLICK",
-                Some(trigger) => trigger,
-            };
-            out.push(Interaction {
-                source: node.id,
-                source_name: node.name.to_owned(),
-                trigger: trigger.to_owned(),
-                timeout: (trigger == "AFTER_TIMEOUT")
-                    .then(|| {
-                        event
-                            .and_then(|e| e.get("transitionTimeout"))
-                            .and_then(Value::as_f32)
-                    })
-                    .flatten(),
-                actions,
-            });
-        }
-        for child in self.children(node.id) {
-            self.collect_interactions(child, out);
-        }
+            None | Some("NONE") => "ON_CLICK",
+            Some(trigger) => trigger,
+        };
+        out.push(Interaction {
+            source: node.id,
+            source_name: node.name.to_owned(),
+            trigger: trigger.to_owned(),
+            timeout: (trigger == "AFTER_TIMEOUT")
+                .then(|| {
+                    event
+                        .and_then(|e| e.get("transitionTimeout"))
+                        .and_then(Value::as_f32)
+                })
+                .flatten(),
+            actions,
+        });
+    }
+    for child in tree.children(node.id) {
+        collect_interactions(tree, child, out);
     }
 }
 
@@ -206,8 +131,7 @@ impl<'a> Tree<'a> {
 pub fn summarize(file: &FigFile) -> Summary {
     let tree = Tree::new(file);
     let pages = tree
-        .nodes
-        .values()
+        .nodes()
         .filter(|n| n.kind == "DOCUMENT")
         .flat_map(|doc| tree.children(doc.id))
         .filter(|n| n.kind == "CANVAS" && !bool_field(n.value, "internalOnly"))
@@ -217,7 +141,7 @@ pub fn summarize(file: &FigFile) -> Summary {
                 .filter(|n| matches!(n.kind, "FRAME" | "SYMBOL" | "COMPONENT_SET" | "INSTANCE"))
                 .map(|frame| {
                     let mut interactions = Vec::new();
-                    tree.collect_interactions(frame, &mut interactions);
+                    collect_interactions(&tree, frame, &mut interactions);
                     to_frame(frame, interactions)
                 })
                 .collect();
@@ -247,7 +171,7 @@ pub fn summarize(file: &FigFile) -> Summary {
 }
 
 /// `None` for an empty placeholder action (`connectionType: NONE`).
-fn to_action(action: &Value, nodes: &HashMap<NodeId, Node<'_>>) -> Option<Action> {
+fn to_action(action: &Value, tree: &Tree<'_>) -> Option<Action> {
     let connection = action
         .get("connectionType")
         .and_then(Value::as_str)
@@ -267,7 +191,7 @@ fn to_action(action: &Value, nodes: &HashMap<NodeId, Node<'_>>) -> Option<Action
                     .unwrap_or("NAVIGATE")
                     .to_owned(),
                 target,
-                target_name: nodes.get(&target).map(|n| n.name.to_owned()),
+                target_name: tree.get(target).map(|n| n.name.to_owned()),
                 transition: action
                     .get("transitionType")
                     .and_then(Value::as_str)
@@ -328,16 +252,6 @@ fn to_frame(node: &Node<'_>, interactions: Vec<Interaction>) -> Frame {
         flow,
         interactions,
     }
-}
-
-/// `None` for a missing GUID and for `0xFFFFFFFF:0xFFFFFFFF`, Figma's "no node" sentinel.
-fn node_id(guid: &Value) -> Option<NodeId> {
-    let session = guid.get("sessionID")?.as_u32()?;
-    let local = guid.get("localID")?.as_u32()?;
-    if session == u32::MAX && local == u32::MAX {
-        return None;
-    }
-    Some(NodeId { session, local })
 }
 
 fn bool_field(value: &Value, name: &str) -> bool {

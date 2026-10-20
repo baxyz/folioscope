@@ -17,6 +17,7 @@ name = "folioscope"
 path = "src/main.rs"
 
 [dependencies]
+folioscope-bake.workspace = true
 folioscope-core.workspace = true
 
 [lints]

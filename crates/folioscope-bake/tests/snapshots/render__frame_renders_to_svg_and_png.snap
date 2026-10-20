@@ -1,0 +1,5 @@
+---
+source: crates/folioscope-bake/tests/render.rs
+expression: svg.markup
+---
+<svg xmlns="http://www.w3.org/2000/svg" width="375" height="812" viewBox="0 0 375 812"><defs><clipPath id="c1"><rect width="375" height="812" rx="0"/></clipPath></defs><g><rect width="375" height="812" rx="0" fill="rgb(255,255,255)" fill-opacity="1"/><g clip-path="url(#c1)"><g transform="matrix(1 0 0 1 0 0)"><rect width="375" height="96" rx="0" fill="rgb(229,231,235)" fill-opacity="1"/></g><g transform="matrix(1 0 0 1 88 640)"><rect width="200" height="48" rx="24" fill="rgb(37,99,235)" fill-opacity="1"/></g></g></g></svg>
