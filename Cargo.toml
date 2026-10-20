@@ -12,7 +12,13 @@ homepage = "https://folioscope.baxyz.dev"
 authors = ["baxyz <berenger@arnaud.work>"]
 
 [workspace.dependencies]
+flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 folioscope-core = { path = "crates/folioscope-core", version = "0.0.0" }
+helpers4 = { version = "0.0.7", default-features = false }
+insta = "1.49"
+ruzstd = "0.9"
+thiserror = "2"
+zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
