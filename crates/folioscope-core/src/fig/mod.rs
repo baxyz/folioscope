@@ -4,7 +4,9 @@
 //! Kiwi message with every node of the document. See `docs/format-fig.md`.
 
 pub mod prototype;
+pub mod tree;
 
+use std::collections::HashMap;
 use std::io::{Cursor, Read};
 
 use helpers4::bytes::{Endian, read_u32};
@@ -41,6 +43,8 @@ pub struct FigFile {
     pub schema: Schema,
     /// The root `Message`, whose `nodeChanges` array lists every node.
     pub message: Value,
+    /// `images/<sha1>` entries of the archive, by hex SHA-1.
+    pub images: HashMap<String, Vec<u8>>,
 }
 
 /// Decodes a `.fig` archive.
@@ -53,7 +57,20 @@ pub fn decode(archive: &[u8]) -> Result<FigFile, FigError> {
     let mut zip = zip::ZipArchive::new(Cursor::new(archive))?;
     let mut canvas = Vec::new();
     zip.by_name("canvas.fig")?.read_to_end(&mut canvas)?;
-    decode_canvas(&canvas)
+    let mut file = decode_canvas(&canvas)?;
+    for i in 0..zip.len() {
+        let mut entry = zip.by_index(i)?;
+        let name = entry.name()?.into_owned();
+        if let Some(hash) = name.strip_prefix("images/")
+            && !hash.is_empty()
+        {
+            let hash = hash.to_owned();
+            let mut bytes = Vec::new();
+            entry.read_to_end(&mut bytes)?;
+            file.images.insert(hash, bytes);
+        }
+    }
+    Ok(file)
 }
 
 /// Decodes the `canvas.fig` entry of a `.fig` archive.
@@ -89,6 +106,7 @@ pub fn decode_canvas(canvas: &[u8]) -> Result<FigFile, FigError> {
         version,
         schema,
         message,
+        images: HashMap::new(),
     })
 }
 

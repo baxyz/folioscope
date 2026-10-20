@@ -1,0 +1,23 @@
+[package]
+name = "folioscope-bake"
+description = "Renders and bakes prototypes into .folio folders"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+folioscope-core.workspace = true
+helpers4 = { workspace = true, features = ["hex"] }
+resvg.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+insta.workspace = true
+
+[lints]
+workspace = true
