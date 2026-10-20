@@ -393,14 +393,13 @@ player.fonts = fonts;
 
 These are settled with ADRs, in [`docs/adr/`](docs/adr/).
 
-| ID     | Question                                                                                          | Starting recommendation                                                                                                                                                                                                                                                    | How to decide                                                                      |
-| ------ | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| **D1** | Rendering engine, used mostly at pre-render (native), and in the browser only for the full player | Reuse Grida (Apache-2.0): its engine is Rust and Skia, so presumably usable natively in the CLI (to check: is it published as a crate?) and as WASM via `@grida/canvas-wasm`. Alternatives: CanvasKit (BSD), or an in-house Rust engine with `tiny-skia` and a text module | Phase 0 spike: can it take our IR, or only `.fig` files? WASM weight, text quality |
-| **D2** | `.fig` decoding: in-house in Rust, or `openfig-core` on the JS side                               | In-house in Rust, with `openfig-core` as a test oracle                                                                                                                                                                                                                     | Compare outputs on the fixtures                                                    |
-| **D3** | Transitions: CSS or frame-by-frame rendering                                                      | Instant and dissolve first, then slide and push by compositing two bitmaps. Smart animate later                                                                                                                                                                            | Phase 3                                                                            |
-| **D4** | Pre-compiled `.folio` format                                                                      | A folder: `index.json`, `poster.avif`, and layers named by hash, in AVIF or WebP and at several densities (see "Instant display")                                                                                                                                          | Phase 1: measure weight and display time on the fixtures                           |
-| **D6** | Raster or SVG layers                                                                              | Raster by default. SVG as an option for simple layers (shapes and vectorized text), crisp at every zoom                                                                                                                                                                    | Compare weight and effect rendering (blurs, blend modes)                           |
-| **D7** | Combinatorial explosion threshold                                                                 | Maximum number of pre-rendered states per frame, configurable; beyond it, dynamic layer                                                                                                                                                                                    | Measure on real files                                                              |
+| ID     | Question                                                                                          | Starting recommendation                                                                                                           | How to decide                                            |
+| ------ | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| **D1** | Rendering engine, used mostly at pre-render (native), and in the browser only for the full player | Proposed: IR → SVG → `resvg`, see [ADR 0001](docs/adr/0001-rendering-engine.md)                                                   | Spike C, compare with refig                              |
+| **D3** | Transitions: CSS or frame-by-frame rendering                                                      | Instant and dissolve first, then slide and push by compositing two bitmaps. Smart animate later                                   | Phase 3                                                  |
+| **D4** | Pre-compiled `.folio` format                                                                      | A folder: `index.json`, `poster.avif`, and layers named by hash, in AVIF or WebP and at several densities (see "Instant display") | Phase 1: measure weight and display time on the fixtures |
+| **D6** | Raster or SVG layers                                                                              | Raster by default. SVG as an option for simple layers (shapes and vectorized text), crisp at every zoom                           | Compare weight and effect rendering (blurs, blend modes) |
+| **D7** | Combinatorial explosion threshold                                                                 | Maximum number of pre-rendered states per frame, configurable; beyond it, dynamic layer                                           | Measure on real files                                    |
 
 ---
 
@@ -520,7 +519,6 @@ folioscope/
 │  ├─ fig/  ├─ sketch/  ├─ xd/  └─ penpot/
 ├─ docs/
 │  ├─ adr/                    # D1 to D7
-│  ├─ format-fig.md           # reverse-engineering notes on .fig prototyping
 │  └─ format-sketch.md
 ├─ Cargo.toml                 # Rust workspace
 ├─ pnpm-workspace.yaml
@@ -543,21 +541,19 @@ Each phase ends with a demo in the playground and a published release.
 
 Goal: remove the risks before writing the real code.
 
-- [ ] Rendering spike (D1): render to PNG, **natively** from Rust (or failing that with
-      `@grida/refig` under Node), a frame of a `.fig`, then a single node of that frame in isolation,
-      which conditions the layer split.
+- [ ] Rendering spike, option C of ADR 0001: emit SVG for a frame of a fixture and for a single
+      node of it, rasterize with `resvg`, compare with `@grida/refig`'s output.
 - [ ] Pre-render spike: by hand, split a fixture frame into layers (background, a button with its two
       states), write a minimal `index.json`, and display it with a few lines of HTML. Measure the time
       to display the first frame.
-- [ ] Decoding spike: in Rust, decode a `.fig` (ZIP, zstd, Kiwi) and list the frames and the
-      `prototypeInteractions`.
+- [ ] Check the `.fig` decoder on a file saved by Figma itself (`folioscope inspect`).
 - [ ] Sketch spike: list the artboards and `flow`s of a `.sketch`.
 - [ ] XD and Penpot spikes: list the artboards and interactions of an `.xd`
       (`interactions/interactions.json`) and of a `.penpot` v3 (`flows` and `interactions`). Check that
       IR v1 covers them without structural change.
 - [ ] Create 5 to 10 fixtures covering the basic cases (§ 10).
 - [ ] Add `geometry` and `binary` to helpers4.
-- [ ] Write ADRs D1, D2 and D4.
+- [ ] Accept or amend ADR D1; write ADR D4.
 
 **Exit criterion**: a `.fig` frame rendered natively, the list of navigation links printed to the
 console, and the pre-render spike displaying almost instantly.
