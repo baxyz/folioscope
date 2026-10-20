@@ -115,7 +115,9 @@ function triggers(): FigBuilder {
   const plain = fig.rect(home, "Button", button, BLUE, 24);
   fig.on(plain, "ON_HOVER", { kind: "navigate", to: hovered });
   fig.on(plain, "ON_PRESS", { kind: "navigate", to: pressed });
-  fig.rect(hovered, "Button", button, "#1D4ED8", 24);
+  // While hovering, the hovered screen is shown: pressing must be wired on its button too.
+  const hoveredButton = fig.rect(hovered, "Button", button, "#1D4ED8", 24);
+  fig.on(hoveredButton, "ON_PRESS", { kind: "navigate", to: pressed });
   fig.rect(pressed, "Button", button, "#1E3A8A", 24);
 
   return fig;
