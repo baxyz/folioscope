@@ -396,12 +396,11 @@ player.fonts = fonts;
 
 These are settled with ADRs, in [`docs/adr/`](docs/adr/).
 
-| ID     | Question                                     | Starting recommendation                                                                                                           | How to decide                                            |
-| ------ | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| **D3** | Transitions: CSS or frame-by-frame rendering | Instant and dissolve first, then slide and push by compositing two bitmaps. Smart animate later                                   | Phase 3                                                  |
-| **D4** | Pre-compiled `.folio` format                 | A folder: `index.json`, `poster.avif`, and layers named by hash, in AVIF or WebP and at several densities (see "Instant display") | Phase 1: measure weight and display time on the fixtures |
-| **D6** | Raster or SVG layers                         | Raster by default. SVG as an option for simple layers (shapes and vectorized text), crisp at every zoom                           | Compare weight and effect rendering (blurs, blend modes) |
-| **D7** | Combinatorial explosion threshold            | Maximum number of pre-rendered states per frame, configurable; beyond it, dynamic layer                                           | Measure on real files                                    |
+| ID     | Question                                     | Starting recommendation                                                                                 | How to decide                                            |
+| ------ | -------------------------------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| **D3** | Transitions: CSS or frame-by-frame rendering | Instant and dissolve first, then slide and push by compositing two bitmaps. Smart animate later         | Phase 3                                                  |
+| **D6** | Raster or SVG layers                         | Raster by default. SVG as an option for simple layers (shapes and vectorized text), crisp at every zoom | Compare weight and effect rendering (blurs, blend modes) |
+| **D7** | Combinatorial explosion threshold            | Maximum number of pre-rendered states per frame, configurable; beyond it, dynamic layer                 | Measure on real files                                    |
 
 ---
 
@@ -543,16 +542,12 @@ Each phase ends with a demo in the playground and a published release.
 
 Goal: remove the risks before writing the real code.
 
-- [ ] Pre-render spike: by hand, split a fixture frame into layers (background, a button with its two
-      states), write a minimal `index.json`, and display it with a few lines of HTML. Measure the time
-      to display the first frame.
 - [ ] Sketch spike: list the artboards and `flow`s of a `.sketch`.
 - [ ] XD and Penpot spikes: list the artboards and interactions of an `.xd`
       (`interactions/interactions.json`) and of a `.penpot` v3 (`flows` and `interactions`). Check that
       IR v1 covers them without structural change.
 - [ ] Create 5 to 10 fixtures covering the basic cases (§ 10).
 - [ ] Add `geometry` and `binary` to helpers4.
-- [ ] Write ADR D4.
 
 **Exit criterion**: a `.fig` frame rendered natively, the list of navigation links printed to the
 console, and the pre-render spike displaying almost instantly.

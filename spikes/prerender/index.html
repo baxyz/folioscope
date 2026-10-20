@@ -1,0 +1,108 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- Phase 0 pre-render spike: plays out/index.json (see README.md). Throwaway. -->
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Folioscope pre-render spike</title>
+<style>
+  body {
+    margin: 0;
+    display: grid;
+    place-items: center;
+    min-height: 100vh;
+    background: #1e1e1e;
+    font: 14px system-ui;
+    color: #ddd;
+  }
+  .frame {
+    position: relative;
+    overflow: hidden;
+  }
+  .frame img {
+    position: absolute;
+    display: block;
+  }
+  .zone {
+    position: absolute;
+    cursor: pointer;
+  }
+  .zone:focus-visible {
+    outline: 2px solid #60a5fa;
+  }
+  #timing {
+    position: fixed;
+    top: 8px;
+    left: 8px;
+  }
+</style>
+<div id="stage"></div>
+<p id="timing"></p>
+<script type="module">
+  const base = "out/";
+  const index = await (await fetch(base + "index.json")).json();
+  // One density per page load; a `srcset` would win over the `src` swaps of zone states.
+  const dpr = window.devicePixelRatio > 1 ? 2 : 1;
+  const url = (name) => `${base}layers/${name}@${dpr}x.png`;
+  const stage = document.getElementById("stage");
+  let first = true;
+
+  function img(src, box) {
+    const el = new Image();
+    el.src = url(src);
+    Object.assign(el.style, {
+      left: box.x + "px",
+      top: box.y + "px",
+      width: box.width + "px",
+      height: box.height + "px",
+    });
+    return el;
+  }
+
+  async function show(id) {
+    const frame = index.frames[id];
+    const el = document.createElement("div");
+    el.className = "frame";
+    el.setAttribute("aria-label", frame.name);
+    Object.assign(el.style, { width: frame.width + "px", height: frame.height + "px" });
+    const images = frame.layers.map((l) => img(l.src, l));
+    for (const zone of frame.zones ?? []) {
+      const state = img(zone.states.default, zone);
+      const hit = document.createElement("button");
+      hit.className = "zone";
+      hit.setAttribute("aria-label", zone.name);
+      Object.assign(hit.style, {
+        left: zone.x + "px",
+        top: zone.y + "px",
+        width: zone.width + "px",
+        height: zone.height + "px",
+        background: "none",
+        border: 0,
+        padding: 0,
+      });
+      const set = (s) => (state.src = url(zone.states[s]));
+      hit.onpointerenter = () => set("hover");
+      hit.onpointerleave = () => set("default");
+      hit.onpointerdown = () => set("press");
+      hit.onpointerup = () => set("hover");
+      images.push(state);
+      el.append(state, hit);
+      // Preload the other states so swapping never waits for the network.
+      Object.values(zone.states).forEach((s) => (new Image().src = url(s)));
+    }
+    el.prepend(...frame.layers.map((_, i) => images[i]));
+    await Promise.all(images.map((i) => i.decode()));
+    stage.replaceChildren(el);
+    if (first) {
+      first = false;
+      document.getElementById("timing").textContent =
+        `first frame on screen ${Math.round(performance.now())} ms after navigation start`;
+    }
+    if (frame.after) {
+      const next = index.frames[frame.after.to];
+      next.layers.forEach((l) => (new Image().src = url(l.src)));
+      setTimeout(() => show(frame.after.to), frame.after.delayMs);
+    }
+  }
+
+  show(index.start);
+</script>

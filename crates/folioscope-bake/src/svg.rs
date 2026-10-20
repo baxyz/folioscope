@@ -21,6 +21,13 @@ pub struct Svg {
 /// Renders `id` and its descendants, at the origin, in its own coordinate space.
 #[must_use]
 pub fn render_node(tree: &Tree<'_>, id: NodeId) -> Option<Svg> {
+    render_node_without(tree, id, &[])
+}
+
+/// Like [`render_node`], leaving out the `hidden` descendants: what the bake does to cut a frame
+/// into a background and the layers drawn above it.
+#[must_use]
+pub fn render_node_without(tree: &Tree<'_>, id: NodeId, hidden: &[NodeId]) -> Option<Svg> {
     let node = tree.get(id)?;
     let (width, height) = size(node.value);
     let mut ctx = Ctx {
@@ -28,6 +35,7 @@ pub fn render_node(tree: &Tree<'_>, id: NodeId) -> Option<Svg> {
         defs: String::new(),
         body: String::new(),
         next_id: 0,
+        hidden,
     };
     ctx.node(node, true);
     let markup = format!(
@@ -46,6 +54,7 @@ struct Ctx<'t, 'a> {
     defs: String,
     body: String,
     next_id: u32,
+    hidden: &'t [NodeId],
 }
 
 impl Ctx<'_, '_> {
@@ -56,7 +65,7 @@ impl Ctx<'_, '_> {
 
     fn node(&mut self, node: &Node<'_>, root: bool) {
         let v = node.value;
-        if matches!(v.get("visible"), Some(Value::Bool(false))) {
+        if matches!(v.get("visible"), Some(Value::Bool(false))) || self.hidden.contains(&node.id) {
             return;
         }
 
