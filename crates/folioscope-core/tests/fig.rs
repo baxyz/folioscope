@@ -17,3 +17,21 @@ fn navigation_lists_frames_flows_and_links() {
 fn rejects_a_file_that_is_not_a_zip() {
     assert!(decode(b"not a fig file").is_err());
 }
+
+/// Real files in the git-ignored `fixtures/external/fig/` (see `fixtures/README.md`): they must all
+/// decode. Skipped when the folder is absent, as in CI.
+#[test]
+fn external_files_decode() {
+    let dir = format!("{}/../../fixtures/external/fig", env!("CARGO_MANIFEST_DIR"));
+    let Ok(entries) = std::fs::read_dir(&dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.extension().is_some_and(|e| e == "fig") {
+            let bytes = std::fs::read(&path).unwrap();
+            let file = decode(&bytes).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
+            assert!(!summarize(&file).pages.is_empty(), "{}", path.display());
+        }
+    }
+}

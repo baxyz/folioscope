@@ -162,17 +162,25 @@ impl<'a> Tree<'a> {
             if bool_field(interaction, "isDeleted") {
                 continue;
             }
-            let event = interaction.get("event");
-            let trigger = event
-                .and_then(|e| e.get("interactionType"))
-                .and_then(Value::as_str)
-                .unwrap_or("ON_CLICK");
-            let actions = interaction
+            let actions: Vec<Action> = interaction
                 .get("actions")
                 .map_or(&[][..], Value::as_array)
                 .iter()
-                .map(|a| to_action(a, &self.nodes))
+                .filter_map(|a| to_action(a, &self.nodes))
                 .collect();
+            // Migrated legacy links keep an empty placeholder when the node had no connection.
+            if actions.is_empty() {
+                continue;
+            }
+            let event = interaction.get("event");
+            // Before triggers existed, every link was a click: migrated ones carry `NONE`.
+            let trigger = match event
+                .and_then(|e| e.get("interactionType"))
+                .and_then(Value::as_str)
+            {
+                None | Some("NONE") => "ON_CLICK",
+                Some(trigger) => trigger,
+            };
             out.push(Interaction {
                 source: node.id,
                 source_name: node.name.to_owned(),
@@ -203,10 +211,8 @@ pub fn summarize(file: &FigFile) -> Summary {
         .filter(|n| n.kind == "DOCUMENT")
         .flat_map(|doc| tree.children(doc.id))
         .filter(|n| n.kind == "CANVAS" && !bool_field(n.value, "internalOnly"))
-        .map(|canvas| Page {
-            id: canvas.id,
-            name: canvas.name.to_owned(),
-            frames: tree
+        .map(|canvas| {
+            let mut frames: Vec<Frame> = tree
                 .children(canvas.id)
                 .filter(|n| matches!(n.kind, "FRAME" | "SYMBOL" | "COMPONENT_SET" | "INSTANCE"))
                 .map(|frame| {
@@ -214,7 +220,22 @@ pub fn summarize(file: &FigFile) -> Summary {
                     tree.collect_interactions(frame, &mut interactions);
                     to_frame(frame, interactions)
                 })
-                .collect(),
+                .collect();
+            // Files from before named flows only have one starting frame, set on the page.
+            if frames.iter().all(|f| f.flow.is_none())
+                && let Some(start) = canvas.value.get("prototypeStartNodeID").and_then(node_id)
+                && let Some(frame) = frames.iter_mut().find(|f| f.id == start)
+            {
+                frame.flow = Some(Flow {
+                    name: String::new(),
+                    description: String::new(),
+                });
+            }
+            Page {
+                id: canvas.id,
+                name: canvas.name.to_owned(),
+                frames,
+            }
         })
         .collect();
 
@@ -225,15 +246,19 @@ pub fn summarize(file: &FigFile) -> Summary {
     }
 }
 
-fn to_action(action: &Value, nodes: &HashMap<NodeId, Node<'_>>) -> Action {
+/// `None` for an empty placeholder action (`connectionType: NONE`).
+fn to_action(action: &Value, nodes: &HashMap<NodeId, Node<'_>>) -> Option<Action> {
     let connection = action
         .get("connectionType")
         .and_then(Value::as_str)
         .unwrap_or("NONE");
-    match connection {
+    Some(match connection {
+        "NONE" => return None,
         "INTERNAL_NODE" => {
             let Some(target) = action.get("transitionNodeID").and_then(node_id) else {
-                return Action::Unsupported("INTERNAL_NODE without target".to_owned());
+                return Some(Action::Unsupported(
+                    "INTERNAL_NODE without target".to_owned(),
+                ));
             };
             Action::Node {
                 navigation: action
@@ -269,7 +294,7 @@ fn to_action(action: &Value, nodes: &HashMap<NodeId, Node<'_>>) -> Action {
                 .to_owned(),
         ),
         other => Action::Unsupported(other.to_owned()),
-    }
+    })
 }
 
 fn to_frame(node: &Node<'_>, interactions: Vec<Interaction>) -> Frame {
@@ -305,11 +330,14 @@ fn to_frame(node: &Node<'_>, interactions: Vec<Interaction>) -> Frame {
     }
 }
 
+/// `None` for a missing GUID and for `0xFFFFFFFF:0xFFFFFFFF`, Figma's "no node" sentinel.
 fn node_id(guid: &Value) -> Option<NodeId> {
-    Some(NodeId {
-        session: guid.get("sessionID")?.as_u32()?,
-        local: guid.get("localID")?.as_u32()?,
-    })
+    let session = guid.get("sessionID")?.as_u32()?;
+    let local = guid.get("localID")?.as_u32()?;
+    if session == u32::MAX && local == u32::MAX {
+        return None;
+    }
+    Some(NodeId { session, local })
 }
 
 fn bool_field(value: &Value, name: &str) -> bool {

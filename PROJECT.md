@@ -546,7 +546,6 @@ Goal: remove the risks before writing the real code.
 - [ ] Pre-render spike: by hand, split a fixture frame into layers (background, a button with its two
       states), write a minimal `index.json`, and display it with a few lines of HTML. Measure the time
       to display the first frame.
-- [ ] Check the `.fig` decoder on a file saved by Figma itself (`folioscope inspect`).
 - [ ] Sketch spike: list the artboards and `flow`s of a `.sketch`.
 - [ ] XD and Penpot spikes: list the artboards and interactions of an `.xd`
       (`interactions/interactions.json`) and of a `.penpot` v3 (`flows` and `interactions`). Check that
