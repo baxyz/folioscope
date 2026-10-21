@@ -520,7 +520,6 @@ folioscope/
 │  ├─ fig/  ├─ sketch/  ├─ xd/  └─ penpot/
 ├─ docs/
 │  ├─ adr/                    # D1 to D7
-│  └─ format-sketch.md
 ├─ Cargo.toml                 # Rust workspace
 ├─ pnpm-workspace.yaml
 ├─ package.json
@@ -542,7 +541,6 @@ Each phase ends with a demo in the playground and a published release.
 
 Goal: remove the risks before writing the real code.
 
-- [ ] Sketch spike: list the artboards and `flow`s of a `.sketch`.
 - [ ] XD and Penpot spikes: list the artboards and interactions of an `.xd`
       (`interactions/interactions.json`) and of a `.penpot` v3 (`flows` and `interactions`). Check that
       IR v1 covers them without structural change.

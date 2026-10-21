@@ -1,0 +1,10 @@
+---
+source: crates/folioscope-core/tests/sketch.rs
+expression: summarize(&file).to_string()
+---
+sketch v146 (com.bohemiancoding.sketch3 100.0)
+page "Prototype" (00000000-0000-4000-8000-000000000001)
+  artboard "Home" (00000000-0000-4000-8000-000000000002) 375x812 at 0,0, starts flow ""
+    "Open details" (00000000-0000-4000-8000-000000000006) ON_CLICK -> navigate "Details" (00000000-0000-4000-8000-000000000003) with SLIDE_FROM_RIGHT
+  artboard "Details" (00000000-0000-4000-8000-000000000003) 375x812 at 475,0
+    "Back hotspot" (00000000-0000-4000-8000-00000000000a) ON_CLICK -> back

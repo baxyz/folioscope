@@ -5,6 +5,13 @@ Licensed under the GNU Affero General Public License v3.0 or later (see LICENSE)
 This product includes or builds upon the following third-party work.
 
 --------------------------------------------------------------------------------
+Sketch file format — https://github.com/sketch-hq/sketch-file-format
+MIT License, by Sketch B.V.
+
+The .sketch fixture generator in tools/fixtures is typed against
+@sketch-hq/sketch-file-format-ts; docs/format-sketch.md draws on its schema.
+
+--------------------------------------------------------------------------------
 openfig-core — https://github.com/OpenFig-org/openfig-core
 MIT License, by rcoenen and the OpenFig contributors.
 
