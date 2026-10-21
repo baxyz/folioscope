@@ -41,6 +41,7 @@ export class SketchBuilder {
     const page: FileFormat.Page = {
       ...this.base(name, { x: 0, y: 0, width: 0, height: 0 }),
       _class: "page",
+      ...this.container(),
       hasClickThrough: true,
       horizontalRulerData: { _class: "rulerData", base: 0, guides: [] },
       verticalRulerData: { _class: "rulerData", base: 0, guides: [] },
@@ -59,6 +60,8 @@ export class SketchBuilder {
     const artboard: FileFormat.Artboard = {
       ...this.base(name, box),
       _class: "artboard",
+      ...this.container(),
+      grid: { _class: "simpleGrid", isEnabled: false, gridSize: 8, thickGridTimes: 10 },
       hasClickThrough: false,
       horizontalRulerData: { _class: "rulerData", base: 0, guides: [] },
       verticalRulerData: { _class: "rulerData", base: 0, guides: [] },
@@ -69,6 +72,8 @@ export class SketchBuilder {
       resizesContent: false,
       layers: [],
     };
+    // Written by Sketch 69, though missing from schema 6.5.
+    Object.assign(artboard, { presetDictionary: {} });
     page.layers.push(artboard);
     return artboard;
   }
@@ -94,6 +99,8 @@ export class SketchBuilder {
     const rect: FileFormat.Rectangle = {
       ...this.base(name, box),
       _class: "rectangle",
+      clippingMaskMode: 0,
+      hasClippingMask: false,
       style: this.style(fill),
       edited: false,
       isClosed: true,
@@ -144,14 +151,20 @@ export class SketchBuilder {
         colors: [],
         gradients: [],
         exportPresets: [],
+        imageCollection: { _class: "imageCollection", images: {} },
       },
       colorSpace: 1,
       currentPageIndex: 0,
       foreignLayerStyles: [],
       foreignSymbols: [],
       foreignTextStyles: [],
-      layerStyles: { _class: "sharedStyleContainer", objects: [] },
-      layerTextStyles: { _class: "sharedTextStyleContainer", objects: [] },
+      foreignSwatches: [],
+      fontReferences: [],
+      layerStyles: { _class: "sharedStyleContainer", do_objectID: this.id(), objects: [] },
+      layerSymbols: { _class: "symbolContainer", do_objectID: this.id(), objects: [] },
+      sharedSwatches: { _class: "swatchContainer", do_objectID: this.id(), objects: [] },
+      documentState: { _class: "documentState" },
+      layerTextStyles: { _class: "sharedTextStyleContainer", do_objectID: this.id(), objects: [] },
       perDocumentLibraries: [],
       pages: this.pages.map((page) => ({
         _class: "MSJSONFileReference",
@@ -161,16 +174,16 @@ export class SketchBuilder {
     };
     const created = {
       commit: "folioscope-fixtures",
-      appVersion: "100.0",
+      appVersion: "69.1",
       build: 0,
       app: "com.bohemiancoding.sketch3" as FileFormat.BundleId,
       compatibilityVersion: 99,
-      version: 146,
+      version: 134,
       variant: "NONAPPSTORE" as FileFormat.SketchVariant,
     };
     const meta: FileFormat.Meta = {
       ...created,
-      version: 146,
+      version: 134,
       compatibilityVersion: 99,
       pagesAndArtboards: Object.fromEntries(
         this.pages.map((page) => [
@@ -189,7 +202,16 @@ export class SketchBuilder {
       created,
       saveHistory: [],
     };
-    const user: FileFormat.User = { document: { pageListHeight: 110, pageListCollapsed: 0 } };
+    Object.assign(meta, { fonts: [] }); // as above
+    const user: FileFormat.User = {
+      document: { pageListHeight: 110, pageListCollapsed: 0 },
+      ...Object.fromEntries(
+        this.pages.map((page) => [
+          page.do_objectID,
+          { scrollOrigin: "{100, 100}", zoomValue: 0.5 },
+        ]),
+      ),
+    };
     const stored = { level: 0, mtime: FIXED_DATE } as const;
     return zipSync({
       "document.json": [json(document), stored],
@@ -231,7 +253,18 @@ export class SketchBuilder {
     };
   }
 
-  private style(fill: string): FileFormat.Style {
+  /** Fields Sketch writes on pages and artboards, optional in the schema but expected by tools. */
+  private container() {
+    return {
+      clippingMaskMode: 0,
+      hasClippingMask: false,
+      style: this.style(),
+      groupLayout: { _class: "MSImmutableFreeformGroupLayout" as const },
+      includeInCloudUpload: true,
+    };
+  }
+
+  private style(fill?: string): FileFormat.Style {
     return {
       _class: "style",
       do_objectID: this.id(),
@@ -242,27 +275,42 @@ export class SketchBuilder {
         lineCapStyle: 0,
         lineJoinStyle: 0,
       },
-      fills: [
-        {
-          _class: "fill",
-          isEnabled: true,
-          color: color(fill),
-          fillType: 0,
-          noiseIndex: 0,
-          noiseIntensity: 0,
-          patternFillType: 1,
-          patternTileScale: 1,
-          contextSettings: { _class: "graphicsContextSettings", blendMode: 0, opacity: 1 },
-          gradient: {
-            _class: "gradient",
-            gradientType: 0,
-            elipseLength: 0,
-            from: "{0.5, 0}",
-            to: "{0.5, 1}",
-            stops: [],
-          },
-        },
-      ],
+      blur: {
+        _class: "blur",
+        isEnabled: false,
+        center: "{0.5, 0.5}",
+        motionAngle: 0,
+        radius: 10,
+        saturation: 1,
+        type: 0,
+      },
+      borders: [],
+      shadows: [],
+      contextSettings: { _class: "graphicsContextSettings", blendMode: 0, opacity: 1 },
+      fills:
+        fill === undefined
+          ? []
+          : [
+              {
+                _class: "fill",
+                isEnabled: true,
+                color: color(fill),
+                fillType: 0,
+                noiseIndex: 0,
+                noiseIntensity: 0,
+                patternFillType: 1,
+                patternTileScale: 1,
+                contextSettings: { _class: "graphicsContextSettings", blendMode: 0, opacity: 1 },
+                gradient: {
+                  _class: "gradient",
+                  gradientType: 0,
+                  elipseLength: 0,
+                  from: "{0.5, 0}",
+                  to: "{0.5, 1}",
+                  stops: [],
+                },
+              },
+            ],
       startMarkerType: 0,
       endMarkerType: 0,
       miterLimit: 10,
