@@ -14,8 +14,9 @@ export type SketchAnimation =
   | "slideFromBottom"
   | "slideFromTop";
 
+// Real files write -1 for "no animation", though schema 6.5 starts its enum at 0.
 const ANIMATIONS: Record<SketchAnimation, number> = {
-  none: 0,
+  none: -1,
   slideFromLeft: 1,
   slideFromRight: 2,
   slideFromBottom: 3,
@@ -32,9 +33,9 @@ export class SketchBuilder {
   private nextId = 1;
   private readonly pages: FileFormat.Page[] = [];
 
-  /** UUID-shaped, deterministic. */
+  /** UUID-shaped and deterministic; uppercase, as Sketch writes them. */
   private id(): string {
-    return `00000000-0000-4000-8000-${(this.nextId++).toString(16).padStart(12, "0")}`;
+    return `00000000-0000-4000-8000-${(this.nextId++).toString(16).padStart(12, "0")}`.toUpperCase();
   }
 
   page(name: string): FileFormat.Page {
@@ -75,6 +76,13 @@ export class SketchBuilder {
     // Written by Sketch 69, though missing from schema 6.5.
     Object.assign(artboard, { presetDictionary: {} });
     page.layers.push(artboard);
+    // Converters write the fill as a first, full-size rectangle; Lunacy plays such files.
+    this.rect(
+      artboard,
+      `${name} (Background)`,
+      { x: 0, y: 0, width: box.width, height: box.height },
+      background,
+    );
     return artboard;
   }
 
@@ -106,7 +114,8 @@ export class SketchBuilder {
       isClosed: true,
       pointRadiusBehaviour: 1,
       points: ["{0, 0}", "{1, 0}", "{1, 1}", "{0, 1}"].map(corner),
-      fixedRadius: radius,
+      // The radius lives on the points; Sketch keeps fixedRadius for legacy shapes.
+      fixedRadius: 0,
       hasConvertedToNewRoundCorners: true,
       needsConvertionToNewRoundCorners: false,
     };
