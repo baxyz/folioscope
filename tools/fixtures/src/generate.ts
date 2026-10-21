@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { FigBuilder } from "./fig.ts";
+import { SketchBuilder } from "./sketch.ts";
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), "../../../fixtures");
 
@@ -165,12 +166,40 @@ function flowsAndPages(): FigBuilder {
   return fig;
 }
 
-const fixtures: Record<string, () => FigBuilder> = {
+/** The `.sketch` twin of `navigation`: a visible button and a hotspot link back. */
+function sketchNavigation(): SketchBuilder {
+  const sketch = new SketchBuilder();
+  const page = sketch.page("Prototype");
+  const home = sketch.artboard(page, "Home", { x: 0, y: 0, ...PHONE });
+  const details = sketch.artboard(page, "Details", { x: 475, y: 0, ...PHONE }, "#F9FAFB");
+  sketch.flowHome(home);
+
+  sketch.rect(home, "Header", { x: 0, y: 0, width: 375, height: 96 }, GREY);
+  const open = sketch.rect(
+    home,
+    "Open details",
+    { x: 88, y: 640, width: 200, height: 48 },
+    BLUE,
+    24,
+  );
+  sketch.link(open, details, "slideFromRight");
+
+  sketch.rect(details, "Back", { x: 16, y: 56, width: 80, height: 32 }, GREY, 8);
+  sketch.link(
+    sketch.hotspot(details, "Back hotspot", { x: 16, y: 56, width: 80, height: 32 }),
+    "back",
+  );
+
+  return sketch;
+}
+
+const fixtures: Record<string, () => { toBytes(): Uint8Array }> = {
   "fig/navigation.fig": navigation,
   "fig/overlay.fig": overlay,
   "fig/scroll.fig": scroll,
   "fig/triggers.fig": triggers,
   "fig/flows-and-pages.fig": flowsAndPages,
+  "sketch/navigation.sketch": sketchNavigation,
 };
 
 for (const [path, build] of Object.entries(fixtures)) {

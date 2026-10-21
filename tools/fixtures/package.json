@@ -9,6 +9,7 @@
     "generate": "node src/generate.ts"
   },
   "devDependencies": {
+    "@sketch-hq/sketch-file-format-ts": "catalog:",
     "@types/node": "catalog:",
     "fflate": "catalog:",
     "openfig-core": "catalog:",

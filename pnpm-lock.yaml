@@ -205,6 +205,9 @@ settings:
 
 catalogs:
   default:
+    '@sketch-hq/sketch-file-format-ts':
+      specifier: 6.5.0
+      version: 6.5.0
     '@types/node':
       specifier: ^24
       version: 24.19.2
@@ -246,6 +249,9 @@ importers:
 
   tools/fixtures:
     devDependencies:
+      '@sketch-hq/sketch-file-format-ts':
+        specifier: 'catalog:'
+        version: 6.5.0
       '@types/node':
         specifier: 'catalog:'
         version: 24.19.2
@@ -576,6 +582,9 @@ packages:
 
   '@polka/url@1.0.0-next.29':
     resolution: {integrity: sha512-wwQAWhWSuHaag8c4q/KN/vCoeOJYshAIvMQwD4GpSb3OiZklFfvAgmj0VCBBImRpuF/aFgIRzllXlVX93Jevww==}
+
+  '@sketch-hq/sketch-file-format-ts@6.5.0':
+    resolution: {integrity: sha512-shaGl4ttFDpHjYBoMaZpciOtsi/lKvJ3VfcBYk6+PjjbFs6H5GxPAyhbiSqy3Vmx30aos284pd88QzD3rE6iag==}
 
   '@testing-library/dom@10.4.2':
     resolution: {integrity: sha512-yzr2S9HyAIdhz2/6qHgbs665Q7PKVcDF05vsOlHPxG1mo36gKVesdYVeDLnXgfjJ03CrKRk08knc6+E/9m8v2Q==}
@@ -1465,6 +1474,8 @@ snapshots:
   '@oxlint/plugins@1.88.0': {}
 
   '@polka/url@1.0.0-next.29': {}
+
+  '@sketch-hq/sketch-file-format-ts@6.5.0': {}
 
   '@testing-library/dom@10.4.2':
     dependencies:
