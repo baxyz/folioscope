@@ -6,6 +6,7 @@ packages:
 catalogMode: prefer
 
 catalog:
+  "@sketch-hq/sketch-file-format-ts": 6.5.0
   "@types/node": ^24
   fflate: 0.8.3
   openfig-core: 0.4.1
