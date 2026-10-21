@@ -2,10 +2,10 @@
 
 use std::process::ExitCode;
 
-use folioscope_core::fig::{self, prototype::summarize, tree::Tree};
+use folioscope_core::fig::{self, tree::Tree};
 
 const USAGE: &str = "usage:
-  folioscope inspect <file.fig>
+  folioscope inspect <file.fig|file.sketch>
   folioscope render <file.fig> <node-id> <out.png> [scale]   (also writes <out>.svg)";
 
 fn main() -> ExitCode {
@@ -43,7 +43,9 @@ fn load(path: &str) -> Result<fig::FigFile, String> {
 }
 
 fn inspect(path: &str) -> Result<(), String> {
-    print!("{}", summarize(&load(path)?));
+    let bytes = std::fs::read(path).map_err(|e| format!("cannot read {path}: {e}"))?;
+    let summary = folioscope_core::summarize(&bytes).map_err(|e| format!("{path}: {e}"))?;
+    print!("{summary}");
     Ok(())
 }
 

@@ -5,7 +5,75 @@
 
 pub mod fig;
 pub mod kiwi;
+pub mod sketch;
+pub mod summary;
+
+use std::io::{Cursor, Read};
 
 /// Version of the IR schema, written into every baked `.folio` so players can refuse
 /// incompatible files.
 pub const IR_VERSION: u32 = 0;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Format {
+    Fig,
+    Sketch,
+    Xd,
+    Penpot,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("not a .fig, .sketch, .xd or .penpot file")]
+    UnknownFormat,
+    #[error("{0:?} files are not supported yet")]
+    Unsupported(Format),
+    #[error(transparent)]
+    Fig(#[from] fig::FigError),
+    #[error(transparent)]
+    Sketch(#[from] sketch::SketchError),
+}
+
+/// Detects the format from the archive's contents, never from a file name.
+#[must_use]
+pub fn detect(archive: &[u8]) -> Option<Format> {
+    let mut zip = zip::ZipArchive::new(Cursor::new(archive)).ok()?;
+    let names: Vec<String> = zip
+        .file_names()
+        .filter_map(|name| name.ok().map(std::borrow::Cow::into_owned))
+        .collect();
+    let has = |name: &str| names.iter().any(|n| n == name);
+    if has("canvas.fig") {
+        return Some(Format::Fig);
+    }
+    if has("document.json") {
+        return Some(Format::Sketch);
+    }
+    if has("mimetype") {
+        let mut mimetype = String::new();
+        zip.by_name("mimetype")
+            .ok()?
+            .read_to_string(&mut mimetype)
+            .ok()?;
+        if mimetype.contains("application/vnd.adobe.sparkler.project+dcxucf") {
+            return Some(Format::Xd);
+        }
+    }
+    if has("manifest.json") && names.iter().any(|n| n.starts_with("files/")) {
+        return Some(Format::Penpot);
+    }
+    None
+}
+
+/// Decodes any supported design file and summarizes its prototype.
+///
+/// # Errors
+///
+/// Fails on an unknown or not yet supported format, or when the file cannot be decoded.
+pub fn summarize(archive: &[u8]) -> Result<summary::Summary, Error> {
+    match detect(archive).ok_or(Error::UnknownFormat)? {
+        Format::Fig => Ok(fig::prototype::summarize(&fig::decode(archive)?)),
+        Format::Sketch => Ok(sketch::summarize(&sketch::decode(archive)?)),
+        format => Err(Error::Unsupported(format)),
+    }
+}

@@ -20,6 +20,7 @@ insta = "1.49"
 # Glyphs come as outlines in the files, so resvg needs no text shaping or system fonts.
 resvg = { version = "0.48", default-features = false, features = ["raster-images"] }
 ruzstd = "0.9"
+serde_json = "1"
 thiserror = "2"
 zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
 
