@@ -115,6 +115,16 @@ export class FigBuilder {
     });
   }
 
+  /** The device a page's prototype is presented in, as Figma's presets name it. */
+  device(page: FigGuid, preset: string, width: number, height: number): void {
+    this.node(page).prototypeDevice = {
+      type: "PRESET",
+      size: { x: width, y: height },
+      presetIdentifier: preset,
+      rotation: "NONE",
+    };
+  }
+
   /** Lets a frame scroll; its content is whatever overflows its size. */
   scrollable(frame: FigGuid, direction: "VERTICAL" | "HORIZONTAL" | "BOTH" = "VERTICAL"): void {
     this.node(frame).scrollDirection = direction;
