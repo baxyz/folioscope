@@ -26,6 +26,11 @@ jobs:
       - run: pnpm exec vp check
       - run: pnpm exec vp run -r test
       - run: pnpm exec vp run -r build
+      - name: Lite player budget (15 KB of JS, gzipped)
+        run: |
+          size=$(gzip -9 -c packages/folioscope/dist/index.mjs | wc -c)
+          echo "lite player: $size bytes gzipped"
+          test "$size" -le 15360
 
   rust:
     name: Rust (fmt, clippy, nextest, deny)
@@ -43,12 +48,32 @@ jobs:
       - run: cargo nextest run --workspace --no-tests=pass
       - run: cargo deny check
 
+  e2e:
+    name: E2E (Firefox)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: rustup show active-toolchain || rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 11.8.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: cargo build -p folioscope-cli
+      - run: pnpm exec vp run -r build
+      - run: pnpm --filter folioscope exec playwright install --with-deps firefox
+      - run: pnpm --filter folioscope test:e2e
+
   # The single status to mark as required in branch protection, so adding or renaming jobs
   # never needs a settings change.
   required:
     name: Required checks passed
     if: always()
-    needs: [js, rust]
+    needs: [js, rust, e2e]
     runs-on: ubuntu-latest
     steps:
       - name: Fail unless every needed job succeeded
