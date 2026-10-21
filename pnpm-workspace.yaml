@@ -21,3 +21,7 @@ peerDependencyRules:
     - vite
   allowedVersions:
     vite: "*"
+# Dependencies allowed to run install scripts.
+allowBuilds:
+  esbuild: true
+  workerd: true

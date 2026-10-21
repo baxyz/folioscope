@@ -5,10 +5,13 @@
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
-    "ready": "vp check && vp run -r test && vp run -r build"
+    "ready": "vp check && vp run -r test && vp run -r build",
+    "build": "vp run -r build",
+    "deploy": "wrangler deploy"
   },
   "devDependencies": {
-    "vite-plus": "catalog:"
+    "vite-plus": "catalog:",
+    "wrangler": "4.151.3"
   },
   "devEngines": {
     "packageManager": {
