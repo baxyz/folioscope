@@ -1,0 +1,64 @@
+---
+source: crates/folioscope-core/tests/fig.rs
+expression: "serde_json::to_string_pretty(&ir).unwrap()"
+---
+{
+  "source": "fig",
+  "pages": [
+    {
+      "id": "0:1",
+      "name": "Prototype",
+      "flows": [
+        {
+          "name": "Scroll flow",
+          "start": "1:1"
+        }
+      ],
+      "frames": [
+        {
+          "id": "1:1",
+          "name": "Feed",
+          "bounds": {
+            "x": 0.0,
+            "y": 0.0,
+            "width": 375.0,
+            "height": 812.0
+          },
+          "hotspots": [
+            {
+              "node": "1:13",
+              "name": "Back to top",
+              "bounds": {
+                "x": 88.0,
+                "y": 2272.0,
+                "width": 200.0,
+                "height": 48.0
+              },
+              "interactions": [
+                {
+                  "trigger": {
+                    "type": "click"
+                  },
+                  "action": {
+                    "type": "scrollTo",
+                    "to": "1:3",
+                    "transition": {
+                      "kind": {
+                        "type": "other",
+                        "name": "SCROLL_ANIMATE"
+                      },
+                      "durationMs": 400,
+                      "easing": {
+                        "type": "easeInOut"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -16,12 +16,14 @@ authors.workspace = true
 helpers4 = { workspace = true, features = ["bytes", "hex"] }
 flate2.workspace = true
 ruzstd.workspace = true
+serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
 zip.workspace = true
 
 [dev-dependencies]
 insta.workspace = true
+serde_json.workspace = true
 
 [lints]
 workspace = true

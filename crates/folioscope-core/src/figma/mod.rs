@@ -3,6 +3,7 @@
 //! Reader for `.fig` files: a ZIP archive whose `canvas.fig` entry holds a Kiwi schema and a
 //! Kiwi message with every node of the document. See `docs/format-figma.md`.
 
+pub mod ir;
 pub mod prototype;
 pub mod tree;
 
