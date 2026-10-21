@@ -181,7 +181,7 @@ function flowsAndPages(): FigmaBuilder {
   return figma;
 }
 
-/** The `.sketch` twin of `navigation`: a visible button and a hotspot link back. */
+/** The `.sketch` twin of `navigation`, shaped like a converter's output that Lunacy plays. */
 function sketchNavigation(): SketchBuilder {
   const sketch = new SketchBuilder();
   const page = sketch.page("Prototype");
@@ -199,11 +199,8 @@ function sketchNavigation(): SketchBuilder {
   );
   sketch.link(open, details, "slideFromRight");
 
-  sketch.rect(details, "Back", { x: 16, y: 56, width: 80, height: 32 }, GREY, 8);
-  sketch.link(
-    sketch.hotspot(details, "Back hotspot", { x: 16, y: 56, width: 80, height: 32 }),
-    "back",
-  );
+  const back = sketch.rect(details, "Back", { x: 16, y: 56, width: 80, height: 32 }, GREY, 8);
+  sketch.link(back, "back");
 
   return sketch;
 }

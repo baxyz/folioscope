@@ -39,8 +39,9 @@ Much simpler than Figma's:
   `{ _class: "MSImmutableFlowConnection", destinationArtboardID, animationType, maintainScrollPosition? }`.
   - `destinationArtboardID` is an artboard's `do_objectID`, `"back"`, or `"automatic"` (a link
     inside a symbol that follows the instance's own target).
-  - `animationType`: `0` none, `1` slide from left, `2` from right, `3` from bottom, `4` from top.
-    No duration or easing is stored.
+  - `animationType`: `1` slide from left, `2` from right, `3` from bottom, `4` from top; no
+    animation is `0` in schema 6.5 but `-1` in real files (Convertify writes both). No duration or
+    easing is stored.
 - **Hotspots**: `_class: "MSImmutableHotspotLayer"` layers, invisible, that exist only to carry a
   `flow`.
 - The only trigger is a click or tap. Schema 6.5 has no overlays, hover, delays or scroll links;
@@ -48,3 +49,10 @@ Much simpler than Figma's:
 
 Everything above maps onto the IR as a subset of Figma's model: a click trigger, `NAVIGATE` or
 `BACK`, and the `SLIDE_FROM_*` transitions.
+
+## What Lunacy plays
+
+Lunacy (the free Sketch-compatible editor we validate with) played a file converted from our Figma
+fixture by the Convertify plugin, and showed no navigation in our first generated files. The
+generator now writes what that file has: each artboard's fill as a first, full-size rectangle,
+corner radii on the points (`fixedRadius: 0`), uppercase ids, links on the visible layers.

@@ -5,6 +5,6 @@ expression: summarize(&file).to_string()
 sketch v134 (com.bohemiancoding.sketch3 69.1)
 page "Prototype" (00000000-0000-4000-8000-000000000001)
   artboard "Home" (00000000-0000-4000-8000-000000000003) 375x812 at 0,0, starts flow ""
-    "Open details" (00000000-0000-4000-8000-000000000009) ON_CLICK -> navigate "Details" (00000000-0000-4000-8000-000000000005) with SLIDE_FROM_RIGHT
-  artboard "Details" (00000000-0000-4000-8000-000000000005) 375x812 at 475,0
-    "Back hotspot" (00000000-0000-4000-8000-00000000000d) ON_CLICK -> back
+    "Open details" (00000000-0000-4000-8000-00000000000D) ON_CLICK -> navigate "Details" (00000000-0000-4000-8000-000000000007) with SLIDE_FROM_RIGHT
+  artboard "Details" (00000000-0000-4000-8000-000000000007) 375x812 at 475,0
+    "Back" (00000000-0000-4000-8000-00000000000F) ON_CLICK -> back
