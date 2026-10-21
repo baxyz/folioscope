@@ -13,26 +13,27 @@ import { firefox } from "playwright";
 const repo = fileURLToPath(new URL("../../../", import.meta.url));
 const site = mkdtempSync(join(tmpdir(), "folioscope-e2e-"));
 const cli = process.env.FOLIOSCOPE_CLI ?? join(repo, "target/debug/folioscope");
-execFileSync(
-  cli,
-  ["bake", join(repo, "fixtures/fig/navigation.fig"), join(site, "navigation.folio")],
-  { stdio: "inherit" },
-);
+for (const name of ["navigation", "flows-and-pages"]) {
+  execFileSync(cli, ["bake", join(repo, `fixtures/fig/${name}.fig`), join(site, `${name}.folio`)], {
+    stdio: "inherit",
+  });
+}
 
-const page = `<!doctype html><meta charset="utf-8">
+const page = (query: URLSearchParams) => `<!doctype html><meta charset="utf-8">
 <script type="module" src="/player.mjs"></script>
-<folioscope-player src="/navigation.folio" style="width: 375px"></folioscope-player>`;
+<folioscope-player src="/${query.get("folio")}.folio" ${query.has("controls") ? "controls" : ""} style="width: 375px"></folioscope-player>`;
 const types: Record<string, string> = {
   ".png": "image/png",
   ".json": "application/json",
   ".mjs": "text/javascript",
 };
 const server = createServer((req, res) => {
-  const path = normalize(decodeURIComponent(new URL(req.url!, "http://x").pathname));
+  const url = new URL(req.url!, "http://x");
+  const path = normalize(decodeURIComponent(url.pathname));
   try {
     const body =
       path === "/"
-        ? page
+        ? page(url.searchParams)
         : path === "/player.mjs"
           ? readFileSync(join(repo, "packages/folioscope/dist/index.mjs"))
           : readFileSync(join(site, path));
@@ -53,7 +54,7 @@ try {
   const tab = await browser.newPage({ viewport: { width: 375, height: 812 } });
   const errors: string[] = [];
   tab.on("pageerror", (e) => errors.push(e.message));
-  await tab.goto(`http://localhost:${port}/`);
+  await tab.goto(`http://localhost:${port}/?folio=navigation`);
 
   // Settled on `name`: the only frame left once a transition is over.
   const settledOn = (name: string) =>
@@ -66,20 +67,37 @@ try {
   await settledOn("Home");
   console.log("✓ starts on the flow's first frame (Home)");
 
-  await tab.locator('folioscope-player button[aria-label="Open details"]').click();
+  await tab.locator('folioscope-player .frame button[aria-label="Open details"]').click();
   await settledOn("Details");
   console.log("✓ the hotspot navigates to Details, with its transition");
 
-  await tab.locator('folioscope-player button[aria-label="Back"]').click();
+  await tab.locator('folioscope-player .frame button[aria-label="Back"]').click();
   await settledOn("Home");
   console.log("✓ the back hotspot returns to Home");
 
-  await tab.locator('folioscope-player button[aria-label="Open details"]').focus();
+  await tab.locator('folioscope-player .frame button[aria-label="Open details"]').focus();
   await tab.keyboard.press("Enter");
   await settledOn("Details");
   await tab.keyboard.press("Escape");
   await settledOn("Home");
   console.log("✓ keyboard: Enter follows a hotspot, Escape goes back");
+
+  await tab.goto(`http://localhost:${port}/?folio=flows-and-pages&controls`);
+  await settledOn("Sign up 1");
+  const control = (label: string) =>
+    tab.locator(`folioscope-player .controls [aria-label="${label}"]`);
+  assert.equal(await control("Back").isDisabled(), true);
+  await control("Flow").selectOption("Log in");
+  await settledOn("Log in 1");
+  await tab.locator('folioscope-player .frame button[aria-label="Next"]').click();
+  await settledOn("Log in 2");
+  assert.equal(await control("Back").isDisabled(), false);
+  await control("Restart").click();
+  await settledOn("Log in 1");
+  await control("Page").selectOption("App");
+  await settledOn("Dashboard");
+  assert.equal(await control("Flow").isHidden(), true);
+  console.log("✓ controls: flow and page pickers, restart, back state");
 
   assert.deepEqual(errors, []);
 } finally {

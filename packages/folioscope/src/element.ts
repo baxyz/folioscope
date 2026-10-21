@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { type FolioIndex, type FolioFrame, SUPPORTED_FOLIO, SUPPORTED_IR } from "./folio.ts";
+import { CONTROLS_STYLE, Controls } from "./controls.ts";
 import { decoded, play, renderFrame } from "./lite.ts";
 import { Runtime, type Step } from "./runtime.ts";
 
@@ -26,7 +27,7 @@ const STYLE = `
  * player, which comes later.
  */
 export class FolioscopePlayer extends BaseElement {
-  static readonly observedAttributes: readonly string[] = ["src", "flow", "page"];
+  static readonly observedAttributes: readonly string[] = ["src", "flow", "page", "controls"];
 
   private readonly root: ShadowRoot;
   private readonly viewport: HTMLElement;
@@ -40,13 +41,24 @@ export class FolioscopePlayer extends BaseElement {
   private loading = 0;
   private showing = 0;
   private resize?: ResizeObserver;
+  private readonly controls: Controls;
 
   constructor() {
     super();
     this.root = this.attachShadow({ mode: "open" });
-    this.root.innerHTML = `<style>${STYLE}</style><div class="viewport" part="viewport"><div class="stage"></div></div>`;
+    this.root.innerHTML = `<style>${STYLE}${CONTROLS_STYLE}</style><div class="viewport" part="viewport"><div class="stage"></div></div>`;
     this.viewport = this.root.querySelector(".viewport")!;
     this.stage = this.root.querySelector(".stage")!;
+    this.controls = new Controls({
+      restart: () => this.restart(),
+      back: () => this.back(),
+      page: (i) =>
+        this.setAttribute("page", String(this.index?.pages.indexOf(this.playablePages()[i]!) ?? 0)),
+      flow: (i) => this.setAttribute("flow", String(i)),
+      fullscreen: () => void this.requestFullscreen?.().catch(() => undefined),
+    });
+    this.controls.element.hidden = !this.hasAttribute("controls");
+    this.root.append(this.controls.element);
     this.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && this.runtime?.canGoBack) {
         event.preventDefault();
@@ -81,7 +93,8 @@ export class FolioscopePlayer extends BaseElement {
 
   attributeChangedCallback(name: string, previous: string | null, value: string | null): void {
     if (previous === value || !this.isConnected) return;
-    if (name === "src") void this.load();
+    if (name === "controls") this.controls.element.hidden = value === null;
+    else if (name === "src") void this.load();
     else if (this.index) this.startPage();
   }
 
@@ -145,7 +158,16 @@ export class FolioscopePlayer extends BaseElement {
       index.pages.find((p) => p.flows.length > 0) ??
       index.pages[0];
     if (!page) return;
-    this.runtime = new Runtime(page, this.getAttribute("flow") ?? undefined);
+    const flowAttr = this.getAttribute("flow") ?? undefined;
+    this.runtime = new Runtime(page, flowAttr);
+    const flowIndex =
+      flowAttr !== undefined && /^\d+$/.test(flowAttr)
+        ? Number(flowAttr)
+        : Math.max(
+            0,
+            page.flows.findIndex((f) => f.name === flowAttr),
+          );
+    this.controls.load(index, page, flowIndex);
     void this.show(this.runtime.restart());
   }
 
@@ -181,6 +203,7 @@ export class FolioscopePlayer extends BaseElement {
     if (seq !== this.showing) return;
     for (const el of this.stage.querySelectorAll(".frame")) if (el !== incoming) el.remove();
     if (hadFocus) incoming.focus({ preventScroll: true });
+    this.controls.update(this.runtime?.canGoBack ?? false);
     this.emit("folioscope:navigate", { frame: frame.id, name: frame.name });
     this.schedule(frame);
     this.preloadNeighbours(frame);
@@ -209,6 +232,10 @@ export class FolioscopePlayer extends BaseElement {
         }
       }
     }
+  }
+
+  private playablePages() {
+    return this.index?.pages.filter((p) => p.frames.length > 0) ?? [];
   }
 
   private showPoster(): void {
