@@ -5,7 +5,7 @@
 use std::collections::HashMap;
 use std::fmt;
 
-use crate::fig::FigFile;
+use crate::figma::FigFile;
 use crate::kiwi::Value;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

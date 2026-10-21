@@ -59,7 +59,7 @@ Defined in `scopes.json`:
 ```text
 folioscope/
   crates/
-    folioscope-core/   ← importers (fig, sketch, xd, penpot), format detection, summary; IR later
+    folioscope-core/   ← importers (figma, sketch, xd, penpot), format detection, summary; IR later
     folioscope-bake/   ← rendering (SVG, then PNG with resvg), the .folio writer later
     folioscope-cli/    ← `folioscope` binary: inspect, render
                          (folioscope-wasm joins in Phase 4)

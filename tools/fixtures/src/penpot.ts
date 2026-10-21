@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { readFileSync } from "node:fs";
 import { zipSync } from "fflate";
-import type { Box } from "./fig.ts";
+import type { Box } from "./figma.ts";
 
 // What a Penpot 2.18 export declares about its file: format version, features and the schema
 // migrations already applied, so an import does not replay them.

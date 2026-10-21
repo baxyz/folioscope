@@ -2,8 +2,8 @@
 
 //! Summarizes the prototype of a decoded `.fig`: see [`crate::summary`].
 
-use crate::fig::FigFile;
-use crate::fig::tree::{Node, Tree, node_id};
+use crate::figma::FigFile;
+use crate::figma::tree::{Node, Tree, node_id};
 use crate::kiwi::Value;
 use crate::summary::{Action, Flow, Frame, Interaction, Page, Summary, Transition};
 

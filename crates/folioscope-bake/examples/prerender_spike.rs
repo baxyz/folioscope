@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Phase 0 pre-render spike, by hand: bakes `fixtures/fig/triggers.fig` into layers and a minimal
+//! Phase 0 pre-render spike, by hand: bakes `fixtures/figma/triggers.fig` into layers and a minimal
 //! `index.json` for `spikes/prerender/index.html`. Node ids are hard-coded on purpose; the real
 //! bake will find the layers itself.
 //!
-//! `cargo run -p folioscope-bake --example prerender_spike -- fixtures/fig/triggers.fig spikes/prerender/out`
+//! `cargo run -p folioscope-bake --example prerender_spike -- fixtures/figma/triggers.fig spikes/prerender/out`
 
 use std::collections::hash_map::DefaultHasher;
 use std::fmt::Write as _;
@@ -12,7 +12,7 @@ use std::hash::{Hash, Hasher};
 use std::path::Path;
 
 use folioscope_bake::{rasterize, svg};
-use folioscope_core::fig::{decode, tree::NodeId, tree::Tree};
+use folioscope_core::figma::{decode, tree::NodeId, tree::Tree};
 
 const DENSITIES: [u8; 2] = [1, 2];
 

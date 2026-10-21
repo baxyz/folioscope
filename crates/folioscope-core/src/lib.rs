@@ -3,7 +3,7 @@
 //! Importers and intermediate model (IR) for interactive `.fig`, `.sketch`, `.xd` and `.penpot`
 //! prototypes. See `PROJECT.md` at the repository root.
 
-pub mod fig;
+pub mod figma;
 pub mod kiwi;
 pub mod penpot;
 pub mod sketch;
@@ -31,7 +31,7 @@ pub enum Error {
     #[error("{0:?} files are not supported yet")]
     Unsupported(Format),
     #[error(transparent)]
-    Fig(#[from] fig::FigError),
+    Fig(#[from] figma::FigError),
     #[error(transparent)]
     Sketch(#[from] sketch::SketchError),
     #[error(transparent)]
@@ -78,7 +78,7 @@ pub fn detect(archive: &[u8]) -> Option<Format> {
 /// Fails on an unknown or not yet supported format, or when the file cannot be decoded.
 pub fn summarize(archive: &[u8]) -> Result<summary::Summary, Error> {
     match detect(archive).ok_or(Error::UnknownFormat)? {
-        Format::Fig => Ok(fig::prototype::summarize(&fig::decode(archive)?)),
+        Format::Fig => Ok(figma::prototype::summarize(&figma::decode(archive)?)),
         Format::Sketch => Ok(sketch::summarize(&sketch::decode(archive)?)),
         Format::Xd => Ok(xd::summarize(&xd::decode(archive)?)),
         Format::Penpot => Ok(penpot::summarize(&penpot::decode(archive)?)),

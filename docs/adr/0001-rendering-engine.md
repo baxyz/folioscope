@@ -13,7 +13,7 @@ four formats, which meet in the IR.
 
 The starting recommendation was Grida's engine, "presumably usable natively". Phase 0 checked it.
 
-## Findings (Phase 0 spike, `fixtures/fig/navigation.fig`)
+## Findings (Phase 0 spike, `fixtures/figma/navigation.fig`)
 
 **`@grida/refig` 0.0.7** (MIT) on `@grida/canvas-wasm` 0.91.0-canary.22 (Apache-2.0), under Node:
 

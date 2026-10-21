@@ -499,7 +499,7 @@ Suggested order: `geometry` and `binary` first (phase 0), then `fsm` and `dom` (
 ```
 folioscope/
 ├─ crates/
-│  ├─ folioscope-core/        # IR, importers (fig, sketch, xd, penpot), instance resolution (Rust lib)
+│  ├─ folioscope-core/        # IR, importers (figma, sketch, xd, penpot), instance resolution (Rust lib)
 │  ├─ folioscope-bake/        # layer split, state enumeration, native rendering, .folio writer
 │  ├─ folioscope-wasm/        # wasm-bindgen bindings to folioscope-core (full player)
 │  └─ folioscope-cli/         # `folioscope bake`, `folioscope inspect`, `folioscope fonts`
@@ -517,7 +517,7 @@ folioscope/
 │  ├─ site/                   # VitePress site → folioscope.baxyz.dev (GitHub Pages)
 │  └─ playground/             # demo: drop a file, play it (vp dev), embedded in the site
 ├─ fixtures/                  # test files we created (see § 10)
-│  ├─ fig/  ├─ sketch/  ├─ xd/  └─ penpot/
+│  ├─ figma/  ├─ sketch/  ├─ xd/  └─ penpot/
 ├─ docs/
 │  ├─ adr/                    # D1 to D7
 ├─ Cargo.toml                 # Rust workspace

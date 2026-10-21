@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-use folioscope_core::fig::{decode, prototype::summarize};
+use folioscope_core::figma::{decode, prototype::summarize};
 
 fn fixture(name: &str) -> Vec<u8> {
-    let path = format!("{}/../../fixtures/fig/{name}", env!("CARGO_MANIFEST_DIR"));
+    let path = format!("{}/../../fixtures/figma/{name}", env!("CARGO_MANIFEST_DIR"));
     std::fs::read(&path).unwrap_or_else(|e| panic!("{path}: {e}"))
 }
 
@@ -24,5 +24,5 @@ fn generated_fixtures_list_frames_flows_and_links() {
 
 #[test]
 fn rejects_a_file_that_is_not_a_zip() {
-    assert!(decode(b"not a fig file").is_err());
+    assert!(decode(b"not a .fig file").is_err());
 }

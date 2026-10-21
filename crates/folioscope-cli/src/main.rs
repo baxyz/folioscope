@@ -3,7 +3,7 @@
 use std::io::Write;
 use std::process::ExitCode;
 
-use folioscope_core::fig::{self, tree::Tree};
+use folioscope_core::figma::{self, tree::Tree};
 
 const USAGE: &str = "usage:
   folioscope inspect <file.fig|.sketch|.xd|.penpot>
@@ -38,9 +38,9 @@ fn main() -> ExitCode {
     }
 }
 
-fn load(path: &str) -> Result<fig::FigFile, String> {
+fn load(path: &str) -> Result<figma::FigFile, String> {
     let bytes = std::fs::read(path).map_err(|e| format!("cannot read {path}: {e}"))?;
-    fig::decode(&bytes).map_err(|e| format!("{path}: {e}"))
+    figma::decode(&bytes).map_err(|e| format!("{path}: {e}"))
 }
 
 fn inspect(path: &str) -> Result<(), String> {

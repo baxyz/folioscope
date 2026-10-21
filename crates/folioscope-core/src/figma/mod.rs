@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Reader for `.fig` files: a ZIP archive whose `canvas.fig` entry holds a Kiwi schema and a
-//! Kiwi message with every node of the document. See `docs/format-fig.md`.
+//! Kiwi message with every node of the document. See `docs/format-figma.md`.
 
 pub mod prototype;
 pub mod tree;
