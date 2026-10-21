@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { FigBuilder } from "./fig.ts";
+import { PenpotBuilder } from "./penpot.ts";
 import { SketchBuilder } from "./sketch.ts";
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), "../../../fixtures");
@@ -193,6 +194,38 @@ function sketchNavigation(): SketchBuilder {
   return sketch;
 }
 
+/** The `.penpot` twin of `navigation`. */
+function penpotNavigation(): PenpotBuilder {
+  const penpot = new PenpotBuilder("Navigation");
+  const page = penpot.page("Prototype");
+  const home = penpot.board(page, "Home", { x: 0, y: 0, ...PHONE });
+  const details = penpot.board(page, "Details", { x: 475, y: 0, ...PHONE }, "#F9FAFB");
+  penpot.flow(page, home, "Main flow");
+
+  penpot.rect(page, home, "Header", { x: 0, y: 0, width: 375, height: 96 }, GREY);
+  const open = penpot.rect(
+    page,
+    home,
+    "Open details",
+    { x: 88, y: 640, width: 200, height: 48 },
+    BLUE,
+    24,
+  );
+  penpot.navigate(open, details, { animationType: "dissolve", duration: 300, easing: "ease-out" });
+
+  const back = penpot.rect(
+    page,
+    details,
+    "Back",
+    { x: 491, y: 56, width: 80, height: 32 },
+    GREY,
+    8,
+  );
+  penpot.back(back);
+
+  return penpot;
+}
+
 const fixtures: Record<string, () => { toBytes(): Uint8Array }> = {
   "fig/navigation.fig": navigation,
   "fig/overlay.fig": overlay,
@@ -200,6 +233,7 @@ const fixtures: Record<string, () => { toBytes(): Uint8Array }> = {
   "fig/triggers.fig": triggers,
   "fig/flows-and-pages.fig": flowsAndPages,
   "sketch/navigation.sketch": sketchNavigation,
+  "penpot/navigation.penpot": penpotNavigation,
 };
 
 for (const [path, build] of Object.entries(fixtures)) {
