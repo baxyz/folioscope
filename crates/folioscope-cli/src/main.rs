@@ -16,6 +16,10 @@ fn main() -> ExitCode {
         ["inspect", path] => inspect(path),
         ["render", path, node, out] => render(path, node, out, "1"),
         ["render", path, node, out, scale] => render(path, node, out, scale),
+        ["--help" | "-h"] => {
+            println!("{USAGE}");
+            Ok(())
+        }
         ["--version" | "-V"] => {
             println!(
                 "folioscope {} (IR v{})",

@@ -7,12 +7,12 @@
 //! `cargo run -p folioscope-bake --example prerender_spike -- fixtures/figma/triggers.fig spikes/prerender/out`
 
 use std::collections::hash_map::DefaultHasher;
-use std::fmt::Write as _;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
 
 use folioscope_bake::{rasterize, svg};
 use folioscope_core::figma::{decode, tree::NodeId, tree::Tree};
+use serde_json::json;
 
 const DENSITIES: [u8; 2] = [1, 2];
 
@@ -65,37 +65,28 @@ fn main() {
         )
     });
 
-    let mut json = String::new();
-    let _ = write!(
-        json,
-        r#"{{
-  "irVersion": {ir},
-  "densities": [1, 2],
-  "start": "splash",
-  "frames": {{
-    "splash": {{
-      "name": "Splash", "width": 375, "height": 812,
-      "layers": [{{ "src": "{splash}", "x": 0, "y": 0, "width": 375, "height": 812 }}],
-      "after": {{ "delayMs": 1500, "to": "home", "transition": {{ "type": "dissolve", "durationMs": 500 }} }}
-    }},
-    "home": {{
-      "name": "Home", "width": 375, "height": 812,
-      "layers": [{{ "src": "{home}", "x": 0, "y": 0, "width": 375, "height": 812 }}],
-      "zones": [{{
-        "name": "Button", "x": 88, "y": 640, "width": 200, "height": 48,
-        "states": {{ {states} }}
-      }}]
-    }}
-  }}
-}}
-"#,
-        ir = folioscope_core::IR_VERSION,
-        states = states
-            .iter()
-            .map(|(state, src)| format!(r#""{state}": "{src}""#))
-            .collect::<Vec<_>>()
-            .join(", "),
-    );
+    let layer = |src: &str| json!([{ "src": src, "x": 0, "y": 0, "width": 375, "height": 812 }]);
+    let index = json!({
+        "irVersion": folioscope_core::IR_VERSION,
+        "densities": DENSITIES,
+        "start": "splash",
+        "frames": {
+            "splash": {
+                "name": "Splash", "width": 375, "height": 812,
+                "layers": layer(&splash),
+                "after": { "delayMs": 1500, "to": "home", "transition": { "type": "dissolve", "durationMs": 500 } }
+            },
+            "home": {
+                "name": "Home", "width": 375, "height": 812,
+                "layers": layer(&home),
+                "zones": [{
+                    "name": "Button", "x": 88, "y": 640, "width": 200, "height": 48,
+                    "states": states.iter().map(|(state, src)| (state.to_string(), json!(src))).collect::<serde_json::Map<_, _>>()
+                }]
+            }
+        }
+    });
+    let json = serde_json::to_string_pretty(&index).unwrap();
     std::fs::write(out.join("index.json"), &json).unwrap();
     println!(
         "{}: {} layers, {} bytes of PNG at 1x+2x, {} bytes of index.json",

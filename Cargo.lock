@@ -159,6 +159,7 @@ dependencies = [
  "helpers4",
  "insta",
  "resvg",
+ "serde_json",
  "thiserror",
 ]
 

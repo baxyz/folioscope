@@ -1,5 +1,8 @@
 # Folioscope
 
+[![CI](https://github.com/baxyz/folioscope/actions/workflows/ci.yml/badge.svg)](https://github.com/baxyz/folioscope/actions/workflows/ci.yml)
+[![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg)](LICENSE)
+
 **Flip through your prototypes.**
 
 `<folioscope-player>` is a web component that plays the interactive prototype stored in a `.fig`,

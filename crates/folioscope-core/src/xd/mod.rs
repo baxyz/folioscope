@@ -51,7 +51,11 @@ pub fn decode(archive: &[u8]) -> Result<XdFile, XdError> {
         })
     };
     let manifest = json("manifest")?;
-    let interactions = json("interactions/interactions.json").unwrap_or(Value::Null);
+    // A file without a prototype has no interactions.json; a broken one is still an error.
+    let interactions = match json("interactions/interactions.json") {
+        Err(XdError::Zip(zip::result::ZipError::FileNotFound)) => Value::Null,
+        other => other?,
+    };
     let mut artboards = HashMap::new();
     for entry in artboard_entries(&manifest) {
         let id = entry["path"]

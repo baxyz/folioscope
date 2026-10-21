@@ -99,53 +99,36 @@ pub fn summarize(file: &FigFile) -> Summary {
 
 /// `None` for an empty placeholder action (`connectionType: NONE`).
 fn to_action(action: &Value, tree: &Tree<'_>) -> Option<Action> {
-    let connection = action
-        .get("connectionType")
-        .and_then(Value::as_str)
-        .unwrap_or("NONE");
-    Some(match connection {
-        "NONE" => return None,
-        "INTERNAL_NODE" => {
-            let Some(target) = action.get("transitionNodeID").and_then(node_id) else {
-                return Some(Action::Unsupported(
-                    "INTERNAL_NODE without target".to_owned(),
-                ));
-            };
-            Action::Node {
-                navigation: action
-                    .get("navigationType")
-                    .and_then(Value::as_str)
-                    .unwrap_or("NAVIGATE")
-                    .to_owned(),
-                target: target.to_string(),
-                target_name: tree.get(target).map(|n| n.name.to_owned()),
-                transition: action
-                    .get("transitionType")
-                    .and_then(Value::as_str)
-                    .map(|kind| Transition {
-                        kind: kind.to_owned(),
-                        duration: action
-                            .get("transitionDuration")
-                            .and_then(Value::as_f32)
-                            .unwrap_or(0.0),
-                        easing: action
-                            .get("easingType")
-                            .and_then(Value::as_str)
-                            .map(str::to_owned),
-                    }),
-            }
-        }
-        "BACK" => Action::Back,
-        "CLOSE" => Action::Close,
-        "URL" => Action::Url(
-            action
-                .get("connectionURL")
-                .and_then(Value::as_str)
-                .unwrap_or("")
-                .to_owned(),
-        ),
-        other => Action::Unsupported(other.to_owned()),
-    })
+    let text = |k: &str| action.get(k).and_then(Value::as_str);
+    match text("connectionType").unwrap_or("NONE") {
+        "NONE" => None,
+        "INTERNAL_NODE" => Some(to_node_action(action, tree)),
+        "BACK" => Some(Action::Back),
+        "CLOSE" => Some(Action::Close),
+        "URL" => Some(Action::Url(text("connectionURL").unwrap_or("").to_owned())),
+        other => Some(Action::Unsupported(other.to_owned())),
+    }
+}
+
+/// An `INTERNAL_NODE` action: navigate, overlay, swap or scroll towards another node.
+fn to_node_action(action: &Value, tree: &Tree<'_>) -> Action {
+    let text = |k: &str| action.get(k).and_then(Value::as_str);
+    let Some(target) = action.get("transitionNodeID").and_then(node_id) else {
+        return Action::Unsupported("INTERNAL_NODE without target".to_owned());
+    };
+    Action::Node {
+        navigation: text("navigationType").unwrap_or("NAVIGATE").to_owned(),
+        target: target.to_string(),
+        target_name: tree.get(target).map(|n| n.name.to_owned()),
+        transition: text("transitionType").map(|kind| Transition {
+            kind: kind.to_owned(),
+            duration: action
+                .get("transitionDuration")
+                .and_then(Value::as_f32)
+                .unwrap_or(0.0),
+            easing: text("easingType").map(str::to_owned),
+        }),
+    }
 }
 
 fn to_frame(node: &Node<'_>, interactions: Vec<Interaction>) -> Frame {
