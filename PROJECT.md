@@ -550,21 +550,15 @@ console, and the pre-render spike displaying almost instantly.
 
 The fast path comes first: it is the one portfolio visitors will see.
 
-- [ ] IR v1 and `.fig` importer: frames, nodes, navigation interactions.
-- [ ] `folioscope bake` (Rust CLI): one layer per frame to start with, plus interactive zones;
-      `index.json`, `poster.avif`, layers named by hash, several densities.
+- [ ] `folioscope bake`: AVIF or WebP layers instead of PNG (ADR 0004).
 - [ ] `folioscope/vite` Vite plugin, with a cache keyed on the source file's hash.
-- [ ] Lite player, no WASM: layers as `<img>`, interactive zones as DOM, neighbour preloading,
-      ThumbHash and `poster`.
-- [ ] Runtime: click trigger, _navigate_ and _back_ actions, starting points.
-- [ ] `<folioscope-player>`: `src`, `poster`, `preload`, `flow`, `page`, `fit`, `restart()`.
-- [ ] Minimal control bar: restart, flow picker.
-- [ ] Budgets measured in CI: under 15 KB of JS gzipped for the lite player, first frame displayed
-      in under a second on an average mobile on 4G (Lighthouse CI; values to adjust after phase 0).
+- [ ] Lite player: ThumbHash placeholder.
+- [ ] `<folioscope-player>`: `preload` attribute.
+- [ ] Budget measured in CI: first frame displayed in under a second on an average mobile on 4G
+      (Lighthouse CI). The 15 KB JS budget is checked already.
 - [ ] Add `fsm` and `dom` to helpers4.
 - [ ] Publish to npm from CI, with provenance.
-- [ ] Minimal site on `folioscope.baxyz.dev`: home, the name explained, a playable demo, a "Getting
-      started" page.
+- [ ] Minimal site live on `folioscope.baxyz.dev` (built, waiting for the Worker's first deploy).
 
 **Exit criterion**: a simple `.fig` prototype, pre-rendered at build time, clickable end to end and
 displayed almost instantly on a portfolio page.
@@ -667,28 +661,7 @@ The "works right away" path with no build step, and the fallback for dynamic lay
 
 ## 9b. Website: `folioscope.baxyz.dev`
 
-### Hosting: GitHub Pages, on a baxyz.dev subdomain
-
-Both options combined: the site is **hosted on GitHub Pages** and **served on
-`folioscope.baxyz.dev`**.
-
-- **GitHub Pages**: free, deployed from the same repository by GitHub Actions, no extra account.
-- **`baxyz.dev`**: DNS is already at Cloudflare. A `CNAME folioscope → baxyz.github.io` record is
-  enough.
-  - Set it to **DNS only** (grey cloud), at least while GitHub issues the HTTPS certificate.
-  - Then tick "Enforce HTTPS" in the repository's Pages settings.
-  - Verify the `baxyz.dev` domain at the GitHub account level, so no other repository can claim it.
-- **The subdomain gives a stable URL**: if hosting changes one day, links do not break.
-
-**When moving to Cloudflare (Worker or Pages) becomes necessary**: GitHub Pages cannot set HTTP
-headers. WASM threads (`SharedArrayBuffer`) need the COOP and COEP headers. Two options:
-
-- move to Cloudflare, on the account that holds the domains, to avoid cross-account domain binding
-  problems;
-- use a workaround service worker (`coi-serviceworker`).
-
-To be decided in phase 4, when performance is measured. GitHub Pages does serve `.wasm` as
-`application/wasm`, so nothing blocks until then.
+Hosting, generator and deployment: [ADR 0010](docs/adr/0010-website.md).
 
 ### Contents
 
@@ -704,16 +677,10 @@ To be decided in phase 4, when performance is measured. GitHub Pages does serve 
 
 ### Technical
 
-- **Generator**: VitePress, built on Vite and integrated into the Vite+ toolchain. The component is
-  used there exactly as published, which doubles as an integration test.
 - **Location**: `apps/site/`. The playground (`apps/playground/`) is embedded in the site as a page.
-- **Deployment**: `site.yml` workflow on every push to `main`, via `actions/deploy-pages`. PR
-  previews optional.
-- **The site uses the `folioscope/vite` plugin**: demos are pre-rendered at build time, which shows
-  the fast path in real conditions. The playground uses the full player, since the visitor drops a
-  raw file there.
-- **Fixtures**: the site serves the fixtures from `fixtures/`. GitHub Pages limits: 1 GB per site,
-  100 MB per file. Plenty.
+- **The site will use the `folioscope/vite` plugin**: demos pre-rendered at build time, the fast
+  path in real conditions. The playground uses the full player, since the visitor drops a raw file
+  there.
 - **No tracking**: analytics disabled, or a privacy-respecting, cookie-less solution if needed.
 
 ---

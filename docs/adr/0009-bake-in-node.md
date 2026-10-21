@@ -1,6 +1,6 @@
 # ADR 0009 — Baking from Node: WebAssembly
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-21
 
 ## Context
@@ -27,7 +27,7 @@ The whole bake (decode, render, rasterize, hash) compiles to `wasm32-unknown-unk
 | Community file (11 frames, 9 photos, 3.9 MB of PNG) | 3.9 s  | 11.8 s | **8.1 s**               |
 | Module size                                         | —      | 2.4 MB | 2.2 MB (790 KB gzipped) |
 
-## Proposed decision
+## Decision
 
 **C, built with SIMD (`+simd128`, supported by Node ≥ 16 and every current browser).** The plugin
 bakes on first build and caches each `.folio` by the hash of its source file, so the slower bake is

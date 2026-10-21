@@ -1,0 +1,20 @@
+{
+  "name": "@folioscope/site",
+  "version": "0.0.0",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview",
+    "bake-demos": "node scripts/bake-demos.ts"
+  },
+  "dependencies": {
+    "folioscope": "workspace:*"
+  },
+  "devDependencies": {
+    "vitepress": "2.0.0-alpha.20",
+    "vue": "3.5.44"
+  }
+}

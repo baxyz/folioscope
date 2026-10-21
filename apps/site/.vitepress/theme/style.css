@@ -1,0 +1,12 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+.demo {
+  display: flex;
+  justify-content: center;
+  margin: 24px 0;
+}
+.demo folioscope-player {
+  width: min(375px, 100%);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgb(0 0 0 / 0.18);
+}

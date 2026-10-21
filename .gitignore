@@ -23,3 +23,13 @@ target
 fixtures/external/
 tools/fixtures/out/
 spikes/**/out/
+
+# VitePress output and cache
+apps/site/.vitepress/dist/
+apps/site/.vitepress/cache/
+
+# Scratch files dropped in the repository by hand
+temp/
+
+# Wrangler state
+.wrangler/

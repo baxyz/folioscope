@@ -67,6 +67,10 @@ jobs:
       - run: pnpm exec vp run -r build
       - run: pnpm --filter folioscope exec playwright install --with-deps firefox
       - run: pnpm --filter folioscope test:e2e
+      - name: Site demos are up to date with the fixtures and the bake
+        run: |
+          pnpm --filter @folioscope/site bake-demos
+          git diff --exit-code -- apps/site/public/folio
 
   # The single status to mark as required in branch protection, so adding or renaming jobs
   # never needs a settings change.

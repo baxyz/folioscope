@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // folioscope.baxyz.dev: the VitePress site, built by Workers Builds with `pnpm run build`.
+  "name": "site-dev-baxyz-folioscope",
+  "compatibility_date": "2026-10-21",
+  "assets": {
+    "directory": "./apps/site/.vitepress/dist",
+    "not_found_handling": "404-page",
+  },
+  "workers_dev": true,
+  "preview_urls": true,
+  // Required by `wrangler preview` (branch previews from Workers Builds). Empty: previews use the top-level settings.
+  "previews": {},
+  "routes": [{ "pattern": "folioscope.baxyz.dev", "custom_domain": true }],
+}

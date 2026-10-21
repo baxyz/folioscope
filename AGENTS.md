@@ -65,7 +65,7 @@ folioscope/
                          (folioscope-wasm joins in Phase 4)
   packages/
     folioscope/        ← npm package, defines <folioscope-player>
-  apps/                ← site and playground (Phase 1)
+  apps/site/           ← VitePress site on folioscope.baxyz.dev (ADR 0010); public/folio/ holds baked demos
   fixtures/            ← test files we generated, one folder per format;
                          external/ (git-ignored) holds real third-party files for local checks
   tools/fixtures/      ← the generators behind fixtures/
@@ -88,6 +88,8 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo nextest run --workspace --no-tests=pass
 cargo deny check
 pnpm --filter @folioscope/fixtures-tools generate   # rewrite fixtures/ from tools/fixtures
+pnpm --filter @folioscope/site bake-demos            # re-bake the site demos after a fixture or bake change
+pnpm run build                                       # player package, then the site (what Workers Builds runs)
 cargo run -p folioscope-cli -- inspect <file>        # pages, frames, flows and links of any format
 cargo run -p folioscope-cli -- render <file.fig> <node-id> <out.png> [scale]
 ```
