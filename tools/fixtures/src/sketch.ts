@@ -48,6 +48,8 @@ type Layer = FileFormat.Rectangle | FileFormat.Hotspot;
  */
 export class SketchBuilder {
   private nextId = 1;
+  /** Leave out the fields of `UNWRITTEN`; off only to test whether Lunacy needs that. */
+  omitUnwritten = true;
   private readonly pages: FileFormat.Page[] = [];
 
   /** UUID-shaped and deterministic; uppercase, as Sketch writes them. */
@@ -162,10 +164,11 @@ export class SketchBuilder {
   }
 
   toBytes(): Uint8Array {
+    const omit = this.omitUnwritten;
     const json = (value: unknown) =>
       new TextEncoder().encode(
-        JSON.stringify(value, function (this: { _class?: string }, key, field) {
-          return UNWRITTEN[this._class ?? ""]?.includes(key) ? undefined : field;
+        JSON.stringify(classFirst(value), function (this: { _class?: string }, key, field) {
+          return omit && UNWRITTEN[this._class ?? ""]?.includes(key) ? undefined : field;
         }),
       );
     const document: FileFormat.Document = {
@@ -367,4 +370,16 @@ function color(hex: string): FileFormat.Color {
     blue: channel(4),
     alpha: h.length >= 8 ? channel(6) : 1,
   };
+}
+
+/**
+ * Lunacy, a .NET reader, picks each object's type from `_class` and expects it first: with `_class`
+ * after other keys, it did not recognize artboards at all. Rebuilds every object with `_class` first.
+ */
+function classFirst(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(classFirst);
+  if (value === null || typeof value !== "object") return value;
+  const { _class, ...rest } = value as Record<string, unknown>;
+  const entries = Object.entries(rest).map(([k, v]) => [k, classFirst(v)] as const);
+  return Object.fromEntries(_class === undefined ? entries : [["_class", _class], ...entries]);
 }
