@@ -2,7 +2,7 @@
 // Types only: the package entry re-exports them as a CommonJS default, which `nodenext` hides.
 import type * as FileFormat from "@sketch-hq/sketch-file-format-ts/dist/cjs/types.js";
 import { zipSync } from "fflate";
-import type { Box } from "./fig.ts";
+import type { Box } from "./figma.ts";
 import { solidPng } from "./png.ts";
 
 const FIXED_DATE = new Date("2026-01-01T00:00:00Z");

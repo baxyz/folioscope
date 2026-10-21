@@ -9,7 +9,7 @@
 
 use std::fmt::Write;
 
-use folioscope_core::fig::tree::{Node, NodeId, Tree, node_id};
+use folioscope_core::figma::tree::{Node, NodeId, Tree, node_id};
 use folioscope_core::kiwi::Value;
 
 pub struct Svg {

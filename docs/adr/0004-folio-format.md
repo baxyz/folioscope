@@ -33,7 +33,7 @@ app.folio/
 
 ## Phase 0 spike (`spikes/prerender/`)
 
-`fixtures/fig/triggers.fig` baked by hand: a splash that leaves after 1.5 s, then a home screen as
+`fixtures/figma/triggers.fig` baked by hand: a splash that leaves after 1.5 s, then a home screen as
 a background plus a button in three states taken from the "while hovering" and "while pressing"
 frames. Played by `spikes/prerender/index.html` (~80 lines, no dependency), checked in Firefox
 with Playwright: the delay, hover and press all swap images with no re-render.

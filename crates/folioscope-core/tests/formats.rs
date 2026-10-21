@@ -25,7 +25,7 @@ fn files(dir: &Path, out: &mut Vec<PathBuf>) {
 #[test]
 fn detects_formats_by_content() {
     let read = |p: &str| std::fs::read(fixtures().join(p)).unwrap();
-    assert_eq!(detect(&read("fig/navigation.fig")), Some(Format::Fig));
+    assert_eq!(detect(&read("figma/navigation.fig")), Some(Format::Fig));
     assert_eq!(
         detect(&read("sketch/navigation.sketch")),
         Some(Format::Sketch)

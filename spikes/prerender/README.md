@@ -5,7 +5,7 @@ plus a button in three states (default, hover, press). `index.html` plays it wit
 JS: images and DOM zones, no WASM, no fonts.
 
 ```sh
-cargo run -p folioscope-bake --example prerender_spike -- fixtures/fig/triggers.fig spikes/prerender/out
+cargo run -p folioscope-bake --example prerender_spike -- fixtures/figma/triggers.fig spikes/prerender/out
 python3 -m http.server -d spikes/prerender 8000   # then open http://localhost:8000
 ```
 

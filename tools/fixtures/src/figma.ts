@@ -57,7 +57,7 @@ function position(index: number): string {
 }
 
 /** Builds a `.fig` file node by node, on top of openfig-core's empty document. */
-export class FigBuilder {
+export class FigmaBuilder {
   readonly doc: FigDocument = createEmptyFigDoc();
   private nextLocalId = 1;
   private pageNamed = false;

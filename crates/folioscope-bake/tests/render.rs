@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-use folioscope_core::fig::{decode, tree::Tree};
+use folioscope_core::figma::{decode, tree::Tree};
 
-fn navigation() -> folioscope_core::fig::FigFile {
+fn navigation() -> folioscope_core::figma::FigFile {
     let path = format!(
-        "{}/../../fixtures/fig/navigation.fig",
+        "{}/../../fixtures/figma/navigation.fig",
         env!("CARGO_MANIFEST_DIR")
     );
     decode(&std::fs::read(path).unwrap()).unwrap()
