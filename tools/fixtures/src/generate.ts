@@ -60,28 +60,36 @@ function overlay(): FigBuilder {
   return fig;
 }
 
-/** A vertically scrolling feed with a fixed header and tab bar, and a "back to top" link. */
+/**
+ * A vertically scrolling feed with a fixed header and tab bar, and a "back to top" link. Figma
+ * plays it only with a device set on the page and the content grouped in a frame (checked by
+ * importing variants).
+ */
 function scroll(): FigBuilder {
   const fig = new FigBuilder();
   const page = fig.page("Prototype");
+  fig.device(page, "APPLE_IPHONE_11PRO_SPACEGREY", 375, 812);
 
   const feed = fig.frame(page, "Feed", { x: 0, y: 0, ...PHONE }, "#F9FAFB");
   fig.flowStart(feed, "Scroll flow");
   fig.scrollable(feed);
 
+  // Room below the last item for the fixed tab bar (84) and a margin.
+  const height = 10 * 216 + 48 + 16 + 84 + 16;
+  const content = fig.frame(feed, "Content", { x: 0, y: 112, width: 375, height }, "#F9FAFB");
   const cards = Array.from({ length: 10 }, (_, i) =>
     fig.rect(
-      feed,
+      content,
       `Card ${i + 1}`,
-      { x: 16, y: 112 + i * 216, width: 343, height: 200 },
+      { x: 16, y: i * 216, width: 343, height: 200 },
       i % 2 ? GREY : "#DBEAFE",
       16,
     ),
   );
   const top = fig.rect(
-    feed,
+    content,
     "Back to top",
-    { x: 88, y: 112 + 10 * 216, width: 200, height: 48 },
+    { x: 88, y: 10 * 216, width: 200, height: 48 },
     BLUE,
     24,
   );
