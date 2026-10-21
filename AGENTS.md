@@ -7,8 +7,9 @@ This repository inherits the [canonical workspace rules](https://github.com/baxy
 `<folioscope-player>`: a web component that plays the interactive prototype stored in a `.fig`,
 `.sketch`, `.xd` or `.penpot` file, with no Figma, Sketch or Adobe account.
 
-**Status:** design phase, nothing implemented yet. Next up is Phase 0 (spikes), see
-[PROJECT.md § 8](PROJECT.md#8-roadmap).
+**Status:** Phase 0 (spikes) done: the four formats are read into a common summary, `.fig`
+nodes render to SVG and PNG, and a hand-baked `.folio` plays in a tiny HTML player. Next up is
+Phase 1 (bake and lite player), see [PROJECT.md § 8](PROJECT.md#8-roadmap).
 
 ## The project plan: `PROJECT.md`
 
@@ -58,15 +59,20 @@ Defined in `scopes.json`:
 ```text
 folioscope/
   crates/
-    folioscope-core/   ← IR + importers (Rust lib, native and WASM)
-    folioscope-cli/    ← `folioscope` binary
-                         (folioscope-bake and folioscope-wasm join in Phases 1 and 4)
+    folioscope-core/   ← importers (fig, sketch, xd, penpot), format detection, summary; IR later
+    folioscope-bake/   ← rendering (SVG, then PNG with resvg), the .folio writer later
+    folioscope-cli/    ← `folioscope` binary: inspect, render
+                         (folioscope-wasm joins in Phase 4)
   packages/
     folioscope/        ← npm package, defines <folioscope-player>
   apps/                ← site and playground (Phase 1)
-  fixtures/            ← test files we created ourselves, one folder per format
+  fixtures/            ← test files we generated, one folder per format;
+                         external/ (git-ignored) holds real third-party files for local checks
+  tools/fixtures/      ← the generators behind fixtures/
+  spikes/              ← throwaway Phase 0 experiments, deleted once Phase 1 replaces them
   docs/
     adr/               ← decisions D1–D7
+    format-*.md        ← what we know of each file format
   PROJECT.md           ← temporary project plan, shrinks to nothing (see above)
 ```
 
@@ -81,6 +87,9 @@ cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo nextest run --workspace --no-tests=pass
 cargo deny check
+pnpm --filter @folioscope/fixtures-tools generate   # rewrite fixtures/ from tools/fixtures
+cargo run -p folioscope-cli -- inspect <file>        # pages, frames, flows and links of any format
+cargo run -p folioscope-cli -- render <file.fig> <node-id> <out.png> [scale]
 ```
 
 ## Rules
@@ -94,6 +103,9 @@ cargo deny check
   WASM and no fonts.
 - **Trademarks**: never use "Figma", "Sketch", "Adobe", "XD" or "Penpot" in a package, element or
   logo name. Say "compatible with `.fig`, `.sketch`, `.xd` and `.penpot` files".
-- **Fixtures** are files we made ourselves. Never commit third-party design files.
+- **Fixtures** are files we generate in `tools/fixtures`; edit the generator, never the files.
+  Never commit third-party design files: they go into the git-ignored `fixtures/external/`.
+- **Figma, Sketch and Penpot are the judges**: a generated fixture counts as valid once it has
+  been imported and its prototype played in the real tool.
 - Decisions go into an ADR in `docs/adr/` (`NNNN-short-title.md`, numbered after the design doc's
   D-ids).
