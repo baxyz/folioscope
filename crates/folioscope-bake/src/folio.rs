@@ -86,6 +86,9 @@ struct Layer {
     bounds: Rect,
 }
 
+/// Receives each baked file: its path inside the `.folio` folder, and its bytes.
+pub type Sink<'a> = dyn FnMut(&str, &[u8]) -> Result<(), BakeError> + 'a;
+
 /// Bakes a decoded `.fig` into the folder `out`, created if needed.
 ///
 /// # Errors
@@ -96,11 +99,28 @@ pub fn bake_fig(
     out: &Path,
     options: &BakeOptions,
 ) -> Result<BakeReport, BakeError> {
+    create_dir(&out.join("layers"))?;
+    bake_fig_into(file, options, &mut |path, bytes| {
+        write(&out.join(path), bytes)
+    })
+}
+
+/// Bakes a decoded `.fig`, handing each file to `sink` with its path inside the `.folio` folder
+/// (`index.json`, `poster.png`, `layers/…`). The WASM build writes to memory this way.
+///
+/// # Errors
+///
+/// Fails when a frame cannot be rendered or `sink` fails.
+pub fn bake_fig_into(
+    file: &FigFile,
+    options: &BakeOptions,
+    sink: &mut Sink<'_>,
+) -> Result<BakeReport, BakeError> {
     let document = to_ir(file);
     let tree = Tree::new(file);
-    create_dir(&out.join("layers"))?;
     let mut report = BakeReport::default();
-    let mut poster: Option<String> = None;
+    let mut poster: Option<Vec<u8>> = None;
+    let poster_density = options.densities.iter().max().copied();
     let first_start = document
         .pages
         .iter()
@@ -134,10 +154,11 @@ pub fn bake_fig(
                 })?;
                 report.bytes += png.len();
                 report.layers += 1;
-                write(&out.join(format!("layers/{src}@{density}x.png")), &png)?;
-            }
-            if Some(frame.id.as_str()) == first_start {
-                poster = Some(src.clone());
+                sink(&format!("layers/{src}@{density}x.png"), &png)?;
+                // The poster is the starting frame at the highest density.
+                if Some(frame.id.as_str()) == first_start && Some(density) == poster_density {
+                    poster = Some(png);
+                }
             }
             report.frames += 1;
             frames.push(FolioFrame {
@@ -161,14 +182,8 @@ pub fn bake_fig(
         });
     }
 
-    // The poster is the starting frame at the highest density.
-    if let (Some(src), Some(density)) = (poster, options.densities.iter().max()) {
-        let from = out.join(format!("layers/{src}@{density}x.png"));
-        let bytes = std::fs::read(&from).map_err(|source| BakeError::Write {
-            path: from.display().to_string(),
-            source,
-        })?;
-        write(&out.join("poster.png"), &bytes)?;
+    if let Some(png) = poster {
+        sink("poster.png", &png)?;
     }
 
     let index = Index {
@@ -183,7 +198,7 @@ pub fn bake_fig(
         source: e.into(),
     })?;
     report.bytes += json.len();
-    write(&out.join("index.json"), json.as_bytes())?;
+    sink("index.json", json.as_bytes())?;
     Ok(report)
 }
 
