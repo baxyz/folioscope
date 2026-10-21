@@ -15,23 +15,6 @@ export type SketchAnimation =
   | "slideFromTop";
 
 // Real files write -1 for "no animation", though schema 6.5 starts its enum at 0.
-/**
- * Fields schema 6.5 requires but a file Lunacy plays does not carry, so they are left out of the
- * JSON. With them (an empty `presetDictionary` above all), Lunacy shows a single 150 px screen.
- */
-const UNWRITTEN: Record<string, string[]> = {
-  artboard: ["backgroundColor", "hasBackgroundColor", "grid", "isTemplate", "presetDictionary"],
-  page: ["isTemplate"],
-  rectangle: ["isTemplate", "needsConvertionToNewRoundCorners"],
-  curvePoint: ["cornerStyle"],
-  fill: ["gradient"],
-  document: ["documentState", "perDocumentLibraries"],
-  sharedStyleContainer: ["do_objectID"],
-  sharedTextStyleContainer: ["do_objectID"],
-  symbolContainer: ["do_objectID"],
-  swatchContainer: ["do_objectID"],
-};
-
 const ANIMATIONS: Record<SketchAnimation, number> = {
   none: -1,
   slideFromLeft: 1,
@@ -48,8 +31,6 @@ type Layer = FileFormat.Rectangle | FileFormat.Hotspot;
  */
 export class SketchBuilder {
   private nextId = 1;
-  /** Leave out the fields of `UNWRITTEN`; off only to test whether Lunacy needs that. */
-  omitUnwritten = true;
   private readonly pages: FileFormat.Page[] = [];
 
   /** UUID-shaped and deterministic; uppercase, as Sketch writes them. */
@@ -164,13 +145,7 @@ export class SketchBuilder {
   }
 
   toBytes(): Uint8Array {
-    const omit = this.omitUnwritten;
-    const json = (value: unknown) =>
-      new TextEncoder().encode(
-        JSON.stringify(classFirst(value), function (this: { _class?: string }, key, field) {
-          return omit && UNWRITTEN[this._class ?? ""]?.includes(key) ? undefined : field;
-        }),
-      );
+    const json = (value: unknown) => new TextEncoder().encode(JSON.stringify(classFirst(value)));
     const document: FileFormat.Document = {
       _class: "document",
       do_objectID: this.id(),

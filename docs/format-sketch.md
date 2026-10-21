@@ -52,7 +52,13 @@ Everything above maps onto the IR as a subset of Figma's model: a click trigger,
 
 ## What Lunacy plays
 
-Lunacy (the free Sketch-compatible editor we validate with) played a file converted from our Figma
-fixture by the Convertify plugin, and showed no navigation in our first generated files. The
-generator now writes what that file has: each artboard's fill as a first, full-size rectangle,
-corner radii on the points (`fixedRadius: 0`), uppercase ids, links on the visible layers.
+Lunacy (the free Sketch-compatible editor we validate with) reads the JSON with a .NET parser that
+picks each object's type from `_class` **and expects that key first**. With `_class` after other
+keys, it does not recognize artboards at all and shows a single, wrong screen, whatever the values.
+Our generator writes `_class` first in every object.
+
+Checked by importing variants (October 2026): the ZIP layout (stored or deflated entries, a
+`pages/` directory entry, entry order) and the shape of the ids do not matter; fields missing from a
+converter's output (such as an empty `presetDictionary`) do not either. The generator still mirrors
+that converter's output where it costs nothing: each artboard's fill as a first, full-size rectangle,
+corner radii on the points, uppercase ids, links on the visible layers.
