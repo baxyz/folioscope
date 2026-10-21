@@ -15,7 +15,7 @@ fn files(dir: &Path, out: &mut Vec<PathBuf>) {
             files(&path, out);
         } else if path
             .extension()
-            .is_some_and(|e| e == "fig" || e == "sketch" || e == "xd")
+            .is_some_and(|e| ["fig", "sketch", "xd", "penpot"].iter().any(|x| e == *x))
         {
             out.push(path);
         }
@@ -29,6 +29,10 @@ fn detects_formats_by_content() {
     assert_eq!(
         detect(&read("sketch/navigation.sketch")),
         Some(Format::Sketch)
+    );
+    assert_eq!(
+        detect(&read("penpot/navigation.penpot")),
+        Some(Format::Penpot)
     );
     assert_eq!(detect(b"not a zip"), None);
 }

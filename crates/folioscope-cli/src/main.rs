@@ -6,7 +6,7 @@ use std::process::ExitCode;
 use folioscope_core::fig::{self, tree::Tree};
 
 const USAGE: &str = "usage:
-  folioscope inspect <file.fig|.sketch|.xd>
+  folioscope inspect <file.fig|.sketch|.xd|.penpot>
   folioscope render <file.fig> <node-id> <out.png> [scale]   (also writes <out>.svg)";
 
 fn main() -> ExitCode {

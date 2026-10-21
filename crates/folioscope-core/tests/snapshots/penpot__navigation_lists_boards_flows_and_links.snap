@@ -1,0 +1,10 @@
+---
+source: crates/folioscope-core/tests/penpot.rs
+expression: summarize(&file).to_string()
+---
+penpot export v1 (penpot/2.18.3)
+page "Prototype" (00000000-0000-4000-8000-000000000002)
+  board "Home" (00000000-0000-4000-8000-000000000003) 375x812 at 0,0, starts flow "Main flow"
+    "Open details" (00000000-0000-4000-8000-000000000007) ON_CLICK -> navigate "Details" (00000000-0000-4000-8000-000000000004) with DISSOLVE 300ms ease-out
+  board "Details" (00000000-0000-4000-8000-000000000004) 375x812 at 475,0
+    "Back" (00000000-0000-4000-8000-000000000008) ON_CLICK -> back

@@ -12,6 +12,14 @@ The .sketch fixture generator in tools/fixtures is typed against
 @sketch-hq/sketch-file-format-ts; docs/format-sketch.md draws on its schema.
 
 --------------------------------------------------------------------------------
+Penpot — https://penpot.app
+MPL-2.0, by Kaleidos and the Penpot contributors.
+
+tools/fixtures/src/penpot-2.18.json lists the schema migration identifiers of
+Penpot 2.18, so generated .penpot fixtures import without replaying them;
+docs/format-penpot.md draws on Penpot's file format documentation.
+
+--------------------------------------------------------------------------------
 openfig-core — https://github.com/OpenFig-org/openfig-core
 MIT License, by rcoenen and the OpenFig contributors.
 

@@ -5,6 +5,7 @@
 
 pub mod fig;
 pub mod kiwi;
+pub mod penpot;
 pub mod sketch;
 pub mod summary;
 pub mod xd;
@@ -35,6 +36,8 @@ pub enum Error {
     Sketch(#[from] sketch::SketchError),
     #[error(transparent)]
     Xd(#[from] xd::XdError),
+    #[error(transparent)]
+    Penpot(#[from] penpot::PenpotError),
 }
 
 /// Detects the format from the archive's contents, never from a file name.
@@ -78,6 +81,6 @@ pub fn summarize(archive: &[u8]) -> Result<summary::Summary, Error> {
         Format::Fig => Ok(fig::prototype::summarize(&fig::decode(archive)?)),
         Format::Sketch => Ok(sketch::summarize(&sketch::decode(archive)?)),
         Format::Xd => Ok(xd::summarize(&xd::decode(archive)?)),
-        format @ Format::Penpot => Err(Error::Unsupported(format)),
+        Format::Penpot => Ok(penpot::summarize(&penpot::decode(archive)?)),
     }
 }
