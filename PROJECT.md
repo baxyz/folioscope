@@ -542,7 +542,7 @@ Each phase ends with a demo in the playground and a published release.
 Goal: remove the risks before writing the real code.
 
 - [ ] Create 5 to 10 fixtures covering the basic cases (§ 10).
-- [ ] Add `geometry` and `binary` to helpers4.
+- [ ] Add `geometry` and `binary` to helpers4: requested in [docs/helpers4-requests.md](docs/helpers4-requests.md).
 
 **Exit criterion**: a `.fig` frame rendered natively, the list of navigation links printed to the
 console, and the pre-render spike displaying almost instantly.
