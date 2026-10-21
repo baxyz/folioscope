@@ -15,7 +15,7 @@ use wasm_bindgen::prelude::*;
 /// Throws when the file cannot be decoded or a frame cannot be rendered.
 #[wasm_bindgen]
 pub fn bake(input: &[u8]) -> Result<Map, JsError> {
-    let file = folioscope_core::fig::decode(input)?;
+    let file = folioscope_core::figma::decode(input)?;
     let files = Map::new();
     bake_fig_into(&file, &BakeOptions::default(), &mut |path, bytes| {
         files.set(&path.into(), &Uint8Array::from(bytes).into());
