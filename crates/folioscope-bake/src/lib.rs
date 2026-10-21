@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Bakes prototypes into `.folio` folders. For now: renders a node to SVG, and rasterizes it with
-//! `resvg` (ADR 0001).
+//! Bakes prototypes into `.folio` folders (ADR 0004): renders nodes to SVG, rasterizes them with
+//! `resvg` (ADR 0001), and writes the layers and `index.json`.
 
+pub mod folio;
 pub mod svg;
 
 use resvg::{tiny_skia, usvg};

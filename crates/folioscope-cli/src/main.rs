@@ -7,7 +7,8 @@ use folioscope_core::figma::{self, tree::Tree};
 
 const USAGE: &str = "usage:
   folioscope inspect <file.fig|.sketch|.xd|.penpot>
-  folioscope render <file.fig> <node-id> <out.png> [scale]   (also writes <out>.svg)";
+  folioscope render <file.fig> <node-id> <out.png> [scale]   (also writes <out>.svg)
+  folioscope bake <file.fig> <out.folio>";
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -16,6 +17,7 @@ fn main() -> ExitCode {
         ["inspect", path] => inspect(path),
         ["render", path, node, out] => render(path, node, out, "1"),
         ["render", path, node, out, scale] => render(path, node, out, scale),
+        ["bake", path, out] | ["bake", path, "-o", out] => bake(path, out),
         ["--help" | "-h"] => {
             println!("{USAGE}");
             Ok(())
@@ -70,6 +72,25 @@ fn render(path: &str, node: &str, out: &str, scale: &str) -> Result<(), String> 
         svg.width,
         svg.height,
         svg.markup.len()
+    );
+    Ok(())
+}
+
+fn bake(path: &str, out: &str) -> Result<(), String> {
+    let file = load(path)?;
+    let started = std::time::Instant::now();
+    let report = folioscope_bake::folio::bake_fig(
+        &file,
+        std::path::Path::new(out),
+        &folioscope_bake::folio::BakeOptions::default(),
+    )
+    .map_err(|e| e.to_string())?;
+    eprintln!(
+        "{out}: {} frames, {} layer files, {} KB, in {} ms",
+        report.frames,
+        report.layers,
+        report.bytes / 1024,
+        started.elapsed().as_millis()
     );
     Ok(())
 }
