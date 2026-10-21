@@ -2,6 +2,8 @@
 import { FolioscopePlayer, TAG_NAME } from "./element.ts";
 
 export { FolioscopePlayer, TAG_NAME };
+export { Runtime, type Step } from "./runtime.ts";
+export type * from "./folio.ts";
 
 if (typeof customElements !== "undefined" && !customElements.get(TAG_NAME)) {
   customElements.define(TAG_NAME, FolioscopePlayer);
