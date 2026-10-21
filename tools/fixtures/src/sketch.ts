@@ -15,6 +15,23 @@ export type SketchAnimation =
   | "slideFromTop";
 
 // Real files write -1 for "no animation", though schema 6.5 starts its enum at 0.
+/**
+ * Fields schema 6.5 requires but a file Lunacy plays does not carry, so they are left out of the
+ * JSON. With them (an empty `presetDictionary` above all), Lunacy shows a single 150 px screen.
+ */
+const UNWRITTEN: Record<string, string[]> = {
+  artboard: ["backgroundColor", "hasBackgroundColor", "grid", "isTemplate", "presetDictionary"],
+  page: ["isTemplate"],
+  rectangle: ["isTemplate", "needsConvertionToNewRoundCorners"],
+  curvePoint: ["cornerStyle"],
+  fill: ["gradient"],
+  document: ["documentState", "perDocumentLibraries"],
+  sharedStyleContainer: ["do_objectID"],
+  sharedTextStyleContainer: ["do_objectID"],
+  symbolContainer: ["do_objectID"],
+  swatchContainer: ["do_objectID"],
+};
+
 const ANIMATIONS: Record<SketchAnimation, number> = {
   none: -1,
   slideFromLeft: 1,
@@ -73,8 +90,6 @@ export class SketchBuilder {
       resizesContent: false,
       layers: [],
     };
-    // Written by Sketch 69, though missing from schema 6.5.
-    Object.assign(artboard, { presetDictionary: {} });
     page.layers.push(artboard);
     // Converters write the fill as a first, full-size rectangle; Lunacy plays such files.
     this.rect(
@@ -147,7 +162,12 @@ export class SketchBuilder {
   }
 
   toBytes(): Uint8Array {
-    const json = (value: unknown) => new TextEncoder().encode(JSON.stringify(value));
+    const json = (value: unknown) =>
+      new TextEncoder().encode(
+        JSON.stringify(value, function (this: { _class?: string }, key, field) {
+          return UNWRITTEN[this._class ?? ""]?.includes(key) ? undefined : field;
+        }),
+      );
     const document: FileFormat.Document = {
       _class: "document",
       do_objectID: this.id(),
