@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// End-to-end: bakes fixtures/fig/navigation.fig, plays it in Firefox through the built player.
+// End-to-end: bakes fixtures/figma/navigation.fig, plays it in Firefox through the built player.
 // Run with `pnpm --filter folioscope test:e2e` after `vp pack` and `cargo build -p folioscope-cli`.
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -14,9 +14,13 @@ const repo = fileURLToPath(new URL("../../../", import.meta.url));
 const site = mkdtempSync(join(tmpdir(), "folioscope-e2e-"));
 const cli = process.env.FOLIOSCOPE_CLI ?? join(repo, "target/debug/folioscope");
 for (const name of ["navigation", "flows-and-pages"]) {
-  execFileSync(cli, ["bake", join(repo, `fixtures/fig/${name}.fig`), join(site, `${name}.folio`)], {
-    stdio: "inherit",
-  });
+  execFileSync(
+    cli,
+    ["bake", join(repo, `fixtures/figma/${name}.fig`), join(site, `${name}.folio`)],
+    {
+      stdio: "inherit",
+    },
+  );
 }
 
 const page = (query: URLSearchParams) => `<!doctype html><meta charset="utf-8">
