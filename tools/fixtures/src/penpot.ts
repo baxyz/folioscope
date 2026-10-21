@@ -141,7 +141,9 @@ export class PenpotBuilder {
       ...fields,
     };
     page.shapes.set(shape.id, shape);
-    page.shapes.get(parent)!.shapes!.push(shape.id);
+    // Penpot lists children bottom to top and shows the last one first, at the top of the layer
+    // panel and in view mode: new shapes go first, so the first board created is the one shown.
+    page.shapes.get(parent)!.shapes!.unshift(shape.id);
     return shape;
   }
 

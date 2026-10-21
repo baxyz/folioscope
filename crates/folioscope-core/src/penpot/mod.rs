@@ -116,6 +116,8 @@ pub fn summarize(file: &PenpotFile) -> Summary {
                     .as_array()
                     .into_iter()
                     .flatten()
+                    // Bottom to top in the file; listed top first, as Penpot's layer panel does.
+                    .rev()
                     .filter_map(|id| page.shapes.get(id.as_str()?))
                     .filter(|s| s["type"] == "frame")
                     .collect()
@@ -176,6 +178,7 @@ fn collect_interactions(
         .as_array()
         .into_iter()
         .flatten()
+        .rev()
         .filter_map(|id| shapes.get(id.as_str()?))
     {
         collect_interactions(child, shapes, names, out);
