@@ -541,9 +541,8 @@ Each phase ends with a demo in the playground and a published release.
 
 Goal: remove the risks before writing the real code.
 
-- [ ] XD and Penpot spikes: list the artboards and interactions of an `.xd`
-      (`interactions/interactions.json`) and of a `.penpot` v3 (`flows` and `interactions`). Check that
-      IR v1 covers them without structural change.
+- [ ] Penpot spike: list the boards and interactions of a `.penpot` v3 (`flows` and
+      `interactions`). Check that IR v1 covers them without structural change.
 - [ ] Create 5 to 10 fixtures covering the basic cases (§ 10).
 - [ ] Add `geometry` and `binary` to helpers4.
 

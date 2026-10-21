@@ -15,7 +15,7 @@ fn files(dir: &Path, out: &mut Vec<PathBuf>) {
             files(&path, out);
         } else if path
             .extension()
-            .is_some_and(|e| e == "fig" || e == "sketch")
+            .is_some_and(|e| e == "fig" || e == "sketch" || e == "xd")
         {
             out.push(path);
         }
