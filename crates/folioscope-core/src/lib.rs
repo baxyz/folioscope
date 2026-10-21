@@ -4,6 +4,7 @@
 //! prototypes. See `PROJECT.md` at the repository root.
 
 pub mod figma;
+pub mod ir;
 pub mod kiwi;
 pub mod penpot;
 pub mod sketch;
@@ -14,7 +15,7 @@ use std::io::{Cursor, Read};
 
 /// Version of the IR schema, written into every baked `.folio` so players can refuse
 /// incompatible files.
-pub const IR_VERSION: u32 = 0;
+pub const IR_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Format {

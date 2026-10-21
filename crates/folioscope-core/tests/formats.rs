@@ -47,5 +47,10 @@ fn external_files_decode() {
         let bytes = std::fs::read(&path).unwrap();
         let summary = summarize(&bytes).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
         assert!(!summary.pages.is_empty(), "{}", path.display());
+        if detect(&bytes) == Some(Format::Fig) {
+            let ir =
+                folioscope_core::figma::ir::to_ir(&folioscope_core::figma::decode(&bytes).unwrap());
+            assert!(!ir.pages.is_empty(), "{}", path.display());
+        }
     }
 }

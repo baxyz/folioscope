@@ -26,3 +26,22 @@ fn generated_fixtures_list_frames_flows_and_links() {
 fn rejects_a_file_that_is_not_a_zip() {
     assert!(decode(b"not a .fig file").is_err());
 }
+
+/// The IR of every generated fixture, as the JSON baked into a `.folio`.
+#[test]
+fn generated_fixtures_convert_to_ir() {
+    for name in [
+        "navigation",
+        "overlay",
+        "scroll",
+        "triggers",
+        "flows-and-pages",
+    ] {
+        let file = decode(&fixture(&format!("{name}.fig"))).unwrap();
+        let ir = folioscope_core::figma::ir::to_ir(&file);
+        insta::assert_snapshot!(
+            format!("ir-{name}"),
+            serde_json::to_string_pretty(&ir).unwrap()
+        );
+    }
+}
