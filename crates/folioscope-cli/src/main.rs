@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
+use std::io::Write;
 use std::process::ExitCode;
 
 use folioscope_core::fig::{self, tree::Tree};
 
 const USAGE: &str = "usage:
-  folioscope inspect <file.fig|file.sketch>
+  folioscope inspect <file.fig|.sketch|.xd>
   folioscope render <file.fig> <node-id> <out.png> [scale]   (also writes <out>.svg)";
 
 fn main() -> ExitCode {
@@ -45,7 +46,8 @@ fn load(path: &str) -> Result<fig::FigFile, String> {
 fn inspect(path: &str) -> Result<(), String> {
     let bytes = std::fs::read(path).map_err(|e| format!("cannot read {path}: {e}"))?;
     let summary = folioscope_core::summarize(&bytes).map_err(|e| format!("{path}: {e}"))?;
-    print!("{summary}");
+    // A closed pipe (`| head`) is not an error worth reporting.
+    let _ = write!(std::io::stdout(), "{summary}");
     Ok(())
 }
 

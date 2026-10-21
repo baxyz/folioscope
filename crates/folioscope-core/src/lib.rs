@@ -7,6 +7,7 @@ pub mod fig;
 pub mod kiwi;
 pub mod sketch;
 pub mod summary;
+pub mod xd;
 
 use std::io::{Cursor, Read};
 
@@ -32,6 +33,8 @@ pub enum Error {
     Fig(#[from] fig::FigError),
     #[error(transparent)]
     Sketch(#[from] sketch::SketchError),
+    #[error(transparent)]
+    Xd(#[from] xd::XdError),
 }
 
 /// Detects the format from the archive's contents, never from a file name.
@@ -74,6 +77,7 @@ pub fn summarize(archive: &[u8]) -> Result<summary::Summary, Error> {
     match detect(archive).ok_or(Error::UnknownFormat)? {
         Format::Fig => Ok(fig::prototype::summarize(&fig::decode(archive)?)),
         Format::Sketch => Ok(sketch::summarize(&sketch::decode(archive)?)),
-        format => Err(Error::Unsupported(format)),
+        Format::Xd => Ok(xd::summarize(&xd::decode(archive)?)),
+        format @ Format::Penpot => Err(Error::Unsupported(format)),
     }
 }
