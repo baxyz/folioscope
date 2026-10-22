@@ -5,9 +5,9 @@
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
-    "dev": "vitepress dev",
+    "dev": "vitepress dev --port 4323 --strictPort",
     "build": "vitepress build",
-    "preview": "vitepress preview",
+    "preview": "vitepress preview --port 4323",
     "bake-demos": "node scripts/bake-demos.ts"
   },
   "dependencies": {
