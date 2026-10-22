@@ -94,7 +94,8 @@ pnpm --filter @folioscope/site dev                   # the site on http://localh
 pnpm --filter folioscope build:wasm                  # WebAssembly bake for folioscope/vite (Rust + wasm-bindgen-cli 0.2.129)
 pnpm --filter folioscope test:e2e                    # bakes a fixture and plays it in Firefox
 pnpm --filter folioscope test:budget                 # first frame under 1 s on throttled 4G (Chromium)
-cargo run -p folioscope-cli -- bake <file.fig> <out.folio>
+cargo run -p folioscope-cli -- bake <file.fig> <out.folio> [--fonts <file or folder>]
+cargo run -p folioscope-cli -- fonts <folder>        # writes the folioscope-fonts.json manifest
 cargo run -p folioscope-cli -- inspect <file>        # pages, frames, flows and links of any format
 cargo run -p folioscope-cli -- render <file.fig> <node-id> <out.png> [scale]
 ```

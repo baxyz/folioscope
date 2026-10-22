@@ -4,6 +4,7 @@
 //! layer images at every density, and `poster.webp`. A frame is one layer, or, when it scrolls,
 //! three: its background, the content that scrolls, and the fixed children on top.
 
+use std::collections::BTreeSet;
 use std::fmt::Write as _;
 use std::path::Path;
 
@@ -16,7 +17,9 @@ use folioscope_core::ir::{self, Flow, Rect};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
+use crate::fonts::FontLibrary;
 use crate::image::{ImageFormat, encode, encode_best};
+use crate::text::Typesetter;
 use crate::{RenderError, render_pixmap, svg};
 
 /// Version of the `.folio` layout, independent of the IR's.
@@ -41,6 +44,8 @@ pub struct BakeOptions {
     pub densities: Vec<u8>,
     /// Encode large, photo-like layers as AVIF when it beats lossless WebP (see `image`).
     pub avif: bool,
+    /// Fonts for text the file stores no glyphs for (ADR 0011).
+    pub fonts: FontLibrary,
 }
 
 impl Default for BakeOptions {
@@ -48,6 +53,7 @@ impl Default for BakeOptions {
         Self {
             densities: vec![1, 2],
             avif: true,
+            fonts: FontLibrary::default(),
         }
     }
 }
@@ -58,6 +64,8 @@ pub struct BakeReport {
     pub frames: usize,
     pub layers: usize,
     pub bytes: usize,
+    /// Fonts some text needed and was not given (`Family Style`).
+    pub missing_fonts: BTreeSet<String>,
 }
 
 #[derive(Serialize)]
@@ -181,11 +189,12 @@ fn frame_parts(
 fn bake_components<'a>(
     tree: &Tree<'_>,
     frame: &'a ir::Frame,
-    densities: &[u8],
+    typesetter: &mut Typesetter,
     options: &BakeOptions,
     report: &mut BakeReport,
     sink: &mut Sink<'_>,
 ) -> Result<Vec<FolioComponent<'a>>, BakeError> {
+    let densities = &sorted_densities(options);
     let mut components = Vec::new();
     for component in &frame.components {
         let mut states = Vec::new();
@@ -198,7 +207,11 @@ fn bake_components<'a>(
                 .map(str::parse)
                 .collect::<Result<_, _>>()
                 .map_err(|_| missing())?;
-            let svg = svg::render_component_state(tree, &path, variant).ok_or_else(missing)?;
+            let svg = svg::render_component_state(tree, &path, variant, Some(&mut *typesetter))
+                .ok_or_else(missing)?;
+            report
+                .missing_fonts
+                .extend(svg.missing_fonts.iter().cloned());
             let (src, format) = encode_layer(&svg.markup, densities, options, report, sink)
                 .map_err(|e| match e {
                     LayerError::Render(source) => BakeError::Render {
@@ -227,6 +240,13 @@ fn bake_components<'a>(
         });
     }
     Ok(components)
+}
+
+/// The densities to render, highest first: it decides each layer's format for the others.
+fn sorted_densities(options: &BakeOptions) -> Vec<u8> {
+    let mut densities = options.densities.clone();
+    densities.sort_unstable_by(|a, b| b.cmp(a));
+    densities
 }
 
 enum LayerError {
@@ -297,8 +317,8 @@ pub fn bake_fig_into(
     let mut report = BakeReport::default();
     let mut poster: Option<Vec<u8>> = None;
     // The highest density is encoded first: it decides the layer's format for every density.
-    let mut densities = options.densities.clone();
-    densities.sort_unstable_by(|a, b| b.cmp(a));
+    let densities = sorted_densities(options);
+    let mut typesetter = Typesetter::new(options.fonts.clone());
     let first_start = document
         .pages
         .iter()
@@ -355,7 +375,8 @@ pub fn bake_fig_into(
                 poster = Some(encode(&pixmap, ImageFormat::Webp).map_err(render_error)?);
             }
             report.frames += 1;
-            let components = bake_components(&tree, frame, &densities, options, &mut report, sink)?;
+            let components =
+                bake_components(&tree, frame, &mut typesetter, options, &mut report, sink)?;
             frames.push(FolioFrame {
                 frame: ir::Frame {
                     components: Vec::new(),
