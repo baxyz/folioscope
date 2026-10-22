@@ -30,7 +30,8 @@ export default {
 ```
 
 `designs/app.fig` is then served as `/folio/app.folio/`. Options: `include` (globs, relative to
-the Vite root), `base` (URL folder, `folio` by default), `cacheDir`.
+the Vite root), `base` (URL folder, `folio` by default), `cacheDir`, `avif` (`false` keeps every
+screen in lossless WebP; by default, photo-heavy screens become AVIF when it is much lighter).
 
 ## 2. Add the player
 
@@ -40,7 +41,21 @@ the Vite root), `base` (URL folder, `folio` by default), `cacheDir`.
 <folioscope-player src="/app.folio" poster="/app.folio/poster.webp" controls></folioscope-player>
 ```
 
-The poster shows straight from the HTML, before any JavaScript runs.
+The poster shows as soon as the player's script runs, before the prototype's description
+arrives.
+
+### A first screen in under a second
+
+To have the first screen up in under a second on a phone on 4G, give a `poster` and have the
+browser fetch the prototype's `index.json` along with the player:
+
+```html
+<link rel="preload" href="/app.folio/index.json" as="fetch" crossorigin />
+```
+
+CI checks this setup on every change: on a simulated 4G connection with a phone's CPU, the poster
+shows at about 550 ms and the first playable screen at about 750 ms (900 ms without the poster and
+the preload).
 
 ## Attributes
 

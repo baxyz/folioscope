@@ -55,9 +55,12 @@ with Playwright: the delay, hover and press all swap images with no re-render.
 
 ## Consequences
 
-- The first frame waits for three sequential requests (page, `index.json`, image). To reach the
-  sub-second target on 4G, Phase 1 shows the `poster` straight from the HTML and inlines or
-  preloads `index.json`.
+- The first frame waits for chained requests (page, player, `index.json`, image). The `poster`
+  shows as soon as the player runs, and a `<link rel="preload">` fetches `index.json` along with
+  the player. `test:budget` checks it in CI with Chromium throttled to WebPageTest's "4G" (170 ms,
+  9 Mb/s) and a 4× slower CPU, connection setup excluded: poster at ~550 ms, first frame at
+  ~750 ms, under the 1 s budget (~900 ms with neither). Lighthouse's "slow 4G" preset was not
+  kept: it adds 560 ms to every request, so no page of four chained requests meets 1 s on it.
 - Image formats, measured in Phase 1 on a real 11-frame file with photos, at 1x + 2x:
 
   | Layers                                  | Weight | Native bake |

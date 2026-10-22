@@ -49,7 +49,7 @@ jobs:
       - run: cargo deny check
 
   e2e:
-    name: E2E and Vite plugin (Firefox, WebAssembly)
+    name: E2E, budget and Vite plugin (Firefox, Chromium, WebAssembly)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -71,8 +71,10 @@ jobs:
       - run: pnpm exec vp run -r build
       - name: Vite plugin tests (need the WebAssembly bake)
         run: pnpm --filter folioscope test
-      - run: pnpm --filter folioscope exec playwright install --with-deps firefox
+      - run: pnpm --filter folioscope exec playwright install --with-deps firefox chromium
       - run: pnpm --filter folioscope test:e2e
+      - name: First frame in under a second on 4G
+        run: pnpm --filter folioscope test:budget
       - name: Site demos are up to date with the fixtures and the bake
         run: |
           pnpm --filter @folioscope/site bake-demos
