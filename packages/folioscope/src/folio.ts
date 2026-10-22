@@ -46,6 +46,29 @@ export interface FolioFrame {
     content: Rect;
     fixed?: string[];
   };
+  /** Interactive component instances, whose variants change in place. */
+  components?: FolioComponent[];
+}
+
+/** An instance switching between variants ("change to"), each a state with its own layer. */
+export interface FolioComponent {
+  /** Ids of the instances from the frame down to this one, joined by `;`. */
+  id: string;
+  name: string;
+  /** In the frame's coordinates. */
+  bounds: Rect;
+  /** The variant shown first. */
+  initial: string;
+  fixed?: boolean;
+  states: {
+    variant: string;
+    name: string;
+    /** From the component's top-left corner. */
+    bounds: Rect;
+    /** In the state's coordinates. */
+    hotspots: Hotspot[];
+    layer: Layer;
+  }[];
 }
 
 export interface OverlaySettings {
@@ -100,6 +123,8 @@ export type Trigger =
 
 export type Action =
   | { type: "navigate"; to: string; transition: Transition }
+  /** Switches the hotspot's interactive component to another of its variants. */
+  | { type: "changeTo"; to: string; transition: Transition }
   | {
       type: "scrollTo";
       to: string;

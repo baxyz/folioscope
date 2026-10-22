@@ -30,6 +30,9 @@ app.folio/
   its content (every child but the fixed ones, at the content's full size, marked `scrolls`) and
   its fixed children on top. The player puts the content in a native scroller between the two.
   Any other frame is one layer. Overlays are frames of their own, drawn over the screen.
+- **An interactive component is one layer per state**, drawn through the overrides of the
+  instances it sits in, and left out of its frame's layers. The player swaps its state in place;
+  every state is fetched with the frame, so a change shows at once.
 - **Layers are named by a hash of their content** (SHA-256 of the pixels, 16 hex digits): an
   unchanged layer keeps its URL across bakes and stays in the HTTP cache. Identical layers in two
   frames are stored once.

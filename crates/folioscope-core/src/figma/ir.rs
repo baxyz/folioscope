@@ -3,13 +3,14 @@
 //! `.fig` → IR v1 (ADR 0008): pages, flows, top-level frames and their hotspots.
 
 use crate::figma::FigFile;
-use crate::figma::tree::{Node, Tree, node_id};
+use crate::figma::instance::Overrides;
+use crate::figma::tree::{Node, NodeId, Tree, node_id};
 use std::collections::HashMap;
 
 use crate::ir::{
-    Action, Document, Easing, Flow, Frame, Hotspot, Interaction, OverlayPosition, OverlaySettings,
-    Page, Point, Rect, Scroll, ScrollDirection, Side, SourceFormat, Transition, TransitionKind,
-    Trigger,
+    Action, Component, ComponentState, Document, Easing, Flow, Frame, Hotspot, Interaction,
+    OverlayPosition, OverlaySettings, Page, Point, Rect, Scroll, ScrollDirection, Side,
+    SourceFormat, Transition, TransitionKind, Trigger,
 };
 use crate::kiwi::Value;
 
@@ -73,8 +74,9 @@ fn page(tree: &Tree<'_>, canvas: &Node<'_>) -> Page {
     let frames = tops
         .iter()
         .map(|frame| {
-            let mut hotspots = Vec::new();
-            collect_hotspots(tree, frame, Affine::IDENTITY, false, &mut hotspots);
+            let mut walk = Walk::new(tree);
+            walk.node(frame, Affine::IDENTITY, false, &mut Vec::new(), false);
+            let (mut hotspots, components) = (walk.hotspots, walk.components);
             resolve_scroll_targets(tree, frame, &mut hotspots);
             let (x, y) = translation(frame.value);
             let (width, height) = size(frame.value);
@@ -90,6 +92,7 @@ fn page(tree: &Tree<'_>, canvas: &Node<'_>) -> Page {
                 hotspots,
                 overlay: overlay(frame.value),
                 scroll: scroll(tree, frame),
+                components,
             }
         })
         .collect();
@@ -102,20 +105,195 @@ fn page(tree: &Tree<'_>, canvas: &Node<'_>) -> Page {
     }
 }
 
-/// Walks a frame's subtree; `to_frame` maps the node's own coordinates to the frame's, `fixed`
-/// says the node is in a fixed child of a scrolling frame.
-fn collect_hotspots(
-    tree: &Tree<'_>,
-    node: &Node<'_>,
-    to_frame: Affine,
-    fixed: bool,
-    out: &mut Vec<Hotspot>,
-) {
-    if matches!(node.value.get("visible"), Some(Value::Bool(false))) {
-        return;
+/// At most this many variants are baked per interactive component (decision D7); the others
+/// stay unreachable.
+const MAX_STATES: usize = 16;
+
+/// Hotspots and interactive components of one frame.
+struct Walk<'t, 'a> {
+    tree: &'t Tree<'a>,
+    hotspots: Vec<Hotspot>,
+    components: Vec<Component>,
+    /// Whether a component's subtree holds a "change to", by component id.
+    changes_state: HashMap<NodeId, bool>,
+    /// The instances walked through, whose overrides apply below them.
+    overrides: Overrides,
+}
+
+impl<'t, 'a> Walk<'t, 'a> {
+    fn new(tree: &'t Tree<'a>) -> Self {
+        Self {
+            tree,
+            hotspots: Vec::new(),
+            components: Vec::new(),
+            changes_state: HashMap::new(),
+            overrides: Overrides::default(),
+        }
     }
-    let interactions: Vec<Interaction> = node
-        .value
+
+    /// Walks `node`'s subtree; `to_frame` maps the node's own coordinates to the frame's (or the
+    /// component state's), `fixed` says the node is in a fixed child of a scrolling frame, `path`
+    /// lists the instances above it. Instances are walked through their component's children;
+    /// interactive ones become components, unless `in_state` (no nesting).
+    fn node(
+        &mut self,
+        node: &Node<'a>,
+        to_frame: Affine,
+        fixed: bool,
+        path: &mut Vec<String>,
+        in_state: bool,
+    ) {
+        // Inside instances, the node as the instances above it show it.
+        let resolved = self.overrides.resolve(node);
+        let node = &Node {
+            id: node.id,
+            kind: node.kind,
+            name: node.name,
+            value: &resolved,
+        };
+        if matches!(node.value.get("visible"), Some(Value::Bool(false))) {
+            return;
+        }
+        let symbol = symbol_of(node).and_then(|id| self.tree.get(id));
+        if let Some(symbol) = symbol
+            && !in_state
+            && (has_change_to(&interactions(node)) || self.changes_state(symbol))
+        {
+            let component = self.component(node, symbol, to_frame, fixed, path);
+            self.components.push(component);
+            return;
+        }
+        // An instance carries its component's interactions, unless it overrides them.
+        let mut own = interactions(node);
+        if own.is_empty()
+            && let Some(symbol) = symbol
+        {
+            own = interactions(symbol);
+        }
+        if !own.is_empty() {
+            let (width, height) = size(node.value);
+            self.hotspots.push(Hotspot {
+                node: node.id.to_string(),
+                name: node.name.to_owned(),
+                bounds: to_frame.bounding_box(width, height),
+                interactions: own,
+                fixed,
+            });
+        }
+        // Only the top-level frame's direct children can be fixed.
+        let top = parent(self.tree, node).is_some_and(|p| p.kind == "CANVAS");
+        let source = symbol.map_or(node.id, |s| s.id);
+        if symbol.is_some() {
+            path.push(node.id.to_string());
+            self.overrides.enter(node, node.value);
+        }
+        let children: Vec<&Node<'a>> = self.tree.children(source).collect();
+        for child in children {
+            let to_frame = to_frame.then(Affine::of(&self.overrides.resolve(child)));
+            let fixed = fixed || (top && is_fixed(child));
+            self.node(child, to_frame, fixed, path, in_state);
+        }
+        if symbol.is_some() {
+            path.pop();
+            self.overrides.leave();
+        }
+    }
+
+    /// An interactive instance: its first variant, then every variant a "change to" reaches.
+    fn component(
+        &mut self,
+        instance: &Node<'_>,
+        symbol: &Node<'a>,
+        to_frame: Affine,
+        fixed: bool,
+        path: &[String],
+    ) -> Component {
+        let (width, height) = size(instance.value);
+        let mut states: Vec<ComponentState> = Vec::new();
+        let mut queue = vec![symbol.id];
+        while let Some(variant) = queue.pop() {
+            if states.len() == MAX_STATES || states.iter().any(|s| s.variant == variant.to_string())
+            {
+                continue;
+            }
+            let Some(variant) = self.tree.get(variant) else {
+                continue;
+            };
+            let mut walk = Walk::new(self.tree);
+            walk.node(variant, Affine::IDENTITY, false, &mut Vec::new(), true);
+            let mut hotspots = walk.hotspots;
+            // The instance's own interactions replace its first variant's.
+            let overrides = interactions(instance);
+            if variant.id == symbol.id && !overrides.is_empty() {
+                hotspots.retain(|h| h.node != variant.id.to_string());
+                let (w, h) = size(variant.value);
+                hotspots.insert(
+                    0,
+                    Hotspot {
+                        node: instance.id.to_string(),
+                        name: instance.name.to_owned(),
+                        bounds: Affine::IDENTITY.bounding_box(w, h),
+                        interactions: overrides,
+                        fixed: false,
+                    },
+                );
+            }
+            for interaction in hotspots.iter().flat_map(|h| &h.interactions) {
+                if let Action::ChangeTo { to, .. } = &interaction.action
+                    && let Ok(to) = to.parse()
+                {
+                    queue.insert(0, to);
+                }
+            }
+            let (w, h) = size(variant.value);
+            states.push(ComponentState {
+                variant: variant.id.to_string(),
+                name: variant.name.to_owned(),
+                bounds: Affine::IDENTITY.bounding_box(w, h),
+                hotspots,
+            });
+        }
+        let mut id = path.to_vec();
+        id.push(instance.id.to_string());
+        Component {
+            id: id.join(";"),
+            name: instance.name.to_owned(),
+            bounds: to_frame.bounding_box(width, height),
+            initial: symbol.id.to_string(),
+            fixed,
+            states,
+        }
+    }
+
+    /// Whether the component (a variant) holds a "change to" in its subtree. Nested instances
+    /// do not count: the walk reaches them and decides for each.
+    fn changes_state(&mut self, symbol: &Node<'a>) -> bool {
+        if let Some(&known) = self.changes_state.get(&symbol.id) {
+            return known;
+        }
+        let mut stack = vec![symbol.id];
+        let mut found = false;
+        while let Some(id) = stack.pop() {
+            let Some(node) = self.tree.get(id) else {
+                continue;
+            };
+            if node.kind == "INSTANCE" {
+                continue;
+            }
+            if has_change_to(&interactions(node)) {
+                found = true;
+                break;
+            }
+            stack.extend(self.tree.children(id).map(|c| c.id));
+        }
+        self.changes_state.insert(symbol.id, found);
+        found
+    }
+}
+
+/// The node's prototype interactions, as stored on it.
+fn interactions(node: &Node<'_>) -> Vec<Interaction> {
+    node.value
         .get("prototypeInteractions")
         .map_or(&[][..], Value::as_array)
         .iter()
@@ -131,35 +309,32 @@ fn collect_hotspots(
                     action,
                 })
         })
-        .collect();
-    if !interactions.is_empty() {
-        let (width, height) = size(node.value);
-        out.push(Hotspot {
-            node: node.id.to_string(),
-            name: node.name.to_owned(),
-            bounds: to_frame.bounding_box(width, height),
-            interactions,
-            fixed,
-        });
+        .collect()
+}
+
+fn has_change_to(interactions: &[Interaction]) -> bool {
+    interactions
+        .iter()
+        .any(|i| matches!(i.action, Action::ChangeTo { .. }))
+}
+
+/// The component an instance draws.
+fn symbol_of(node: &Node<'_>) -> Option<NodeId> {
+    if node.kind != "INSTANCE" {
+        return None;
     }
-    // Only the top-level frame's direct children can be fixed.
-    let top = node
-        .value
+    node.value
+        .get("symbolData")
+        .and_then(|s| s.get("symbolID"))
+        .and_then(node_id)
+}
+
+fn parent<'t, 'a>(tree: &'t Tree<'a>, node: &Node<'_>) -> Option<&'t Node<'a>> {
+    node.value
         .get("parentIndex")
         .and_then(|p| p.get("guid"))
         .and_then(node_id)
         .and_then(|id| tree.get(id))
-        .is_some_and(|parent| parent.kind == "CANVAS");
-    for child in tree.children(node.id) {
-        let to_frame = to_frame.then(Affine::of(child.value));
-        collect_hotspots(
-            tree,
-            child,
-            to_frame,
-            fixed || (top && is_fixed(child)),
-            out,
-        );
-    }
 }
 
 fn is_fixed(node: &Node<'_>) -> bool {
@@ -293,6 +468,7 @@ fn action(action: &Value) -> Option<Action> {
                     transition,
                     offset,
                 },
+                "SWAP_STATE" => Action::ChangeTo { to, transition },
                 "SWAP" => Action::SwapOverlay {
                     to,
                     transition,

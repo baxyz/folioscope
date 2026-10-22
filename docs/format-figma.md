@@ -49,6 +49,24 @@ the schema, then the root definition `Message`.
 - Geometry: `size` `{ x, y }` and `transform` (2×3 affine: `m02` = x, `m12` = y, relative to the
   parent).
 
+### Components and instances
+
+- A `SYMBOL` is a component; a set of variants is a `FRAME` (or `COMPONENT_SET`) with
+  `isStateGroup: true`, whose children are the variant `SYMBOL`s, named `Property=Value, …`.
+- An `INSTANCE` has no children: it draws those of `symbolData.symbolID`. What differs per
+  instance is on the instance, each entry keyed by a `guidPath` (`{ guids: [...] }`): the
+  `overrideKey` of each nested instance on the way down, then the node's own (a node without
+  `overrideKey` is known by its `guid`).
+  - `symbolData.symbolOverrides`: what the designer changed (`textData.characters`, `visible`,
+    fills…).
+  - `derivedSymbolData`: what Figma computed from it: `size` and `transform` after auto layout,
+    `fillGeometry`, and `derivedTextData` with the overridden text's glyph outlines. Drawing an
+    instance needs neither a layout engine nor fonts.
+  - An outer instance's entries win over an inner one's for the same node.
+- An instance carries a copy of its component's `prototypeInteractions` (same interaction ids);
+  when it has none, the component's apply.
+- Derived data exists only for the variant the instance shows.
+
 ## Prototype
 
 ### Flows
@@ -77,7 +95,7 @@ Any node can carry `prototypeInteractions: PrototypeInteraction[]`:
 | ----------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | `connectionType`                                | `INTERNAL_NODE`, `BACK`, `CLOSE`, `URL`, `SET_VARIABLE`, `CONDITIONAL`…                            |
 | `transitionNodeID`                              | Destination, for `INTERNAL_NODE`                                                                   |
-| `navigationType`                                | `NAVIGATE`, `OVERLAY`, `SWAP`, `SWAP_STATE` (change to), `SCROLL_TO`                               |
+| `navigationType`                                | `NAVIGATE`, `OVERLAY`, `SWAP`, `SWAP_STATE` (change to, towards a variant), `SCROLL_TO`            |
 | `transitionType`                                | `INSTANT_TRANSITION`, `DISSOLVE`, `SLIDE_FROM_*`, `PUSH_FROM_*`, `MOVE_FROM_*`, `SMART_ANIMATE`…   |
 | `transitionDuration`                            | Seconds                                                                                            |
 | `easingType`, `easingFunction`                  | Named easing, or cubic Bézier control points for `CUSTOM_CUBIC`                                    |

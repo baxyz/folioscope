@@ -563,8 +563,11 @@ displayed almost instantly on a portfolio page.
 - [ ] `.sketch` importer to the IR, with the same pre-rendering.
 - [ ] Scrolling inside a frame (a nested frame that scrolls), sticky elements, hover and press
       inside scrolled content and inside overlays.
-- [ ] Interactive components: instance and variant resolution, one image per state, _change to_
-      action. Combinatorial explosion threshold (D7).
+- [ ] Interactive components, what is left: a variant other than the one in the file is drawn
+      at its own size with the overrides that still apply (no layout, no glyphs for overridden
+      text: needs the fonts); smart animate between states (dissolves for now); interactive
+      components nested in a state; "after delay" inside a state; a generated fixture checked in
+      Figma; D7 measured on real files and made configurable.
 - [ ] Fonts for pre-rendering: `folioscope.config.ts` and `--fonts`, with the five modes; bake-time
       warning for any missing font.
 - [ ] `folioscope fonts <folder>` CLI: generates the `folioscope-fonts.json` manifest.

@@ -1,5 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import type { Action, FolioFrame, Layer, Rect, Side, Transition, Trigger } from "./folio.ts";
+import type {
+  Action,
+  FolioComponent,
+  FolioFrame,
+  Hotspot,
+  Layer,
+  Rect,
+  Side,
+  Transition,
+  Trigger,
+} from "./folio.ts";
 
 /** A hold lasts while the pointer hovers its hotspot, or until the press is released. */
 export type HoldKind = "hover" | "press";
@@ -52,45 +62,136 @@ export function renderFrame(
     }
   }
   for (const hotspot of frame.hotspots) {
-    const by = (type: Trigger["type"]) =>
-      hotspot.interactions.filter((i) => i.trigger.type === type).map((i) => i.action);
-    const clicks = by("click");
-    const pointer = POINTER_TRIGGERS.some((type) => by(type).length > 0);
-    if (clicks.length === 0 && !pointer) continue;
-    const area: HTMLElement = document.createElement(clicks.length > 0 ? "button" : "div");
-    area.className = "hotspot";
-    place(area, hotspot.bounds);
-    if (area instanceof HTMLButtonElement) {
-      area.type = "button";
-      area.setAttribute("aria-label", hotspot.name);
-      area.addEventListener("click", (event) => {
-        event.stopPropagation();
-        for (const action of clicks) on.action(action, hotspot.bounds);
-      });
-    }
-    if (pointer) {
-      const run = (actions: Action[]) => {
-        for (const action of actions) on.action(action, hotspot.bounds);
-      };
-      area.addEventListener("pointerenter", (event) => {
-        run(by("mouseEnter"));
-        // Touch screens have no hover: a tap is a press.
-        if (event.pointerType !== "touch") {
-          for (const action of by("hover")) on.hold(action, "hover", hotspot.bounds);
-        }
-      });
-      area.addEventListener("pointerleave", () => run(by("mouseLeave")));
-      area.addEventListener("pointerdown", () => {
-        run(by("mouseDown"));
-        for (const action of by("press")) on.hold(action, "press", hotspot.bounds);
-      });
-      area.addEventListener("pointerup", () => run(by("mouseUp")));
-    }
-    (hotspot.fixed ? el : (content ?? el)).append(area);
+    const area = renderHotspot(hotspot, on);
+    if (area) (hotspot.fixed ? el : (content ?? el)).append(area);
   }
-  // Fixed hotspots were appended before later layers could cover them: keep them on top.
-  for (const area of el.querySelectorAll(":scope > .hotspot")) el.append(area);
+  // Components go last: they sit above the frame's own hotspots, as in the design file.
+  for (const component of frame.components ?? []) {
+    const zone = renderComponent(component, layerUrl, on);
+    (component.fixed ? el : (content ?? el)).append(zone);
+  }
   return el;
+}
+
+/**
+ * A hotspot as a transparent element: a focusable button when it can be clicked, a plain area
+ * when it only reacts to the pointer; `undefined` when nothing in it is for the player.
+ */
+function renderHotspot(hotspot: Hotspot, on: FrameHandlers): HTMLElement | undefined {
+  const by = (type: Trigger["type"]) =>
+    hotspot.interactions.filter((i) => i.trigger.type === type).map((i) => i.action);
+  const clicks = by("click");
+  const pointer = POINTER_TRIGGERS.some((type) => by(type).length > 0);
+  if (clicks.length === 0 && !pointer) return undefined;
+  const area: HTMLElement = document.createElement(clicks.length > 0 ? "button" : "div");
+  area.className = "hotspot";
+  place(area, hotspot.bounds);
+  if (area instanceof HTMLButtonElement) {
+    area.type = "button";
+    area.setAttribute("aria-label", hotspot.name);
+    area.addEventListener("click", (event) => {
+      event.stopPropagation();
+      for (const action of clicks) on.action(action, hotspot.bounds);
+    });
+  }
+  if (pointer) {
+    const run = (actions: Action[]) => {
+      for (const action of actions) on.action(action, hotspot.bounds);
+    };
+    area.addEventListener("pointerenter", (event) => {
+      run(by("mouseEnter"));
+      // Touch screens have no hover: a tap is a press.
+      if (event.pointerType !== "touch") {
+        for (const action of by("hover")) on.hold(action, "hover", hotspot.bounds);
+      }
+    });
+    area.addEventListener("pointerleave", () => run(by("mouseLeave")));
+    area.addEventListener("pointerdown", () => {
+      run(by("mouseDown"));
+      for (const action of by("press")) on.hold(action, "press", hotspot.bounds);
+    });
+    area.addEventListener("pointerup", () => run(by("mouseUp")));
+  }
+  return area;
+}
+
+/**
+ * An interactive component: the image of its current state, with that state's hotspots. A
+ * "change to" swaps the state in place; while hovering or pressing, until the hover or the press
+ * ends. Other actions go to the frame, their hotspot moved into the frame's coordinates.
+ */
+function renderComponent(
+  component: FolioComponent,
+  layerUrl: (layer: Layer) => string,
+  on: FrameHandlers,
+): HTMLElement {
+  const zone = document.createElement("div");
+  zone.className = "component";
+  zone.dataset.component = component.id;
+  place(zone, component.bounds);
+  const inFrame = (bounds: Rect): Rect => ({
+    ...bounds,
+    x: bounds.x + component.bounds.x,
+    y: bounds.y + component.bounds.y,
+  });
+  let current = component.initial;
+  const held: string[] = [];
+  const show = (variant: string, transition?: Transition) => {
+    const state = component.states.find((s) => s.variant === variant);
+    if (!state) return;
+    current = variant;
+    zone.dataset.state = state.name;
+    zone.style.width = `${state.bounds.width}px`;
+    zone.style.height = `${state.bounds.height}px`;
+    const img = document.createElement("img");
+    img.src = layerUrl(state.layer);
+    img.alt = "";
+    img.draggable = false;
+    place(img, state.layer.bounds);
+    const before = zone.querySelector("img");
+    const areas = state.hotspots.flatMap((h) => renderHotspot(h, handlers) ?? []);
+    zone.replaceChildren(...(before ? [before] : []), img, ...areas);
+    const reduced = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (
+      !before ||
+      !transition ||
+      reduced ||
+      transition.durationMs === 0 ||
+      transition.kind.type === "instant"
+    ) {
+      before?.remove();
+      return;
+    }
+    // Smart animate and the rest fade for now.
+    void img
+      .animate([{ opacity: 0 }, { opacity: 1 }], {
+        duration: transition.durationMs,
+        easing: easing(transition),
+      })
+      .finished.catch(() => undefined)
+      .then(() => before.remove());
+  };
+  const handlers: FrameHandlers = {
+    action: (action, bounds) => {
+      if (action.type === "changeTo") show(action.to, action.transition);
+      else on.action(action, inFrame(bounds));
+    },
+    hold: (action, kind, bounds) => {
+      if (action.type !== "changeTo") return on.hold(action, kind, inFrame(bounds));
+      held.push(current);
+      show(action.to, action.transition);
+      const release = () => {
+        const back = held.pop();
+        if (back !== undefined) show(back);
+      };
+      if (kind === "press") globalThis.addEventListener("pointerup", release, { once: true });
+      else zone.addEventListener("pointerleave", release, { once: true });
+    },
+  };
+  // Every state is fetched now, so a change shows at once.
+  for (const state of component.states) new Image().src = layerUrl(state.layer);
+  show(component.initial);
+  return zone;
 }
 
 const POINTER_TRIGGERS = [
