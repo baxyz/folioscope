@@ -39,9 +39,11 @@ export interface FolioFrame {
   placeholder?: string;
 }
 
-/** An image drawn at `bounds`; its files are `layers/<src>@<density>x.png`. */
+/** An image drawn at `bounds`; its files are `layers/<src>@<density>x.<format>`. */
 export interface Layer {
   src: string;
+  /** File extension: `webp`, or `avif` for large, photo-like layers. */
+  format: "webp" | "avif";
   bounds: Rect;
 }
 

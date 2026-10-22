@@ -17,17 +17,23 @@ A `.folio` is a **folder**, not an archive:
 ```text
 app.folio/
 ├─ index.json          # IR version, flows, frames, layers, zones and their states, transitions
-├─ poster.png          # the first frame, for the poster attribute
+├─ poster.webp         # the first frame, for the poster attribute
 └─ layers/
-   ├─ <hash>@1x.png    # one file per layer and density, named by content hash
-   └─ <hash>@2x.png
+   ├─ <hash>@1x.webp   # one file per layer and density, named by content hash
+   └─ <hash>@2x.avif   # WebP lossless, or AVIF for photo-like layers (below)
 ```
 
 - **A frame is a stack of layers** (background, scrolling content, fixed elements, overlays) plus
   **zones**: rectangles with triggers, actions, and the images of their states (`default`,
   `hover`, `press`…). Interactivity lives in the zones and the runtime, never in the pixels.
-- **Layers are named by a hash of their content**: an unchanged layer keeps its URL across bakes
-  and stays in the HTTP cache. Identical layers in two frames are stored once.
+- **Layers are named by a hash of their content** (SHA-256 of the pixels, 16 hex digits): an
+  unchanged layer keeps its URL across bakes and stays in the HTTP cache. Identical layers in two
+  frames are stored once.
+- **Layers are WebP lossless**, or **AVIF** (quality 80) when the WebP weighs 64 KB or more and
+  the AVIF is at least 30 % lighter: flat UI screens stay pixel-exact, photos shrink. The format
+  is chosen at the highest density and kept for the others; `index.json` records it per layer.
+  The poster is WebP lossless at 1x. `--no-avif` (CLI) and `avif: false` (`folioscope/vite`) keep
+  every layer in WebP.
 - **One file per density** (1x and 2x by default). The player picks one density per page load.
 - **Each frame carries a ThumbHash placeholder** (about 25 bytes, base64) in `index.json`: without
   a `poster`, the player shows it, blurred, from the moment `index.json` arrives.
@@ -52,6 +58,18 @@ with Playwright: the delay, hover and press all swap images with no re-render.
 - The first frame waits for three sequential requests (page, `index.json`, image). To reach the
   sub-second target on 4G, Phase 1 shows the `poster` straight from the HTML and inlines or
   preloads `index.json`.
-- Still open, to measure in Phase 1: AVIF or WebP instead of PNG (photos will dominate the
-  weight), the hash function (the spike uses Rust's `DefaultHasher`, which is not stable across
-  releases: use a content hash such as SHA-256, truncated), and SVG layers for simple shapes (D6).
+- Image formats, measured in Phase 1 on a real 11-frame file with photos, at 1x + 2x:
+
+  | Layers                                  | Weight | Native bake |
+  | --------------------------------------- | ------ | ----------- |
+  | PNG                                     | 3.9 MB | —           |
+  | WebP lossless only                      | 3.2 MB | 3.5 s       |
+  | WebP, or AVIF at encoder speed 10       | 932 KB | 8.8 s       |
+  | WebP, or AVIF at encoder speed 6 (kept) | 666 KB | 24.8 s      |
+
+  On flat UI screens, WebP lossless takes 4 KB where PNG took 27 KB, and AVIF is never picked.
+  Speed 6 is kept: the bake runs once per file at build time and is cached, so a slower bake
+  costs little while the lighter layers are downloaded by every visitor. The bake is
+  deterministic, so the site demos are checked in CI.
+
+- Still open: SVG layers for simple shapes (D6).

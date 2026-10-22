@@ -41,7 +41,7 @@ describe.skipIf(!wasmBuilt)("folioscope/vite", () => {
     const index = JSON.parse(raw);
     expect(index.pages[0].frames.map((f: { name: string }) => f.name)).toEqual(["Home", "Details"]);
     const layer = index.pages[0].frames[0].layers[0].src;
-    expect(existsSync(join(root, `dist/folio/app.folio/layers/${layer}@2x.png`))).toBe(true);
+    expect(existsSync(join(root, `dist/folio/app.folio/layers/${layer}@2x.webp`))).toBe(true);
 
     // The second build reads the cache instead of baking again.
     const started = performance.now();

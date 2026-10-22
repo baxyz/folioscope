@@ -21,7 +21,7 @@ features:
 ---
 
 <div class="demo">
-  <folioscope-player src="/folio/navigation.folio" poster="/folio/navigation.folio/poster.png" controls></folioscope-player>
+  <folioscope-player src="/folio/navigation.folio" poster="/folio/navigation.folio/poster.webp" controls></folioscope-player>
 </div>
 
 ## Why “Folioscope”?

@@ -6,6 +6,11 @@ all-features = true
 [advisories]
 version = 2
 yanked = "deny"
+ignore = [
+  # paste is unmaintained, not vulnerable: a compile-time macro of rav1e (AVIF), with no successor
+  # in rav1e 0.8 yet.
+  { id = "RUSTSEC-2024-0436", reason = "unmaintained build-time macro of rav1e, no known flaw" },
+]
 
 [licenses]
 version = 2
@@ -23,6 +28,8 @@ allow = [
   "Zlib",
 ]
 confidence-threshold = 0.9
+# rav1e (AVIF) lists libfuzzer-sys under cfg(fuzzing) only: it is never built into folioscope.
+exceptions = [{ crate = "libfuzzer-sys", allow = ["NCSA"] }]
 
 [bans]
 multiple-versions = "warn"

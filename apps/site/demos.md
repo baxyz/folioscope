@@ -7,7 +7,7 @@ Each demo is one of the test files in the repository, baked with `folioscope bak
 Two screens: the blue button opens the details with a dissolve, the grey button comes back.
 
 <div class="demo">
-  <folioscope-player src="/folio/navigation.folio" poster="/folio/navigation.folio/poster.png" controls></folioscope-player>
+  <folioscope-player src="/folio/navigation.folio" poster="/folio/navigation.folio/poster.webp" controls></folioscope-player>
 </div>
 
 ```html
@@ -19,7 +19,7 @@ Two screens: the blue button opens the details with a dissolve, the grey button 
 Two pages, three flows: pick them in the control bar. Push and slide transitions.
 
 <div class="demo">
-  <folioscope-player src="/folio/flows-and-pages.folio" poster="/folio/flows-and-pages.folio/poster.png" controls></folioscope-player>
+  <folioscope-player src="/folio/flows-and-pages.folio" poster="/folio/flows-and-pages.folio/poster.webp" controls></folioscope-player>
 </div>
 
 ```html
@@ -31,5 +31,5 @@ Two pages, three flows: pick them in the control bar. Push and slide transitions
 A splash screen that moves on by itself after 1.5 seconds.
 
 <div class="demo">
-  <folioscope-player src="/folio/triggers.folio" poster="/folio/triggers.folio/poster.png" controls></folioscope-player>
+  <folioscope-player src="/folio/triggers.folio" poster="/folio/triggers.folio/poster.webp" controls></folioscope-player>
 </div>
