@@ -67,6 +67,7 @@ the preload).
 | `flow`     | name or index                       | Starting point; the page's first flow by default                                                   |
 | `page`     | name or index                       | Page; the first page with a flow by default                                                        |
 | `fit`      | `contain`, `none`                   | `contain` scales the prototype to the element's width                                              |
+| `hotspots` | `on-miss`, `always`, `never`        | Shows the clickable areas: flashed after a click beside them (default), always, or never           |
 | `controls` | boolean                             | Shows the control bar: restart, back, page and flow, fullscreen                                    |
 
 ## Methods and events

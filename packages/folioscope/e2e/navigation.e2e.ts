@@ -10,7 +10,7 @@ const server = await serve(
   site,
   (query) => `<!doctype html><meta charset="utf-8">
 <script type="module" src="/player.mjs"></script>
-<folioscope-player src="/${query.get("folio")}.folio" ${query.has("controls") ? "controls" : ""} style="width: 375px"></folioscope-player>`,
+<folioscope-player src="/${query.get("folio")}.folio" ${query.has("controls") ? "controls" : ""} hotspots="${query.get("hotspots") ?? "on-miss"}" style="width: 375px"></folioscope-player>`,
 );
 
 const browser = await firefox.launch();
@@ -62,6 +62,22 @@ try {
   await settledOn("Dashboard");
   assert.equal(await control("Flow").isHidden(), true);
   console.log("✓ controls: flow and page pickers, restart, back state");
+
+  // A click beside every hotspot flashes them, unless hotspots="never".
+  const missClick = async () => {
+    const stage = (await tab.locator("folioscope-player .stage").boundingBox())!;
+    await tab.mouse.click(stage.x + 5, stage.y + 5);
+    return tab
+      .locator("folioscope-player .viewport")
+      .evaluate((el) => el.classList.contains("flash"));
+  };
+  await tab.goto(`${server.origin}/?folio=navigation`);
+  await settledOn("Home");
+  assert.equal(await missClick(), true);
+  await tab.goto(`${server.origin}/?folio=navigation&hotspots=never`);
+  await settledOn("Home");
+  assert.equal(await missClick(), false);
+  console.log("✓ hotspots: a click beside them flashes them, unless hotspots=never");
 
   // "While hovering" and "while pressing" hold a frame, and let go of it.
   await tab.goto(`${server.origin}/?folio=triggers`);
