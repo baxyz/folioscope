@@ -139,6 +139,60 @@ function triggers(): FigmaBuilder {
   return figma;
 }
 
+/**
+ * Interactive components: a button whose variants follow the pointer (while hovering, while
+ * pressing), and a switch toggled by clicks. The components live on a page of their own.
+ */
+function components(): FigmaBuilder {
+  const figma = new FigmaBuilder();
+  const page = figma.page("Prototype");
+  const library = figma.page("Components");
+
+  const size = { width: 200, height: 48 };
+  const buttons = figma.componentSet(
+    library,
+    "Button",
+    { x: 0, y: 0, width: 248, height: 192 },
+    "State",
+    ["Default", "Hover", "Pressed"],
+  );
+  const idle = figma.variant(buttons, "State=Default", { x: 24, y: 24, ...size }, BLUE, 24);
+  const hover = figma.variant(buttons, "State=Hover", { x: 24, y: 72, ...size }, "#1D4ED8", 24);
+  const pressed = figma.variant(
+    buttons,
+    "State=Pressed",
+    { x: 24, y: 120, ...size },
+    "#1E3A8A",
+    24,
+  );
+  figma.on(idle, "ON_HOVER", { kind: "changeTo", to: hover });
+  figma.on(hover, "ON_PRESS", { kind: "changeTo", to: pressed });
+
+  const track = { width: 64, height: 36 };
+  const knob = (x: number) => ({ x, y: 4, width: 28, height: 28 });
+  const switches = figma.componentSet(
+    library,
+    "Switch",
+    { x: 300, y: 0, width: 112, height: 132 },
+    "On",
+    ["false", "true"],
+  );
+  const off = figma.variant(switches, "On=false", { x: 24, y: 24, ...track }, GREY, 18);
+  figma.rect(off, "Knob", knob(4), "#FFFFFF", 14);
+  const on = figma.variant(switches, "On=true", { x: 24, y: 72, ...track }, "#16A34A", 18);
+  figma.rect(on, "Knob", knob(32), "#FFFFFF", 14);
+  const toggle = { type: "DISSOLVE", durationMs: 200 } as const;
+  figma.on(off, "ON_CLICK", { kind: "changeTo", to: on, transition: toggle });
+  figma.on(on, "ON_CLICK", { kind: "changeTo", to: off, transition: toggle });
+
+  const home = figma.frame(page, "Home", { x: 0, y: 0, ...PHONE });
+  figma.flowStart(home, "Components flow");
+  figma.instance(home, idle, "Button", { x: 88, y: 640, ...size });
+  figma.instance(home, off, "Switch", { x: 156, y: 400, ...track });
+
+  return figma;
+}
+
 /** Two pages; the first has two flows of two screens each, the second one flow. */
 function flowsAndPages(): FigmaBuilder {
   const figma = new FigmaBuilder();
@@ -239,6 +293,7 @@ function penpotNavigation(): PenpotBuilder {
 
 const fixtures: Record<string, () => { toBytes(): Uint8Array }> = {
   "figma/navigation.fig": navigation,
+  "figma/components.fig": components,
   "figma/overlay.fig": overlay,
   "figma/scroll.fig": scroll,
   "figma/triggers.fig": triggers,
