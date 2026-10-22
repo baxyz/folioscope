@@ -15,9 +15,9 @@ features:
   - title: Instant
     details: Prototypes are baked ahead of time into layered images. Visitors get a few kilobytes of JavaScript, no WebAssembly and no fonts.
   - title: Interactive
-    details: Clicks, back, flows and timed transitions play as the designer set them, with keyboard support and reduced motion respected.
+    details: Clicks, hovers, overlays, scrolling, flows and transitions play as the designer set them, with keyboard support and reduced motion respected.
   - title: Yours
-    details: Everything stays on your site. Made for portfolios and case studies, and for design files whose tools you no longer have.
+    details: Everything stays on your site, in plain files that outlive the tools that made them. Made for portfolios and case studies, to preserve your work.
 ---
 
 <div class="demo">

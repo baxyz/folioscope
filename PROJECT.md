@@ -624,6 +624,9 @@ The "works right away" path with no build step, and the fallback for dynamic lay
       reference.
 - [ ] Published compatibility matrix (what is supported for each format).
 - [ ] Verified accessibility: keyboard, screen readers, reduced motion.
+- [ ] **"Why Folioscope?" illustration** on the home page, next to the text: a small diagram of a
+      flip book, animated if it stays light (CSS or SVG, no video), with `prefers-reduced-motion`
+      respected.
 - [ ] **Comparison page** on the site, to show efficiency and speed rather than claim them. A
       scenario picker; **Play** starts loading both sides at once, side by side, with a timer and
       the bytes transferred on each. Scenarios to start from (others to find):
