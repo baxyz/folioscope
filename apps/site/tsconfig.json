@@ -6,7 +6,9 @@
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "types": ["vitepress/client"]
+    "types": ["vitepress/client"],
+    // Type-checks against the player's sources, so no build is needed first.
+    "paths": { "folioscope": ["../../packages/folioscope/src/index.ts"] }
   },
   "include": [".vitepress/**/*.ts", "scripts/**/*.ts"]
 }
