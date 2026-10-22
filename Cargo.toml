@@ -19,6 +19,8 @@ folioscope-wasm = { path = "crates/folioscope-wasm", version = "0.0.0" }
 helpers4 = { version = "0.0.7", default-features = false }
 image-webp = "0.2"
 insta = "1.49"
+# Text layout for the formats that store no glyph outlines (ADR 0011): pure Rust, no system font.
+parley = { version = "0.12", default-features = false, features = ["std"] }
 # Pure Rust, no assembly or threads, so it also builds for WebAssembly.
 ravif = { version = "0.13", default-features = false }
 # Glyphs come as outlines in the files, so resvg needs no text shaping or system fonts.
@@ -27,8 +29,10 @@ ruzstd = "0.9"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11"
+skrifa = "0.44"
 thiserror = "2"
 thumbhash = "0.1"
+wuff = "0.2"
 zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
 
 [workspace.lints.rust]

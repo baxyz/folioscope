@@ -4,8 +4,10 @@
 //! `resvg` (ADR 0001), and writes the layers and `index.json`.
 
 pub mod folio;
+pub mod fonts;
 pub mod image;
 pub mod svg;
+pub mod text;
 
 use resvg::{tiny_skia, usvg};
 

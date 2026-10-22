@@ -17,7 +17,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::figma::tree::{Node, NodeId, node_id};
+use crate::figma::tree::{Node, NodeId, Tree, node_id};
 use crate::kiwi::Value;
 
 /// One instance's override entries, by `guidPath`.
@@ -30,6 +30,8 @@ pub struct Overrides {
     scopes: Vec<(Entries, usize)>,
     /// Override keys of the instances entered so far.
     keys: Vec<NodeId>,
+    /// Keys to read other nodes' overrides under: see [`Overrides::alias`].
+    aliases: HashMap<NodeId, NodeId>,
 }
 
 impl Overrides {
@@ -60,6 +62,20 @@ impl Overrides {
         self.scopes.push((entries, self.keys.len()));
     }
 
+    /// Reads the overrides of `to`'s nodes under the keys of the `from` nodes that have the same
+    /// names down from the root, as Figma keeps overrides when an instance changes variant.
+    pub fn alias(&mut self, tree: &Tree<'_>, from: NodeId, to: NodeId) {
+        let mut named = HashMap::new();
+        name_paths(tree, from, &mut String::new(), &mut |path, node| {
+            named.insert(path.to_owned(), key(node));
+        });
+        name_paths(tree, to, &mut String::new(), &mut |path, node| {
+            if let Some(&key) = named.get(path) {
+                self.aliases.insert(self::key(node), key);
+            }
+        });
+    }
+
     pub fn leave(&mut self) {
         self.scopes.pop();
         self.keys.pop();
@@ -70,6 +86,7 @@ impl Overrides {
     #[must_use]
     pub fn resolve<'v>(&self, node: &Node<'v>) -> Cow<'v, Value> {
         let own = key(node);
+        let own = self.aliases.get(&own).copied().unwrap_or(own);
         let mut resolved: Option<Value> = None;
         for (entries, start) in self.scopes.iter().rev() {
             let mut path = self.keys[*start..].to_vec();
@@ -88,6 +105,26 @@ fn key(node: &Node<'_>) -> NodeId {
         .get("overrideKey")
         .and_then(node_id)
         .unwrap_or(node.id)
+}
+
+/// Calls `visit` with each descendant of `root` and its path of names from it (`Label`,
+/// `Row/Label`…).
+fn name_paths(
+    tree: &Tree<'_>,
+    root: NodeId,
+    path: &mut String,
+    visit: &mut impl FnMut(&str, &Node<'_>),
+) {
+    for child in tree.children(root) {
+        let length = path.len();
+        if !path.is_empty() {
+            path.push('/');
+        }
+        path.push_str(child.name);
+        visit(path, child);
+        name_paths(tree, child.id, path, visit);
+        path.truncate(length);
+    }
 }
 
 /// Copies every field of `entry` but its `guidPath` onto `target`.
