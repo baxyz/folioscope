@@ -31,7 +31,7 @@ app.folio/
 - **One file per density** (1x and 2x by default). The player picks one density per page load.
 - `index.json` carries the IR version; a player refuses a newer major version.
 
-## Phase 0 spike (`spikes/prerender/`)
+## Phase 0 spike (removed once Phase 1's bake and player replaced it)
 
 `fixtures/figma/triggers.fig` baked by hand: a splash that leaves after 1.5 s, then a home screen as
 a background plus a button in three states taken from the "while hovering" and "while pressing"
