@@ -25,6 +25,7 @@ export type Action =
   | { kind: "navigate"; to: FigGuid; transition?: Transition }
   | { kind: "overlay"; to: FigGuid; transition?: Transition }
   | { kind: "scrollTo"; to: FigGuid; transition?: Transition }
+  | { kind: "changeTo"; to: FigGuid; transition?: Transition }
   | { kind: "back" }
   | { kind: "close" };
 
@@ -169,6 +170,54 @@ export class FigmaBuilder {
     });
   }
 
+  /**
+   * A set of variants: a frame Figma marks as a state group, whose children are the variants of
+   * one property, in `values` order.
+   */
+  componentSet(
+    parent: FigGuid,
+    name: string,
+    box: Box,
+    property: string,
+    values: string[],
+  ): FigGuid {
+    return this.add(parent, {
+      type: "FRAME",
+      name,
+      size: { x: box.width, y: box.height },
+      transform: { m00: 1, m01: 0, m02: box.x, m10: 0, m11: 1, m12: box.y },
+      fillPaints: [],
+      frameMaskDisabled: false,
+      isStateGroup: true,
+      stateGroupPropertyValueOrders: [{ property, values }],
+    });
+  }
+
+  /** A variant of a set: a component named `property=value`. */
+  variant(set: FigGuid, name: string, box: Box, fill: string, radius = 0): FigGuid {
+    return this.add(set, {
+      type: "SYMBOL",
+      name,
+      size: { x: box.width, y: box.height },
+      transform: { m00: 1, m01: 0, m02: box.x, m10: 0, m11: 1, m12: box.y },
+      fillPaints: [solid(fill)],
+      frameMaskDisabled: false,
+      ...(radius ? { cornerRadius: radius } : {}),
+    });
+  }
+
+  /** An instance of `component`, with no override. */
+  instance(parent: FigGuid, component: FigGuid, name: string, box: Box): FigGuid {
+    return this.add(parent, {
+      type: "INSTANCE",
+      name,
+      size: { x: box.width, y: box.height },
+      transform: { m00: 1, m01: 0, m02: box.x, m10: 0, m11: 1, m12: box.y },
+      symbolData: { symbolID: component, symbolOverrides: [] },
+      frameMaskDisabled: false,
+    });
+  }
+
   /** Marks a top-level frame as the start of a prototype flow. */
   flowStart(frame: FigGuid, name: string, description = ""): void {
     const flows = this.doc.message.nodeChanges.filter((n: FigNode) => n.prototypeStartingPoint);
@@ -280,12 +329,16 @@ function prototypeAction(action: Action) {
     case "navigate":
     case "overlay":
     case "scrollTo":
+    case "changeTo":
       return {
         connectionType: "INTERNAL_NODE",
         transitionNodeID: action.to,
-        navigationType: { navigate: "NAVIGATE", overlay: "OVERLAY", scrollTo: "SCROLL_TO" }[
-          action.kind
-        ],
+        navigationType: {
+          navigate: "NAVIGATE",
+          overlay: "OVERLAY",
+          scrollTo: "SCROLL_TO",
+          changeTo: "SWAP_STATE",
+        }[action.kind],
         ...transition(action.transition),
       };
     case "back":

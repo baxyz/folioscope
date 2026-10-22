@@ -1,0 +1,390 @@
+---
+source: crates/folioscope-core/tests/figma.rs
+expression: "serde_json::to_string_pretty(&ir).unwrap()"
+---
+{
+  "source": "fig",
+  "pages": [
+    {
+      "id": "0:1",
+      "name": "Prototype",
+      "flows": [
+        {
+          "name": "Components flow",
+          "start": "1:15"
+        }
+      ],
+      "frames": [
+        {
+          "id": "1:15",
+          "name": "Home",
+          "bounds": {
+            "x": 0.0,
+            "y": 0.0,
+            "width": 375.0,
+            "height": 812.0
+          },
+          "hotspots": [],
+          "components": [
+            {
+              "id": "1:16",
+              "name": "Button",
+              "bounds": {
+                "x": 88.0,
+                "y": 640.0,
+                "width": 200.0,
+                "height": 48.0
+              },
+              "initial": "1:3",
+              "states": [
+                {
+                  "variant": "1:3",
+                  "name": "State=Default",
+                  "bounds": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "width": 200.0,
+                    "height": 48.0
+                  },
+                  "hotspots": [
+                    {
+                      "node": "1:3",
+                      "name": "State=Default",
+                      "bounds": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "width": 200.0,
+                        "height": 48.0
+                      },
+                      "interactions": [
+                        {
+                          "trigger": {
+                            "type": "hover"
+                          },
+                          "action": {
+                            "type": "changeTo",
+                            "to": "1:4",
+                            "transition": {
+                              "kind": {
+                                "type": "instant"
+                              },
+                              "durationMs": 0,
+                              "easing": {
+                                "type": "easeOut"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "variant": "1:4",
+                  "name": "State=Hover",
+                  "bounds": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "width": 200.0,
+                    "height": 48.0
+                  },
+                  "hotspots": [
+                    {
+                      "node": "1:4",
+                      "name": "State=Hover",
+                      "bounds": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "width": 200.0,
+                        "height": 48.0
+                      },
+                      "interactions": [
+                        {
+                          "trigger": {
+                            "type": "press"
+                          },
+                          "action": {
+                            "type": "changeTo",
+                            "to": "1:5",
+                            "transition": {
+                              "kind": {
+                                "type": "instant"
+                              },
+                              "durationMs": 0,
+                              "easing": {
+                                "type": "easeOut"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "variant": "1:5",
+                  "name": "State=Pressed",
+                  "bounds": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "width": 200.0,
+                    "height": 48.0
+                  },
+                  "hotspots": []
+                }
+              ]
+            },
+            {
+              "id": "1:17",
+              "name": "Switch",
+              "bounds": {
+                "x": 156.0,
+                "y": 400.0,
+                "width": 64.0,
+                "height": 36.0
+              },
+              "initial": "1:9",
+              "states": [
+                {
+                  "variant": "1:9",
+                  "name": "On=false",
+                  "bounds": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "width": 64.0,
+                    "height": 36.0
+                  },
+                  "hotspots": [
+                    {
+                      "node": "1:9",
+                      "name": "On=false",
+                      "bounds": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "width": 64.0,
+                        "height": 36.0
+                      },
+                      "interactions": [
+                        {
+                          "trigger": {
+                            "type": "click"
+                          },
+                          "action": {
+                            "type": "changeTo",
+                            "to": "1:11",
+                            "transition": {
+                              "kind": {
+                                "type": "dissolve"
+                              },
+                              "durationMs": 200,
+                              "easing": {
+                                "type": "easeOut"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "variant": "1:11",
+                  "name": "On=true",
+                  "bounds": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "width": 64.0,
+                    "height": 36.0
+                  },
+                  "hotspots": [
+                    {
+                      "node": "1:11",
+                      "name": "On=true",
+                      "bounds": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "width": 64.0,
+                        "height": 36.0
+                      },
+                      "interactions": [
+                        {
+                          "trigger": {
+                            "type": "click"
+                          },
+                          "action": {
+                            "type": "changeTo",
+                            "to": "1:9",
+                            "transition": {
+                              "kind": {
+                                "type": "dissolve"
+                              },
+                              "durationMs": 200,
+                              "easing": {
+                                "type": "easeOut"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1:1",
+      "name": "Components",
+      "flows": [],
+      "frames": [
+        {
+          "id": "1:2",
+          "name": "Button",
+          "bounds": {
+            "x": 0.0,
+            "y": 0.0,
+            "width": 248.0,
+            "height": 192.0
+          },
+          "hotspots": [
+            {
+              "node": "1:3",
+              "name": "State=Default",
+              "bounds": {
+                "x": 24.0,
+                "y": 24.0,
+                "width": 200.0,
+                "height": 48.0
+              },
+              "interactions": [
+                {
+                  "trigger": {
+                    "type": "hover"
+                  },
+                  "action": {
+                    "type": "changeTo",
+                    "to": "1:4",
+                    "transition": {
+                      "kind": {
+                        "type": "instant"
+                      },
+                      "durationMs": 0,
+                      "easing": {
+                        "type": "easeOut"
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "node": "1:4",
+              "name": "State=Hover",
+              "bounds": {
+                "x": 24.0,
+                "y": 72.0,
+                "width": 200.0,
+                "height": 48.0
+              },
+              "interactions": [
+                {
+                  "trigger": {
+                    "type": "press"
+                  },
+                  "action": {
+                    "type": "changeTo",
+                    "to": "1:5",
+                    "transition": {
+                      "kind": {
+                        "type": "instant"
+                      },
+                      "durationMs": 0,
+                      "easing": {
+                        "type": "easeOut"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "1:8",
+          "name": "Switch",
+          "bounds": {
+            "x": 300.0,
+            "y": 0.0,
+            "width": 112.0,
+            "height": 132.0
+          },
+          "hotspots": [
+            {
+              "node": "1:9",
+              "name": "On=false",
+              "bounds": {
+                "x": 24.0,
+                "y": 24.0,
+                "width": 64.0,
+                "height": 36.0
+              },
+              "interactions": [
+                {
+                  "trigger": {
+                    "type": "click"
+                  },
+                  "action": {
+                    "type": "changeTo",
+                    "to": "1:11",
+                    "transition": {
+                      "kind": {
+                        "type": "dissolve"
+                      },
+                      "durationMs": 200,
+                      "easing": {
+                        "type": "easeOut"
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "node": "1:11",
+              "name": "On=true",
+              "bounds": {
+                "x": 24.0,
+                "y": 72.0,
+                "width": 64.0,
+                "height": 36.0
+              },
+              "interactions": [
+                {
+                  "trigger": {
+                    "type": "click"
+                  },
+                  "action": {
+                    "type": "changeTo",
+                    "to": "1:9",
+                    "transition": {
+                      "kind": {
+                        "type": "dissolve"
+                      },
+                      "durationMs": 200,
+                      "easing": {
+                        "type": "easeOut"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -5,7 +5,14 @@ import assert from "node:assert/strict";
 import { firefox } from "playwright";
 import { bakeFixtures, serve } from "./serve.ts";
 
-const site = bakeFixtures(["navigation", "flows-and-pages", "triggers", "overlay", "scroll"]);
+const site = bakeFixtures([
+  "navigation",
+  "flows-and-pages",
+  "triggers",
+  "overlay",
+  "scroll",
+  "components",
+]);
 const server = await serve(
   site,
   (query) => `<!doctype html><meta charset="utf-8">
@@ -170,6 +177,37 @@ try {
   assert.ok(bar.y + bar.height <= 901, "controls stay on screen");
   await wide.close();
   console.log("✓ fullscreen: the prototype fits the screen, centered, controls visible");
+
+  // Interactive components change variant in place: while hovering, while pressing, on click.
+  await tab.goto(`${server.origin}/?folio=components`);
+  await settledOn("Home");
+  const stateOf = (index: number) =>
+    tab.locator("folioscope-player .component").nth(index).getAttribute("data-state");
+  const zones = tab.locator("folioscope-player .component");
+  const names = await zones.evaluateAll((els) => els.map((el) => el.getAttribute("data-state")));
+  const pushButton = names.indexOf("State=Default");
+  const toggleSwitch = names.indexOf("On=false");
+  const pushBox = (await zones.nth(pushButton).boundingBox())!;
+  await tab.mouse.move(pushBox.x + pushBox.width / 2, pushBox.y + pushBox.height / 2);
+  await tab.waitForFunction(
+    (i) =>
+      document
+        .querySelector("folioscope-player")!
+        .shadowRoot!.querySelectorAll(".component")
+        [i]!.getAttribute("data-state") === "State=Hover",
+    pushButton,
+  );
+  await tab.mouse.down();
+  assert.equal(await stateOf(pushButton), "State=Pressed");
+  await tab.mouse.up();
+  assert.equal(await stateOf(pushButton), "State=Hover");
+  await tab.mouse.move(pushBox.x + pushBox.width / 2, pushBox.y - 60);
+  assert.equal(await stateOf(pushButton), "State=Default");
+  await zones.nth(toggleSwitch).locator("button").click();
+  assert.equal(await stateOf(toggleSwitch), "On=true");
+  await zones.nth(toggleSwitch).locator("button").click();
+  assert.equal(await stateOf(toggleSwitch), "On=false");
+  console.log("✓ components: variants change while hovering, while pressing and on click");
 
   // Without a poster, the frame's baked placeholder shows while its layers load.
   const slow = await browser.newPage();

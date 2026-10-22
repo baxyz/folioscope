@@ -53,3 +53,12 @@ The button at the end scrolls back to the first card.
 <div class="demo">
   <folioscope-player src="/folio/scroll.folio" poster="/folio/scroll.folio/poster.webp" controls></folioscope-player>
 </div>
+
+## Interactive components
+
+A button whose variants follow the pointer, darker while hovered and while pressed, and a
+switch that toggles on each click. Each variant is a state of the component, changed in place.
+
+<div class="demo">
+  <folioscope-player src="/folio/components.folio" poster="/folio/components.folio/poster.webp" controls></folioscope-player>
+</div>
