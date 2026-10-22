@@ -49,7 +49,7 @@ jobs:
       - run: cargo deny check
 
   e2e:
-    name: E2E (Firefox)
+    name: E2E and Vite plugin (Firefox, WebAssembly)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -63,8 +63,14 @@ jobs:
           node-version: lts/*
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen@0.2.129
       - run: cargo build -p folioscope-cli
+      - run: pnpm --filter folioscope build:wasm
       - run: pnpm exec vp run -r build
+      - name: Vite plugin tests (need the WebAssembly bake)
+        run: pnpm --filter folioscope test
       - run: pnpm --filter folioscope exec playwright install --with-deps firefox
       - run: pnpm --filter folioscope test:e2e
       - name: Site demos are up to date with the fixtures and the bake
