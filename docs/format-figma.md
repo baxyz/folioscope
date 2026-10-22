@@ -67,6 +67,14 @@ the schema, then the root definition `Message`.
   when it has none, the component's apply.
 - Derived data exists only for the variant the instance shows.
 
+### Text
+
+A `TEXT` node's `derivedTextData.glyphs` hold one entry per glyph: `commandsBlob` (the outline,
+in em units, y up), `position` (the baseline origin, in the node's pixels), `fontSize`,
+`advance` and `firstCharacter`. With "truncate text" (`textTruncation: ENDING`), Figma adds the
+ellipsis glyph itself (`firstCharacter: 0`) where the cut falls, and `truncationStartIndex` is
+the index of the first **glyph** hidden; `-1` when nothing is cut.
+
 ## Prototype
 
 ### Flows

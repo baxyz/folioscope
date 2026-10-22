@@ -245,7 +245,13 @@ impl<'t, 'a> Walk<'t, 'a> {
                     queue.insert(0, to);
                 }
             }
-            let (w, h) = size(variant.value);
+            // The variant the instance shows has the instance's size, after auto layout; any other
+            // keeps its own.
+            let (w, h) = if variant.id == symbol.id {
+                (width, height)
+            } else {
+                size(variant.value)
+            };
             states.push(ComponentState {
                 variant: variant.id.to_string(),
                 name: variant.name.to_owned(),
