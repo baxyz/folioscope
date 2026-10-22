@@ -8,6 +8,8 @@ export default defineConfig({
     "Flip through your prototypes: a web component that plays interactive .fig, .sketch, .xd and .penpot prototypes.",
   cleanUrls: true,
   lastUpdated: false,
+  // The build output is not a source: watching it only spends file watchers.
+  vite: { server: { watch: { ignored: ["**/.vitepress/dist/**"] } } },
   vue: {
     template: { compilerOptions: { isCustomElement: (tag) => tag.startsWith("folioscope-") } },
   },
