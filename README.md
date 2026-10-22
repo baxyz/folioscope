@@ -9,6 +9,9 @@
 `.sketch`, `.xd` or `.penpot` file — clicks, hovers, overlays, navigation between screens — right
 in the browser, with no account and no Figma, Sketch or Adobe licence.
 
+It is **not a viewer** for design files: no canvas to pan, no layers to inspect, no specs. It is a
+**player**: visitors click through the screens the way the designer linked them.
+
 > **Why "Folioscope"?**
 > _Folioscope_ is the French word for a flip book: a stack of still pictures that come to life when
 > you thumb through them. That is what this player does with your design files: it takes static
