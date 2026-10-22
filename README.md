@@ -26,7 +26,7 @@ in the browser, with no account and no Figma, Sketch or Adobe licence.
 ```html
 <script type="module" src="https://cdn.jsdelivr.net/npm/folioscope"></script>
 
-<folioscope-player src="/mockups/app.folio" poster="/mockups/app.folio/poster.png" controls>
+<folioscope-player src="/mockups/app.folio" poster="/mockups/app.folio/poster.webp" controls>
 </folioscope-player>
 ```
 

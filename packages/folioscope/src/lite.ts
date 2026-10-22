@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import type { Action, FolioFrame, Side, Transition } from "./folio.ts";
+import type { Action, FolioFrame, Layer, Side, Transition } from "./folio.ts";
 
 /** Builds a frame: its layers as images, its hotspots as transparent, focusable buttons. */
 export function renderFrame(
   frame: FolioFrame,
-  layerUrl: (src: string) => string,
+  layerUrl: (layer: Layer) => string,
   onAction: (action: Action) => void,
 ): HTMLElement {
   const el = document.createElement("div");
@@ -14,7 +14,7 @@ export function renderFrame(
   el.tabIndex = -1;
   for (const layer of frame.layers) {
     const img = document.createElement("img");
-    img.src = layerUrl(layer.src);
+    img.src = layerUrl(layer);
     img.alt = "";
     img.draggable = false;
     place(img, layer.bounds);

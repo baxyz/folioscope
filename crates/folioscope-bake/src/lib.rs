@@ -4,6 +4,7 @@
 //! `resvg` (ADR 0001), and writes the layers and `index.json`.
 
 pub mod folio;
+pub mod image;
 pub mod svg;
 
 use resvg::{tiny_skia, usvg};
@@ -14,8 +15,8 @@ pub enum RenderError {
     Svg(#[from] usvg::Error),
     #[error("empty or oversized image")]
     Size,
-    #[error("cannot encode the PNG: {0}")]
-    Png(String),
+    #[error("cannot encode the image: {0}")]
+    Encode(String),
 }
 
 /// Rasterizes an SVG document to PNG, at `scale` times its size.
@@ -26,7 +27,7 @@ pub enum RenderError {
 pub fn rasterize(svg: &str, scale: f32) -> Result<Vec<u8>, RenderError> {
     render_pixmap(svg, scale)?
         .encode_png()
-        .map_err(|e| RenderError::Png(e.to_string()))
+        .map_err(|e| RenderError::Encode(e.to_string()))
 }
 
 /// A [ThumbHash](https://evanw.github.io/thumbhash/) of the SVG: a blurred placeholder of about
@@ -42,20 +43,18 @@ pub fn placeholder(svg: &str) -> Result<String, RenderError> {
     // ThumbHash takes images of at most 100x100.
     let scale = (100.0 / size.width().max(size.height())).min(1.0);
     let pixmap = render_pixmap(svg, scale)?;
-    let rgba: Vec<u8> = pixmap
-        .pixels()
-        .iter()
-        .flat_map(|p| {
-            let c = p.demultiply();
-            [c.red(), c.green(), c.blue(), c.alpha()]
-        })
-        .collect();
+    let rgba = image::straight_rgba(&pixmap);
     let hash =
         thumbhash::rgba_to_thumb_hash(pixmap.width() as usize, pixmap.height() as usize, &rgba);
     Ok(helpers4::hex::base64_encode(&hash))
 }
 
-fn render_pixmap(svg: &str, scale: f32) -> Result<tiny_skia::Pixmap, RenderError> {
+/// Renders an SVG document at `scale` times its size.
+///
+/// # Errors
+///
+/// Fails on invalid SVG, or when the scaled image is empty or too large.
+pub fn render_pixmap(svg: &str, scale: f32) -> Result<tiny_skia::Pixmap, RenderError> {
     let tree = usvg::Tree::from_str(svg, &usvg::Options::default())?;
     let size = tree
         .size()

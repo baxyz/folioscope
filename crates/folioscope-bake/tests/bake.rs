@@ -22,10 +22,15 @@ fn navigation_bakes_to_a_folio_folder() {
     let home = &index["pages"][0]["frames"][0];
     assert_eq!(home["name"], "Home");
     let layer = home["layers"][0]["src"].as_str().unwrap();
+    // A flat screen stays lossless WebP: AVIF is only tried on large, photo-like layers.
+    assert_eq!(home["layers"][0]["format"], "webp");
     for density in [1, 2] {
-        assert!(out.join(format!("layers/{layer}@{density}x.png")).is_file());
+        assert!(
+            out.join(format!("layers/{layer}@{density}x.webp"))
+                .is_file()
+        );
     }
-    assert!(out.join("poster.png").is_file());
+    assert!(out.join("poster.webp").is_file());
 
     // Layers are named by content: baking again changes nothing.
     let again = out.join("again");

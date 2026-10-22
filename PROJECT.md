@@ -205,9 +205,9 @@ file, loadable on demand and cached independently.
 ```
 app.folio/
 ├─ index.json          # IR version, flows, frames, layers, zones, interactions, transitions, ThumbHash
-├─ poster.avif         # first frame, for the poster attribute
+├─ poster.webp         # first frame, for the poster attribute
 └─ layers/
-   ├─ 3f9a…@2x.avif    # layers, named by hash, per density
+   ├─ 3f9a…@2x.webp    # layers, named by hash, per density (WebP, or AVIF for photos)
    └─ …
 ```
 
@@ -372,7 +372,7 @@ player.fonts = fonts;
 | Attribute  | Values                              | Role                                                                       |
 | ---------- | ----------------------------------- | -------------------------------------------------------------------------- |
 | `src`      | URL                                 | `.folio` folder (recommended), or `.fig`, `.sketch`, `.xd`, `.penpot` file |
-| `poster`   | URL                                 | Image shown before the JS even loads; usually `app.folio/poster.avif`      |
+| `poster`   | URL                                 | Image shown before the JS even loads; usually `app.folio/poster.webp`      |
 | `preload`  | `none`, `start`, `neighbors`, `all` | Layer preloading strategy; `neighbors` by default                          |
 | `flow`     | name or index                       | Starting point; the first one by default                                   |
 | `page`     | name or index                       | Page; the first one by default                                             |
@@ -550,7 +550,6 @@ console, and the pre-render spike displaying almost instantly.
 
 The fast path comes first: it is the one portfolio visitors will see.
 
-- [ ] `folioscope bake`: AVIF or WebP layers instead of PNG (ADR 0004).
 - [ ] Budget measured in CI: first frame displayed in under a second on an average mobile on 4G
       (Lighthouse CI). The 15 KB JS budget is checked already.
 - [ ] Add `fsm` and `dom` to helpers4.

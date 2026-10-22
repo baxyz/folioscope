@@ -1,5 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { type FolioIndex, type FolioFrame, SUPPORTED_FOLIO, SUPPORTED_IR } from "./folio.ts";
+import {
+  type FolioIndex,
+  type FolioFrame,
+  type Layer,
+  SUPPORTED_FOLIO,
+  SUPPORTED_IR,
+} from "./folio.ts";
 import { CONTROLS_STYLE, Controls } from "./controls.ts";
 import { thumbHashToDataURL } from "thumbhash";
 import { decoded, play, renderFrame } from "./lite.ts";
@@ -186,7 +192,7 @@ export class FolioscopePlayer extends BaseElement {
     this.fit();
     const incoming = renderFrame(
       frame,
-      (src) => this.layerUrl(src),
+      (layer) => this.layerUrl(layer),
       (action) => {
         void this.show(this.runtime?.run(action));
         if (action.type === "openUrl")
@@ -247,7 +253,7 @@ export class FolioscopePlayer extends BaseElement {
         .filter((f) => f !== undefined);
     }
     for (const target of targets) {
-      for (const layer of target.layers) new Image().src = this.layerUrl(layer.src);
+      for (const layer of target.layers) new Image().src = this.layerUrl(layer);
     }
   }
 
@@ -277,8 +283,8 @@ export class FolioscopePlayer extends BaseElement {
     this.viewport.style.setProperty("--scale", String(scale || 1));
   }
 
-  private layerUrl(src: string): string {
-    return `${this.base}layers/${src}@${this.density}x.png`;
+  private layerUrl(layer: Layer): string {
+    return `${this.base}layers/${layer.src}@${this.density}x.${layer.format}`;
   }
 
   private clearTimers(): void {

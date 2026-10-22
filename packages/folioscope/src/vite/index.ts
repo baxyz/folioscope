@@ -16,17 +16,22 @@ export interface FolioscopeOptions {
   base?: string;
   /** Where baked files are cached, by hash of their source. Defaults to Vite's cache folder. */
   cacheDir?: string;
+  /**
+   * Encode large, photo-like screens as AVIF when it beats lossless WebP: much lighter, slower
+   * to bake, lossy. Defaults to `true`.
+   */
+  avif?: boolean;
 }
 
 /** Files of one `.folio` folder, by path inside it (`index.json`, `layers/…`). */
 type Folio = Map<string, Uint8Array>;
 
 interface Wasm {
-  bake(input: Uint8Array): Map<string, Uint8Array>;
+  bake(input: Uint8Array, avif: boolean): Map<string, Uint8Array>;
 }
 
 /** Bumped when the bake's output changes, so stale cache entries are not reused. */
-const CACHE_VERSION = "1";
+const CACHE_VERSION = "2";
 
 const TYPES: Record<string, string> = {
   ".json": "application/json",
@@ -75,7 +80,7 @@ export function folioscope(options: FolioscopeOptions = {}): Plugin {
   const bake = (path: string): Promise<Folio> => {
     let folio = baked.get(path);
     if (!folio) {
-      folio = bakeCached(path, cacheDir);
+      folio = bakeCached(path, cacheDir, options.avif ?? true);
       baked.set(path, folio);
     }
     return folio;
@@ -133,13 +138,17 @@ export function folioscope(options: FolioscopeOptions = {}): Plugin {
 }
 
 /** Bakes `path`, or reads the result of an earlier bake of the same bytes from `cacheDir`. */
-async function bakeCached(path: string, cacheDir: string): Promise<Folio> {
+async function bakeCached(path: string, cacheDir: string, avif: boolean): Promise<Folio> {
   const source = readFileSync(path);
-  const key = createHash("sha256").update(CACHE_VERSION).update(source).digest("hex").slice(0, 32);
+  const key = createHash("sha256")
+    .update(`${CACHE_VERSION}:${avif}`)
+    .update(source)
+    .digest("hex")
+    .slice(0, 32);
   const dir = join(cacheDir, key);
   if (existsSync(join(dir, "index.json"))) return readFolder(dir);
 
-  const folio = (await loadWasm()).bake(source);
+  const folio = (await loadWasm()).bake(source, avif);
   for (const [file, bytes] of folio) {
     mkdirSync(dirname(join(dir, file)), { recursive: true });
     writeFileSync(join(dir, file), bytes);

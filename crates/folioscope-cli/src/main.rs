@@ -8,7 +8,7 @@ use folioscope_core::figma::{self, tree::Tree};
 const USAGE: &str = "usage:
   folioscope inspect <file.fig|.sketch|.xd|.penpot>
   folioscope render <file.fig> <node-id> <out.png> [scale]   (also writes <out>.svg)
-  folioscope bake <file.fig> <out.folio>";
+  folioscope bake <file.fig> <out.folio> [--no-avif]";
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -17,7 +17,10 @@ fn main() -> ExitCode {
         ["inspect", path] => inspect(path),
         ["render", path, node, out] => render(path, node, out, "1"),
         ["render", path, node, out, scale] => render(path, node, out, scale),
-        ["bake", path, out] | ["bake", path, "-o", out] => bake(path, out),
+        ["bake", path, out] | ["bake", path, "-o", out] => bake(path, out, true),
+        ["bake", path, out, "--no-avif"] | ["bake", path, "-o", out, "--no-avif"] => {
+            bake(path, out, false)
+        }
         ["--help" | "-h"] => {
             println!("{USAGE}");
             Ok(())
@@ -76,13 +79,16 @@ fn render(path: &str, node: &str, out: &str, scale: &str) -> Result<(), String> 
     Ok(())
 }
 
-fn bake(path: &str, out: &str) -> Result<(), String> {
+fn bake(path: &str, out: &str, avif: bool) -> Result<(), String> {
     let file = load(path)?;
     let started = std::time::Instant::now();
     let report = folioscope_bake::folio::bake_fig(
         &file,
         std::path::Path::new(out),
-        &folioscope_bake::folio::BakeOptions::default(),
+        &folioscope_bake::folio::BakeOptions {
+            avif,
+            ..Default::default()
+        },
     )
     .map_err(|e| e.to_string())?;
     eprintln!(

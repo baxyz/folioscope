@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Writes a `.folio` folder (ADR 0004): `index.json` (the IR plus each frame's layers), hashed
-//! layer images at every density, and `poster.png`. Phase 1: one layer per frame.
+//! layer images at every density, and `poster.webp`. Phase 1: one layer per frame.
 
 use std::fmt::Write as _;
 use std::path::Path;
@@ -11,7 +11,8 @@ use folioscope_core::ir::{self, Flow, Rect};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
-use crate::{RenderError, rasterize, svg};
+use crate::image::{ImageFormat, encode, encode_best};
+use crate::{RenderError, render_pixmap, svg};
 
 /// Version of the `.folio` layout, independent of the IR's.
 pub const FOLIO_VERSION: u32 = 1;
@@ -33,12 +34,15 @@ pub enum BakeError {
 pub struct BakeOptions {
     /// Pixel densities to render, e.g. `[1, 2]`.
     pub densities: Vec<u8>,
+    /// Encode large, photo-like layers as AVIF when it beats lossless WebP (see `image`).
+    pub avif: bool,
 }
 
 impl Default for BakeOptions {
     fn default() -> Self {
         Self {
             densities: vec![1, 2],
+            avif: true,
         }
     }
 }
@@ -81,11 +85,13 @@ struct FolioFrame<'a> {
     placeholder: String,
 }
 
-/// An image drawn at `bounds` (frame coordinates); its files are `layers/<src>@<density>x.png`.
+/// An image drawn at `bounds` (frame coordinates); its files are
+/// `layers/<src>@<density>x.<format>`.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Layer {
     src: String,
+    format: ImageFormat,
     bounds: Rect,
 }
 
@@ -109,7 +115,7 @@ pub fn bake_fig(
 }
 
 /// Bakes a decoded `.fig`, handing each file to `sink` with its path inside the `.folio` folder
-/// (`index.json`, `poster.png`, `layers/…`). The WASM build writes to memory this way.
+/// (`index.json`, `poster.webp`, `layers/…`). The WASM build writes to memory this way.
 ///
 /// # Errors
 ///
@@ -123,7 +129,9 @@ pub fn bake_fig_into(
     let tree = Tree::new(file);
     let mut report = BakeReport::default();
     let mut poster: Option<Vec<u8>> = None;
-    let poster_density = options.densities.iter().max().copied();
+    // The highest density is encoded first: it decides the layer's format for every density.
+    let mut densities = options.densities.clone();
+    densities.sort_unstable_by(|a, b| b.cmp(a));
     let first_start = document
         .pages
         .iter()
@@ -153,26 +161,37 @@ pub fn bake_fig_into(
                     frame: frame.id.clone(),
                     source,
                 })?;
-            for &density in &options.densities {
-                let png = rasterize(&rendered.markup, f32::from(density)).map_err(|source| {
-                    BakeError::Render {
-                        frame: frame.id.clone(),
-                        source,
-                    }
-                })?;
-                report.bytes += png.len();
+            let render_error = |source| BakeError::Render {
+                frame: frame.id.clone(),
+                source,
+            };
+            let mut format = None;
+            for &density in &densities {
+                let pixmap =
+                    render_pixmap(&rendered.markup, f32::from(density)).map_err(render_error)?;
+                let (chosen, bytes) = match format {
+                    None => encode_best(&pixmap, options.avif).map_err(render_error)?,
+                    Some(f) => (f, encode(&pixmap, f).map_err(render_error)?),
+                };
+                format = Some(chosen);
+                report.bytes += bytes.len();
                 report.layers += 1;
-                sink(&format!("layers/{src}@{density}x.png"), &png)?;
-                // The poster is the starting frame at the highest density.
-                if Some(frame.id.as_str()) == first_start && Some(density) == poster_density {
-                    poster = Some(png);
-                }
+                sink(
+                    &format!("layers/{src}@{density}x.{}", chosen.extension()),
+                    &bytes,
+                )?;
+            }
+            // The poster stands in for the starting frame until the player runs: 1x, lossless.
+            if Some(frame.id.as_str()) == first_start {
+                let pixmap = render_pixmap(&rendered.markup, 1.0).map_err(render_error)?;
+                poster = Some(encode(&pixmap, ImageFormat::Webp).map_err(render_error)?);
             }
             report.frames += 1;
             frames.push(FolioFrame {
                 frame,
                 layers: vec![Layer {
                     src,
+                    format: format.unwrap_or(ImageFormat::Webp),
                     bounds: Rect {
                         x: 0.0,
                         y: 0.0,
@@ -191,8 +210,8 @@ pub fn bake_fig_into(
         });
     }
 
-    if let Some(png) = poster {
-        sink("poster.png", &png)?;
+    if let Some(webp) = poster {
+        sink("poster.webp", &webp)?;
     }
 
     let index = Index {

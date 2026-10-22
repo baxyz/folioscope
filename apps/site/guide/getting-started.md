@@ -37,7 +37,7 @@ the Vite root), `base` (URL folder, `folio` by default), `cacheDir`.
 ```html
 <script type="module" src="https://cdn.jsdelivr.net/npm/folioscope"></script>
 
-<folioscope-player src="/app.folio" poster="/app.folio/poster.png" controls></folioscope-player>
+<folioscope-player src="/app.folio" poster="/app.folio/poster.webp" controls></folioscope-player>
 ```
 
 The poster shows straight from the HTML, before any JavaScript runs.
