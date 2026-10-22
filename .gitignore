@@ -33,3 +33,6 @@ temp/
 
 # Wrangler state
 .wrangler/
+
+# WebAssembly bake, built by `pnpm --filter folioscope build:wasm`
+packages/folioscope/wasm/
