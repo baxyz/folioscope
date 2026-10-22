@@ -73,17 +73,17 @@ Any node can carry `prototypeInteractions: PrototypeInteraction[]`:
 
 `PrototypeAction`:
 
-| Field                                           | Meaning                                                                                          |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `connectionType`                                | `INTERNAL_NODE`, `BACK`, `CLOSE`, `URL`, `SET_VARIABLE`, `CONDITIONAL`…                          |
-| `transitionNodeID`                              | Destination, for `INTERNAL_NODE`                                                                 |
-| `navigationType`                                | `NAVIGATE`, `OVERLAY`, `SWAP`, `SWAP_STATE` (change to), `SCROLL_TO`                             |
-| `transitionType`                                | `INSTANT_TRANSITION`, `DISSOLVE`, `SLIDE_FROM_*`, `PUSH_FROM_*`, `MOVE_FROM_*`, `SMART_ANIMATE`… |
-| `transitionDuration`                            | Seconds                                                                                          |
-| `easingType`, `easingFunction`                  | Named easing, or cubic Bézier control points for `CUSTOM_CUBIC`                                  |
-| `transitionPreserveScroll`, `extraScrollOffset` | Scroll handling                                                                                  |
-| `overlayRelativePosition`                       | `Vector`: a `MANUAL` overlay's top-left corner, from the triggering node's (Figma plugin docs)   |
-| `connectionURL`, `openUrlInNewTab`              | For `URL`                                                                                        |
+| Field                                           | Meaning                                                                                            |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `connectionType`                                | `INTERNAL_NODE`, `BACK`, `CLOSE`, `URL`, `SET_VARIABLE`, `CONDITIONAL`…                            |
+| `transitionNodeID`                              | Destination, for `INTERNAL_NODE`                                                                   |
+| `navigationType`                                | `NAVIGATE`, `OVERLAY`, `SWAP`, `SWAP_STATE` (change to), `SCROLL_TO`                               |
+| `transitionType`                                | `INSTANT_TRANSITION`, `DISSOLVE`, `SLIDE_FROM_*`, `PUSH_FROM_*`, `MOVE_FROM_*`, `SMART_ANIMATE`…   |
+| `transitionDuration`                            | Seconds                                                                                            |
+| `easingType`, `easingFunction`                  | Named easing, or cubic Bézier control points for `CUSTOM_CUBIC`                                    |
+| `transitionPreserveScroll`, `extraScrollOffset` | Keep the scroll position; `Vector`, the "Offset" of a `SCROLL_TO`: stop that far before the target |
+| `overlayRelativePosition`                       | `Vector`: a `MANUAL` overlay's top-left corner, from the triggering node's (Figma plugin docs)     |
+| `connectionURL`, `openUrlInNewTab`              | For `URL`                                                                                          |
 
 Overlay settings (`overlayPositionType`, `overlayBackgroundInteraction`,
 `overlayBackgroundAppearance`) live on the **destination** frame or component, not on the action.

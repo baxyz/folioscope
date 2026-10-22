@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { firefox } from "playwright";
 import { bakeFixtures, serve } from "./serve.ts";
 
-const site = bakeFixtures(["navigation", "flows-and-pages", "triggers", "overlay"]);
+const site = bakeFixtures(["navigation", "flows-and-pages", "triggers", "overlay", "scroll"]);
 const server = await serve(
   site,
   (query) => `<!doctype html><meta charset="utf-8">
@@ -110,6 +110,34 @@ try {
   await menu.waitFor({ state: "detached" });
   await settledOn("Home");
   console.log("✓ overlays: centered on a backdrop, closed by a button or a click outside");
+
+  // A scrolling frame: the content moves under fixed layers, and "scroll to" brings a card back.
+  await tab.goto(`${server.origin}/?folio=scroll`);
+  await settledOn("Feed");
+  const scroller = tab.locator("folioscope-player .frame .scroll");
+  const scrollTop = () => scroller.evaluate((el) => el.scrollTop);
+  const view = (await scroller.boundingBox())!;
+  await tab.mouse.move(view.x + view.width / 2, view.y + view.height / 2);
+  await tab.mouse.wheel(0, 600);
+  await tab.waitForFunction(
+    () =>
+      document.querySelector("folioscope-player")!.shadowRoot!.querySelector(".scroll")!.scrollTop >
+      0,
+  );
+  const layers = await tab
+    .locator("folioscope-player .frame > img")
+    .evaluateAll((imgs) => imgs.map((img) => img.getBoundingClientRect().top));
+  assert.equal(layers.length, 2); // the background and the fixed layer stay in place
+  await tab.locator('folioscope-player .content button[aria-label="Back to top"]').click();
+  await tab.waitForFunction(
+    () =>
+      Math.abs(
+        document.querySelector("folioscope-player")!.shadowRoot!.querySelector(".scroll")!
+          .scrollTop - 112,
+      ) < 1,
+  );
+  assert.ok(Math.abs((await scrollTop()) - 112) < 1);
+  console.log("✓ scroll: the content scrolls under fixed layers, scroll to reaches its target");
 
   // Without a poster, the frame's baked placeholder shows while its layers load.
   const slow = await browser.newPage();

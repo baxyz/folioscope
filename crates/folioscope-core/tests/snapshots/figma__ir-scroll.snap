@@ -1,5 +1,5 @@
 ---
-source: crates/folioscope-core/tests/fig.rs
+source: crates/folioscope-core/tests/figma.rs
 expression: "serde_json::to_string_pretty(&ir).unwrap()"
 ---
 {
@@ -51,12 +51,31 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                       "easing": {
                         "type": "easeInOut"
                       }
+                    },
+                    "target": {
+                      "x": 16.0,
+                      "y": 112.0,
+                      "width": 343.0,
+                      "height": 200.0
                     }
                   }
                 }
               ]
             }
-          ]
+          ],
+          "scroll": {
+            "direction": "vertical",
+            "content": {
+              "x": 0.0,
+              "y": 0.0,
+              "width": 375.0,
+              "height": 2436.0
+            },
+            "fixed": [
+              "1:15",
+              "1:16"
+            ]
+          }
         }
       ]
     }

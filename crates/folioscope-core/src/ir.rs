@@ -62,6 +62,28 @@ pub struct Frame {
     /// (centered, no backdrop, no close on click outside) when absent.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub overlay: Option<OverlaySettings>,
+    /// Set when the frame's content scrolls past its bounds.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scroll: Option<Scroll>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Scroll {
+    pub direction: ScrollDirection,
+    /// What scrolls, in the frame's coordinates: from its top-left corner, at least its size.
+    pub content: Rect,
+    /// Ids of the direct children that stay in place while the rest scrolls.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fixed: Vec<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ScrollDirection {
+    Vertical,
+    Horizontal,
+    Both,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -104,6 +126,9 @@ pub struct Hotspot {
     /// Bounding box in the frame's coordinates, after every transform.
     pub bounds: Rect,
     pub interactions: Vec<Interaction>,
+    /// In a fixed child of a scrolling frame: stays in place while the content scrolls.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub fixed: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -168,6 +193,12 @@ pub enum Action {
     ScrollTo {
         to: String,
         transition: Transition,
+        /// Bounds of the node scrolled to, in the frame's coordinates.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        target: Option<Rect>,
+        /// Stops this far before the target (room for a fixed header, say).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        offset: Option<Point>,
     },
     Back,
     Close,

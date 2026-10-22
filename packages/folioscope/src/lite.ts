@@ -25,13 +25,31 @@ export function renderFrame(
   el.setAttribute("role", "group");
   el.setAttribute("aria-label", frame.name);
   el.tabIndex = -1;
+  // A scrolling frame: background layers, then a scroller holding the content and its hotspots,
+  // then fixed layers and hotspots on top.
+  let content: HTMLElement | undefined;
   for (const layer of frame.layers) {
     const img = document.createElement("img");
     img.src = layerUrl(layer);
     img.alt = "";
     img.draggable = false;
     place(img, layer.bounds);
-    el.append(img);
+    if (layer.scrolls && frame.scroll) {
+      const scroller = document.createElement("div");
+      scroller.className = "scroll";
+      const { direction } = frame.scroll;
+      scroller.style.overflowX = direction === "vertical" ? "hidden" : "auto";
+      scroller.style.overflowY = direction === "horizontal" ? "hidden" : "auto";
+      content = document.createElement("div");
+      content.className = "content";
+      content.style.width = `${frame.scroll.content.width}px`;
+      content.style.height = `${frame.scroll.content.height}px`;
+      content.append(img);
+      scroller.append(content);
+      el.append(scroller);
+    } else {
+      el.append(img);
+    }
   }
   for (const hotspot of frame.hotspots) {
     const by = (type: Trigger["type"]) =>
@@ -68,8 +86,10 @@ export function renderFrame(
       });
       area.addEventListener("pointerup", () => run(by("mouseUp")));
     }
-    el.append(area);
+    (hotspot.fixed ? el : (content ?? el)).append(area);
   }
+  // Fixed hotspots were appended before later layers could cover them: keep them on top.
+  for (const area of el.querySelectorAll(":scope > .hotspot")) el.append(area);
   return el;
 }
 
@@ -109,6 +129,19 @@ export async function playOverlay(
     run(layer.querySelector(".sheet"), hidden!, shown!),
     run(layer.querySelector(".backdrop"), { opacity: 0 }, { opacity: 1 }),
   ]);
+}
+
+/** Scrolls the frame `el` to a "scroll to" action's target, smoothly unless it is instant. */
+export function scrollFrame(el: HTMLElement, action: Extract<Action, { type: "scrollTo" }>): void {
+  const scroller = el.querySelector(".scroll");
+  if (!scroller || !action.target) return;
+  const reduced = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const instant = reduced || action.transition.kind.type === "instant";
+  scroller.scrollTo({
+    left: action.target.x - (action.offset?.x ?? 0),
+    top: action.target.y - (action.offset?.y ?? 0),
+    behavior: instant ? "instant" : "smooth",
+  });
 }
 
 /** Resolves once every image of `el` is decoded, so a frame never shows half-loaded. */

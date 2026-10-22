@@ -18,7 +18,7 @@ in the browser, with no account and no Figma, Sketch or Adobe licence.
 
 > [!WARNING]
 > **Status: early development, not published yet.** `.fig` prototypes bake and play, with click and
-> timed, hover and press links, and overlays; scrolling and the other formats follow. See the
+> timed, hover and press links, overlays and scrolling; the other formats follow. See the
 > [project plan](PROJECT.md) and its roadmap.
 
 ## Usage
