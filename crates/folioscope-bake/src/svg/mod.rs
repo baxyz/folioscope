@@ -66,11 +66,35 @@ pub fn render_component_state(tree: &Tree<'_>, path: &[NodeId], variant: NodeId)
         .get("symbolData")
         .and_then(|s| s.get("symbolID"))
         .and_then(node_id);
+    let other;
     let root = if shows == Some(variant) {
         instance
     } else {
+        // The instance's overrides follow it to the other variant, matched by layer names.
+        if let Some(shows) = shows {
+            overrides.alias(tree, shows, variant);
+        }
+        let target = tree.get(variant)?;
+        // A variant laid out like the one shown takes the instance's size and shapes too.
+        let same_size = shows
+            .and_then(|s| tree.get(s))
+            .is_some_and(|s| size(s.value) == size(target.value));
+        let mut value = target.value.clone();
+        if same_size {
+            take_fields(
+                &mut value,
+                &resolved,
+                &["size", "fillGeometry", "strokeGeometry"],
+            );
+        }
         overrides.enter(instance, &resolved);
-        tree.get(variant)?
+        other = value;
+        &Node {
+            id: target.id,
+            kind: target.kind,
+            name: target.name,
+            value: &other,
+        }
     };
     let size = size(&overrides.resolve(root));
     let mut ctx = Ctx {
@@ -167,6 +191,22 @@ fn render(
     };
     ctx.node(node, true);
     svg(&ctx, (width, height))
+}
+
+/// Copies the `names` fields of `from` onto `to`.
+fn take_fields(to: &mut Value, from: &Value, names: &[&str]) {
+    let Value::Object(fields) = to else {
+        return;
+    };
+    for &name in names {
+        let Some(value) = from.get(name) else {
+            continue;
+        };
+        match fields.iter_mut().find(|(n, _)| &**n == name) {
+            Some((_, old)) => *old = value.clone(),
+            None => fields.push((name.into(), value.clone())),
+        }
+    }
 }
 
 fn svg(ctx: &Ctx<'_, '_>, (width, height): (f32, f32)) -> Svg {

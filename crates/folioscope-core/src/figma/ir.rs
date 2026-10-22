@@ -245,9 +245,10 @@ impl<'t, 'a> Walk<'t, 'a> {
                     queue.insert(0, to);
                 }
             }
-            // The variant the instance shows has the instance's size, after auto layout; any other
-            // keeps its own.
-            let (w, h) = if variant.id == symbol.id {
+            // The variant the instance shows has the instance's size, after auto layout, and so
+            // has a variant laid out like it (the same size in the component); any other keeps
+            // its own.
+            let (w, h) = if variant.id == symbol.id || size(variant.value) == size(symbol.value) {
                 (width, height)
             } else {
                 size(variant.value)

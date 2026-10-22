@@ -14,13 +14,16 @@ publish = false
 folioscope-core.workspace = true
 helpers4 = { workspace = true, features = ["hex"] }
 image-webp.workspace = true
+parley.workspace = true
 ravif.workspace = true
 resvg.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
+skrifa.workspace = true
 thiserror.workspace = true
 thumbhash.workspace = true
+wuff.workspace = true
 
 [dev-dependencies]
 insta.workspace = true
