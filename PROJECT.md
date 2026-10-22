@@ -628,6 +628,23 @@ The "works right away" path with no build step, and the fallback for dynamic lay
       reference.
 - [ ] Published compatibility matrix (what is supported for each format).
 - [ ] Verified accessibility: keyboard, screen readers, reduced motion.
+- [ ] **Comparison page** on the site, to show efficiency and speed rather than claim them. A
+      scenario picker; **Play** starts loading both sides at once, side by side, with a timer and
+      the bytes transferred on each. Scenarios to start from (others to find):
+  - the same `.fig` prototype: Figma's embed (`<iframe>`) versus `<folioscope-player>`, first
+    screen on screen and first click possible;
+  - the baked `.folio` versus the full player decoding the raw file in the browser (phase 4);
+  - a screen recording of the prototype (MP4 or GIF) versus the `.folio`: weight, and only one of
+    the two is clickable;
+  - every screen exported as PNG versus the `.folio`'s layers (WebP or AVIF, shared layers);
+  - Penpot's view mode or a shared Sketch link versus the `.folio`, where the format allows it;
+  - a network picker (fiber, 4G, 3G), simulated by a service worker that delays the page's own
+    files: a page cannot throttle a third-party `<iframe>`, so third-party sides only run on the
+    visitor's real network, and the page says so.
+
+  Fairness: the same file and screen on both sides, cold cache, numbers measured in the visitor's
+  browser rather than hard-coded, and the method explained on the page. Check the terms of each
+  service before measuring it.
 
 ### After v1 (to be evaluated)
 
@@ -668,6 +685,7 @@ Hosting, generator and deployment: [ADR 0010](docs/adr/0010-website.md).
 | **Getting started** | Installation (npm, CDN), minimal example, attributes, methods and events                                                         |
 | **Compatibility**   | Matrix of what is supported for each format, generated from the tests                                                            |
 | **API**             | Reference generated from the types (TypeDoc or equivalent)                                                                       |
+| **Comparison**      | Side-by-side loading of the same prototype through Folioscope and through other ways to show it (see the v1.0 roadmap)           |
 | **About**           | AGPL license, non-affiliation notice, credits (`NOTICE`)                                                                         |
 
 ### Technical
