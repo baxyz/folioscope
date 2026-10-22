@@ -25,6 +25,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11"
 thiserror = "2"
+thumbhash = "0.1"
 zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
 
 [workspace.lints.rust]

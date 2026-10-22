@@ -35,6 +35,8 @@ export interface FolioFrame {
   bounds: Rect;
   hotspots: Hotspot[];
   layers: Layer[];
+  /** ThumbHash, base64: a blurred preview shown until the layers load. */
+  placeholder?: string;
 }
 
 /** An image drawn at `bounds`; its files are `layers/<src>@<density>x.png`. */

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { type FolioIndex, type FolioFrame, SUPPORTED_FOLIO, SUPPORTED_IR } from "./folio.ts";
 import { CONTROLS_STYLE, Controls } from "./controls.ts";
+import { thumbHashToDataURL } from "thumbhash";
 import { decoded, play, renderFrame } from "./lite.ts";
 import { Runtime, type Step } from "./runtime.ts";
 
@@ -28,6 +29,7 @@ const STYLE = `
  */
 export class FolioscopePlayer extends BaseElement {
   static readonly observedAttributes: readonly string[] = ["src", "flow", "page", "controls"];
+  // `poster`, `fit` and `preload` are read when needed, so changing them needs no callback.
 
   private readonly root: ShadowRoot;
   private readonly viewport: HTMLElement;
@@ -39,6 +41,7 @@ export class FolioscopePlayer extends BaseElement {
   private shown?: HTMLElement;
   private timers: ReturnType<typeof setTimeout>[] = [];
   private loading = 0;
+  private preloadedPage?: FolioIndex["pages"][number];
   private showing = 0;
   private resize?: ResizeObserver;
   private readonly controls: Controls;
@@ -168,6 +171,7 @@ export class FolioscopePlayer extends BaseElement {
             page.flows.findIndex((f) => f.name === flowAttr),
           );
     this.controls.load(index, page, flowIndex);
+    this.showPoster(this.runtime.frame.placeholder);
     void this.show(this.runtime.restart());
   }
 
@@ -206,7 +210,7 @@ export class FolioscopePlayer extends BaseElement {
     this.controls.update(this.runtime?.canGoBack ?? false);
     this.emit("folioscope:navigate", { frame: frame.id, name: frame.name });
     this.schedule(frame);
-    this.preloadNeighbours(frame);
+    this.preload(frame);
   }
 
   /** "After delay" interactions start counting when the frame shows. */
@@ -222,15 +226,28 @@ export class FolioscopePlayer extends BaseElement {
     }
   }
 
-  private preloadNeighbours(frame: FolioFrame): void {
-    const frames = new Map(this.runtime?.page.frames.map((f) => [f.id, f]));
-    for (const hotspot of frame.hotspots) {
-      for (const { action } of hotspot.interactions) {
-        if ("to" in action) {
-          for (const layer of frames.get(action.to)?.layers ?? [])
-            new Image().src = this.layerUrl(layer.src);
-        }
-      }
+  /**
+   * `preload`: `neighbors` (default) fetches the frames this one links to, `all` every frame of
+   * the page once, `start` and `none` nothing beyond the frame on screen.
+   */
+  private preload(frame: FolioFrame): void {
+    const strategy = this.getAttribute("preload") ?? "neighbors";
+    const page = this.runtime?.page;
+    if (!page || strategy === "none" || strategy === "start") return;
+    let targets: FolioFrame[];
+    if (strategy === "all") {
+      if (this.preloadedPage === page) return;
+      this.preloadedPage = page;
+      targets = page.frames;
+    } else {
+      const frames = new Map(page.frames.map((f) => [f.id, f]));
+      targets = frame.hotspots
+        .flatMap((h) => h.interactions)
+        .flatMap(({ action }) => ("to" in action ? [frames.get(action.to)] : []))
+        .filter((f) => f !== undefined);
+    }
+    for (const target of targets) {
+      for (const layer of target.layers) new Image().src = this.layerUrl(layer.src);
     }
   }
 
@@ -238,8 +255,13 @@ export class FolioscopePlayer extends BaseElement {
     return this.index?.pages.filter((p) => p.frames.length > 0) ?? [];
   }
 
-  private showPoster(): void {
-    const poster = this.getAttribute("poster");
+  /** The `poster` image, else the frame's baked placeholder, until the first frame is ready. */
+  private showPoster(placeholder?: string): void {
+    const poster =
+      this.getAttribute("poster") ??
+      (placeholder
+        ? thumbHashToDataURL(Uint8Array.from(atob(placeholder), (c) => c.charCodeAt(0)))
+        : null);
     if (!poster || this.root.querySelector(".poster")) return;
     const img = document.createElement("img");
     img.className = "poster";

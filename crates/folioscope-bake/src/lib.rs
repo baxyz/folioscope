@@ -24,6 +24,38 @@ pub enum RenderError {
 ///
 /// Fails on invalid SVG, or when the scaled image is empty or too large.
 pub fn rasterize(svg: &str, scale: f32) -> Result<Vec<u8>, RenderError> {
+    render_pixmap(svg, scale)?
+        .encode_png()
+        .map_err(|e| RenderError::Png(e.to_string()))
+}
+
+/// A [ThumbHash](https://evanw.github.io/thumbhash/) of the SVG: a blurred placeholder of about
+/// 25 bytes, base64-encoded, that the
+/// player shows while the real layers load.
+///
+/// # Errors
+///
+/// Fails on invalid SVG or an empty image.
+pub fn placeholder(svg: &str) -> Result<String, RenderError> {
+    let tree = usvg::Tree::from_str(svg, &usvg::Options::default())?;
+    let size = tree.size();
+    // ThumbHash takes images of at most 100x100.
+    let scale = (100.0 / size.width().max(size.height())).min(1.0);
+    let pixmap = render_pixmap(svg, scale)?;
+    let rgba: Vec<u8> = pixmap
+        .pixels()
+        .iter()
+        .flat_map(|p| {
+            let c = p.demultiply();
+            [c.red(), c.green(), c.blue(), c.alpha()]
+        })
+        .collect();
+    let hash =
+        thumbhash::rgba_to_thumb_hash(pixmap.width() as usize, pixmap.height() as usize, &rgba);
+    Ok(helpers4::hex::base64_encode(&hash))
+}
+
+fn render_pixmap(svg: &str, scale: f32) -> Result<tiny_skia::Pixmap, RenderError> {
     let tree = usvg::Tree::from_str(svg, &usvg::Options::default())?;
     let size = tree
         .size()
@@ -37,7 +69,5 @@ pub fn rasterize(svg: &str, scale: f32) -> Result<Vec<u8>, RenderError> {
         tiny_skia::Transform::from_scale(scale, scale),
         &mut pixmap.as_mut(),
     );
-    pixmap
-        .encode_png()
-        .map_err(|e| RenderError::Png(e.to_string()))
+    Ok(pixmap)
 }

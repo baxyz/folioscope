@@ -50,6 +50,7 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "playwright": "catalog:",
+    "thumbhash": "0.1.1",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vite-plus": "catalog:"
@@ -61,5 +62,8 @@
     "vite": {
       "optional": true
     }
+  },
+  "inlinedDependencies": {
+    "thumbhash": "0.1.1"
   }
 }

@@ -76,6 +76,9 @@ struct FolioFrame<'a> {
     #[serde(flatten)]
     frame: &'a ir::Frame,
     layers: Vec<Layer>,
+    /// [ThumbHash](https://evanw.github.io/thumbhash/), base64: a blurred preview shown until the
+    /// layers load.
+    placeholder: String,
 }
 
 /// An image drawn at `bounds` (frame coordinates); its files are `layers/<src>@<density>x.png`.
@@ -145,6 +148,11 @@ pub fn bake_fig_into(
             let rendered = svg::render_node(&tree, id)
                 .ok_or_else(|| BakeError::MissingFrame(frame.id.clone()))?;
             let src = hash(&rendered.markup);
+            let placeholder =
+                crate::placeholder(&rendered.markup).map_err(|source| BakeError::Render {
+                    frame: frame.id.clone(),
+                    source,
+                })?;
             for &density in &options.densities {
                 let png = rasterize(&rendered.markup, f32::from(density)).map_err(|source| {
                     BakeError::Render {
@@ -172,6 +180,7 @@ pub fn bake_fig_into(
                         height: frame.bounds.height,
                     },
                 }],
+                placeholder,
             });
         }
         pages.push(FolioPage {
