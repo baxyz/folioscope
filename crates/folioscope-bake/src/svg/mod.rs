@@ -388,34 +388,44 @@ impl Ctx<'_, '_> {
         let Some(fill) = self.paint(fill, w, h) else {
             return;
         };
-        let glyphs = v
-            .get("derivedTextData")
+        let data = v.get("derivedTextData");
+        let glyphs = data
             .and_then(|d| d.get("glyphs"))
             .map_or(&[][..], Value::as_array);
-        let mut d = String::new();
-        for glyph in glyphs {
-            let Some(blob) = glyph.get("commandsBlob").and_then(Value::as_u32) else {
-                continue;
-            };
-            let Some(bytes) = self.tree.blob(blob) else {
-                continue;
-            };
-            let size = glyph.get("fontSize").and_then(Value::as_f32).unwrap_or(0.0);
-            let pos = |axis: &str| {
-                glyph
-                    .get("position")
-                    .and_then(|p| p.get(axis))
-                    .and_then(Value::as_f32)
-                    .unwrap_or(0.0)
-            };
-            // Outlines are in em units with y up; place them on the baseline at `position`.
-            path_commands(bytes, &mut d, |x, y| {
-                (pos("x") + x * size, pos("y") - y * size)
-            });
+        // "Truncate text": Figma stores the ellipsis among the glyphs, and the index of the first
+        // glyph it hides.
+        let shown = match data.and_then(|d| d.get("truncationStartIndex")) {
+            Some(Value::Int(i)) => usize::try_from(*i).unwrap_or(glyphs.len()),
+            _ => glyphs.len(),
+        };
+        let mut path = String::new();
+        for glyph in glyphs.iter().take(shown) {
+            self.glyph(glyph, &mut path);
         }
-        if !d.is_empty() {
-            let _ = write!(self.body, r#"<path d="{d}" {fill}/>"#);
+        if !path.is_empty() {
+            let _ = write!(self.body, r#"<path d="{path}" {fill}/>"#);
         }
+    }
+
+    /// Appends a glyph's outline to `d`.
+    fn glyph(&self, glyph: &Value, d: &mut String) {
+        let Some(bytes) = glyph
+            .get("commandsBlob")
+            .and_then(Value::as_u32)
+            .and_then(|blob| self.tree.blob(blob))
+        else {
+            return;
+        };
+        let size = glyph.get("fontSize").and_then(Value::as_f32).unwrap_or(0.0);
+        let pos = |axis: &str| {
+            glyph
+                .get("position")
+                .and_then(|p| p.get(axis))
+                .and_then(Value::as_f32)
+                .unwrap_or(0.0)
+        };
+        // Outlines are in em units with y up; place them on the baseline at `position`.
+        path_commands(bytes, d, |x, y| (pos("x") + x * size, pos("y") - y * size));
     }
 
     fn path_data(&self, geometry: &Value) -> Option<String> {
