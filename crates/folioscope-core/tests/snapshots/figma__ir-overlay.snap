@@ -1,5 +1,5 @@
 ---
-source: crates/folioscope-core/tests/fig.rs
+source: crates/folioscope-core/tests/figma.rs
 expression: "serde_json::to_string_pretty(&ir).unwrap()"
 ---
 {
@@ -88,7 +88,12 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                 }
               ]
             }
-          ]
+          ],
+          "overlay": {
+            "position": "center",
+            "closeOnClickOutside": true,
+            "backdrop": "#00000066"
+          }
         }
       ]
     }

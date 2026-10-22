@@ -4,14 +4,16 @@ import {
   type FolioIndex,
   type FolioFrame,
   type Layer,
+  type OverlaySettings,
+  type Point,
   type Rect,
   SUPPORTED_FOLIO,
   SUPPORTED_IR,
 } from "./folio.ts";
 import { CONTROLS_STYLE, Controls } from "./controls.ts";
 import { thumbHashToDataURL } from "thumbhash";
-import { decoded, type HoldKind, play, renderFrame } from "./lite.ts";
-import { Runtime, type Step } from "./runtime.ts";
+import { decoded, type HoldKind, play, playOverlay, renderFrame } from "./lite.ts";
+import { type OpenOverlay, Runtime, type Step } from "./runtime.ts";
 
 export const TAG_NAME = "folioscope-player";
 
@@ -27,6 +29,9 @@ const STYLE = `
 .frame { position: absolute; inset: 0; overflow: hidden; background: transparent; }
 .frame img, .poster { position: absolute; display: block; user-select: none; pointer-events: none; }
 .poster { inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.overlay, .backdrop, .sheet { position: absolute; inset: 0; }
+.sheet { pointer-events: none; }
+.sheet > .frame { pointer-events: auto; }
 .hotspot { position: absolute; margin: 0; padding: 0; border: 0; background: none; cursor: pointer; }
 .hotspot:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
 `;
@@ -203,36 +208,115 @@ export class FolioscopePlayer extends BaseElement {
     // A newer navigation supersedes this one; the runtime already holds the latest state.
     const seq = ++this.showing;
     this.clearTimers();
+    // Clicking during a transition jumps it to its end.
+    for (const animation of this.stage.getAnimations({ subtree: true })) animation.finish();
+    const hadFocus = this.root.activeElement !== null;
+    const shown =
+      step.layer === "overlay" && this.shown
+        ? await this.showOverlay(step, seq)
+        : await this.showScreen(step, seq);
+    if (!shown || seq !== this.showing) return;
+    // Focus would be lost with the outgoing screen: move it to the new one, announced by name.
+    if (hadFocus) shown.focus({ preventScroll: true });
+    this.controls.update(this.runtime?.canGoBack ?? false);
+    const top = step.overlays.at(-1)?.frame ?? step.frame;
+    this.emit("folioscope:navigate", { frame: top.id, name: top.name });
+    this.schedule(top);
+    this.preload(top);
+  }
+
+  /** Replaces the screen and its overlays; returns the frame on top. */
+  private async showScreen(step: Step, seq: number): Promise<HTMLElement | undefined> {
     const { frame } = step;
     this.viewport.style.setProperty("--w", String(frame.bounds.width));
     this.viewport.style.setProperty("--h", String(frame.bounds.height));
     this.fit();
-    const incoming = renderFrame(frame, (layer) => this.layerUrl(layer), {
-      action: (action) => {
-        void this.show(this.runtime?.run(action));
+    const incoming = this.render(frame);
+    const overlays = step.overlays.map((overlay) => this.renderOverlay(overlay, frame));
+    await Promise.all([incoming, ...overlays].map(decoded));
+    if (seq !== this.showing) return undefined;
+    const outgoing = this.shown;
+    this.shown = incoming;
+    for (const el of this.stage.querySelectorAll(":scope > .overlay")) el.remove();
+    this.stage.append(incoming, ...overlays);
+    this.root.querySelector(".poster")?.remove();
+    await play(outgoing, incoming, step.transition, step.reverse ?? false);
+    if (seq !== this.showing) return undefined;
+    for (const el of this.stage.querySelectorAll(":scope > .frame"))
+      if (el !== incoming) el.remove();
+    return overlays.at(-1)?.querySelector<HTMLElement>(".frame") ?? incoming;
+  }
+
+  /** Opens, closes or swaps the top overlay, the screen below staying; returns the frame on top. */
+  private async showOverlay(step: Step, seq: number): Promise<HTMLElement | undefined> {
+    const open = [...this.stage.querySelectorAll<HTMLElement>(":scope > .overlay")];
+    const wanted = step.overlays;
+    const below = Math.min(open.length, wanted.length) - (open.length === wanted.length ? 1 : 0);
+    // Only the top overlay may differ; anything else redraws the whole screen.
+    if (open.slice(0, below).some((el, i) => el.dataset.frame !== wanted[i]!.frame.id)) {
+      return this.showScreen({ ...step, transition: undefined }, seq);
+    }
+    const closing = open.length > below ? open.at(-1) : undefined;
+    const top = wanted.length > below ? wanted.at(-1)! : undefined;
+    const opening = top && this.renderOverlay(top, step.frame);
+    if (opening) {
+      await decoded(opening);
+      if (seq !== this.showing) return undefined;
+      this.stage.append(opening);
+    }
+    const transition = top?.transition ?? step.transition;
+    if (transition) {
+      await Promise.all([
+        opening && playOverlay(opening, transition, false),
+        closing && playOverlay(closing, transition, true),
+      ]);
+    }
+    if (seq !== this.showing) return undefined;
+    closing?.remove();
+    const shown = this.stage.querySelectorAll<HTMLElement>(":scope > .overlay > .sheet > .frame");
+    return shown[shown.length - 1] ?? this.shown;
+  }
+
+  /** A frame with its hotspots wired to the runtime; `at` places it in the screen's coordinates. */
+  private render(frame: FolioFrame, at: Point = { x: 0, y: 0 }): HTMLElement {
+    return renderFrame(frame, (layer) => this.layerUrl(layer), {
+      action: (action, bounds) => {
+        const origin = { ...bounds, x: bounds.x + at.x, y: bounds.y + at.y };
+        void this.show(this.runtime?.run(action, origin));
         if (action.type === "openUrl")
           window.open(action.url, action.newTab ? "_blank" : "_self", "noopener");
       },
       hold: (action, kind, bounds) => this.hold(action, kind, bounds),
     });
-    await decoded(incoming);
-    if (seq !== this.showing) return;
-    // Clicking during a transition jumps it to its end.
-    for (const animation of this.stage.getAnimations({ subtree: true })) animation.finish();
-    const outgoing = this.shown;
-    // Focus would be lost with the outgoing screen: move it to the new one, announced by name.
-    const hadFocus = this.root.activeElement !== null;
-    this.shown = incoming;
-    this.stage.append(incoming);
-    this.root.querySelector(".poster")?.remove();
-    await play(outgoing, incoming, step.transition, step.reverse ?? false);
-    if (seq !== this.showing) return;
-    for (const el of this.stage.querySelectorAll(".frame")) if (el !== incoming) el.remove();
-    if (hadFocus) incoming.focus({ preventScroll: true });
-    this.controls.update(this.runtime?.canGoBack ?? false);
-    this.emit("folioscope:navigate", { frame: frame.id, name: frame.name });
-    this.schedule(frame);
-    this.preload(frame);
+  }
+
+  /** An overlay layer: a backdrop over the whole screen, and the overlay frame at its position. */
+  private renderOverlay(overlay: OpenOverlay, screen: FolioFrame): HTMLElement {
+    const settings = overlay.frame.overlay ?? { position: "center", closeOnClickOutside: false };
+    const at = overlayPosition(settings.position, screen.bounds, overlay);
+    const layer = document.createElement("div");
+    layer.className = "overlay";
+    layer.dataset.frame = overlay.frame.id;
+    const backdrop = document.createElement("div");
+    backdrop.className = "backdrop";
+    if (settings.backdrop) backdrop.style.background = settings.backdrop;
+    // The screen below does not react while an overlay is open.
+    backdrop.addEventListener("click", () => {
+      if (settings.closeOnClickOutside) void this.show(this.runtime?.close());
+    });
+    const sheet = document.createElement("div");
+    sheet.className = "sheet";
+    const el = this.render(overlay.frame, at);
+    Object.assign(el.style, {
+      inset: "auto",
+      left: `${at.x}px`,
+      top: `${at.y}px`,
+      width: `${overlay.frame.bounds.width}px`,
+      height: `${overlay.frame.bounds.height}px`,
+    });
+    sheet.append(el);
+    layer.append(backdrop, sheet);
+    return layer;
   }
 
   private hold(action: Action, kind: HoldKind, bounds: Rect): void {
@@ -343,4 +427,28 @@ export class FolioscopePlayer extends BaseElement {
   private emit(type: string, detail: object): void {
     this.dispatchEvent(new CustomEvent(type, { detail, bubbles: true, composed: true }));
   }
+}
+
+/** Top-left corner of an overlay in the screen's coordinates. */
+function overlayPosition(
+  position: OverlaySettings["position"],
+  screen: Rect,
+  overlay: OpenOverlay,
+): Point {
+  const { width, height } = overlay.frame.bounds;
+  if (position === "manual") {
+    const origin = overlay.origin ?? { x: 0, y: 0 };
+    return { x: origin.x + (overlay.offset?.x ?? 0), y: origin.y + (overlay.offset?.y ?? 0) };
+  }
+  const x = position.endsWith("Left")
+    ? 0
+    : position.endsWith("Right")
+      ? screen.width - width
+      : (screen.width - width) / 2;
+  const y = position.startsWith("top")
+    ? 0
+    : position.startsWith("bottom")
+      ? screen.height - height
+      : (screen.height - height) / 2;
+  return { x, y };
 }

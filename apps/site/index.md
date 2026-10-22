@@ -29,5 +29,5 @@ features:
 _Folioscope_ is the French word for a flip book: a stack of still pictures that come to life when you thumb through them. That is what this player does with your design files: it takes static screens from a `.fig`, `.sketch`, `.xd` or `.penpot` file and flips through them following the prototype links you designed, so the mockup moves again. And yes, the “folio” is a nod to _portfolio_, where it all started.
 
 ::: warning Early days
-Folioscope is under development: `.fig` prototypes bake and play today, with click, timed, hover and press links. Overlays, scrolling and the other formats follow. See the [roadmap](https://github.com/baxyz/folioscope/blob/main/PROJECT.md).
+Folioscope is under development: `.fig` prototypes bake and play today, with click, timed, hover and press links, and overlays. Scrolling and the other formats follow. See the [roadmap](https://github.com/baxyz/folioscope/blob/main/PROJECT.md).
 :::

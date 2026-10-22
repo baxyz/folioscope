@@ -104,4 +104,33 @@ describe("Runtime", () => {
     expect(runtime.back()?.frame.id).toBe("home");
     expect(runtime.holding).toBe(0);
   });
+
+  test("overlays stack over the screen; close and back take them off", () => {
+    const runtime = new Runtime(page);
+    const origin = { x: 10, y: 20, width: 100, height: 40 };
+    const open = runtime.run({ type: "overlay", to: "settings", transition: dissolve }, origin);
+    expect(open).toMatchObject({ frame: { id: "home" }, layer: "overlay" });
+    expect(open?.overlays.map((o) => [o.frame.id, o.origin])).toEqual([["settings", origin]]);
+    expect(runtime.top.id).toBe("settings");
+
+    const closed = runtime.run({ type: "close" });
+    expect(closed).toMatchObject({ overlays: [], reverse: true, layer: "overlay" });
+    expect(runtime.canGoBack).toBe(false);
+
+    runtime.run({ type: "overlay", to: "settings", transition: dissolve });
+    const swapped = runtime.run({ type: "swapOverlay", to: "details", transition: dissolve });
+    expect(swapped?.overlays.map((o) => o.frame.id)).toEqual(["details"]);
+    expect(runtime.back()?.overlays.map((o) => o.frame.id)).toEqual(["settings"]);
+    expect(runtime.back()).toMatchObject({ overlays: [], layer: "overlay" });
+  });
+
+  test("navigating from an overlay replaces the screen and drops the overlays", () => {
+    const runtime = new Runtime(page);
+    runtime.run({ type: "overlay", to: "settings", transition: dissolve });
+    const step = runtime.run({ type: "navigate", to: "details", transition: dissolve });
+    expect(step).toMatchObject({ frame: { id: "details" }, overlays: [] });
+    expect(step?.layer).toBeUndefined();
+    expect(runtime.back()).toMatchObject({ frame: { id: "home" }, reverse: true });
+    expect(runtime.back()?.overlays).toEqual([]);
+  });
 });

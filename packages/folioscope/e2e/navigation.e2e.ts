@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { firefox } from "playwright";
 import { bakeFixtures, serve } from "./serve.ts";
 
-const site = bakeFixtures(["navigation", "flows-and-pages", "triggers"]);
+const site = bakeFixtures(["navigation", "flows-and-pages", "triggers", "overlay"]);
 const server = await serve(
   site,
   (query) => `<!doctype html><meta charset="utf-8">
@@ -25,7 +25,7 @@ try {
     tab.waitForFunction((name) => {
       const frames = document
         .querySelector("folioscope-player")
-        ?.shadowRoot?.querySelectorAll(".frame");
+        ?.shadowRoot?.querySelectorAll(".stage > .frame");
       return frames?.length === 1 && frames[0]!.getAttribute("aria-label") === name;
     }, name);
   await settledOn("Home");
@@ -78,6 +78,38 @@ try {
   await tab.mouse.move(button.x + button.width / 2, button.y - 40);
   await settledOn("Home");
   console.log("✓ hover and press: a frame while they last, then back");
+
+  // Overlays open over the screen, centered on a dimmed backdrop, and close by a button or outside.
+  await tab.goto(`${server.origin}/?folio=overlay`);
+  await settledOn("Home");
+  const menu = tab.locator('folioscope-player .overlay[data-frame] .frame[aria-label="Menu"]');
+  await tab.locator('folioscope-player .frame button[aria-label="Open menu"]').click();
+  await menu.waitFor();
+  await tab.waitForFunction(() =>
+    document
+      .querySelector("folioscope-player")!
+      .shadowRoot!.getAnimations()
+      .every((a) => a.playState === "finished"),
+  );
+  const box = (await menu.boundingBox())!;
+  const stage = (await tab.locator("folioscope-player .stage").boundingBox())!;
+  const centered = (a: number, b: number) => Math.abs(a - b) < 1;
+  assert.ok(centered(box.x - stage.x, stage.x + stage.width - (box.x + box.width)));
+  assert.ok(centered(box.y - stage.y, stage.y + stage.height - (box.y + box.height)));
+  assert.equal(
+    await tab
+      .locator("folioscope-player .backdrop")
+      .evaluate((el) => getComputedStyle(el).backgroundColor),
+    "rgba(0, 0, 0, 0.4)",
+  );
+  await tab.locator('folioscope-player .overlay button[aria-label="Close"]').click();
+  await menu.waitFor({ state: "detached" });
+  await tab.locator('folioscope-player .frame button[aria-label="Open menu"]').click();
+  await menu.waitFor();
+  await tab.mouse.click(stage.x + 5, stage.y + 5);
+  await menu.waitFor({ state: "detached" });
+  await settledOn("Home");
+  console.log("✓ overlays: centered on a backdrop, closed by a button or a click outside");
 
   // Without a poster, the frame's baked placeholder shows while its layers load.
   const slow = await browser.newPage();

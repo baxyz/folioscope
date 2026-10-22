@@ -37,6 +37,28 @@ export interface FolioFrame {
   layers: Layer[];
   /** ThumbHash, base64: a blurred preview shown until the layers load. */
   placeholder?: string;
+  /** How the frame shows when opened as an overlay. */
+  overlay?: OverlaySettings;
+}
+
+export interface OverlaySettings {
+  position:
+    | "center"
+    | "topLeft"
+    | "topCenter"
+    | "topRight"
+    | "bottomLeft"
+    | "bottomCenter"
+    | "bottomRight"
+    | "manual";
+  closeOnClickOutside: boolean;
+  /** CSS `#rrggbbaa`. */
+  backdrop?: string;
+}
+
+export interface Point {
+  x: number;
+  y: number;
 }
 
 /** An image drawn at `bounds`; its files are `layers/<src>@<density>x.<format>`. */
@@ -66,10 +88,13 @@ export type Trigger =
   | { type: "other"; name: string };
 
 export type Action =
+  | { type: "navigate" | "scrollTo"; to: string; transition: Transition }
   | {
-      type: "navigate" | "overlay" | "swapOverlay" | "scrollTo";
+      type: "overlay" | "swapOverlay";
       to: string;
       transition: Transition;
+      /** For a `manual` overlay: its top-left corner, from the hotspot's. */
+      offset?: Point;
     }
   | { type: "back" | "close" }
   | { type: "openUrl"; url: string; newTab?: boolean }
