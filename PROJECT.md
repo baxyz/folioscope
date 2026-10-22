@@ -550,8 +550,6 @@ console, and the pre-render spike displaying almost instantly.
 
 The fast path comes first: it is the one portfolio visitors will see.
 
-- [ ] Budget measured in CI: first frame displayed in under a second on an average mobile on 4G
-      (Lighthouse CI). The 15 KB JS budget is checked already.
 - [ ] Add `fsm` and `dom` to helpers4.
 - [ ] Publish to npm from CI, with provenance.
 - [ ] Minimal site live on `folioscope.baxyz.dev` (built, waiting for the Worker's first deploy).
