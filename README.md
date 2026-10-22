@@ -17,15 +17,16 @@ in the browser, with no account and no Figma, Sketch or Adobe licence.
 > _portfolio_, where it all started.
 
 > [!WARNING]
-> **Status: design phase.** Nothing is implemented yet. The API below is the target, not something
-> you can install today. See the [project plan](PROJECT.md) and its roadmap.
+> **Status: early development, not published yet.** `.fig` prototypes bake and play, with click and
+> timed links; hover states, overlays, scrolling and the other formats follow. See the
+> [project plan](PROJECT.md) and its roadmap.
 
-## Usage (planned)
+## Usage
 
 ```html
 <script type="module" src="https://cdn.jsdelivr.net/npm/folioscope"></script>
 
-<folioscope-player src="/mockups/app.folio" poster="/mockups/app.folio/poster.avif" controls>
+<folioscope-player src="/mockups/app.folio" poster="/mockups/app.folio/poster.png" controls>
 </folioscope-player>
 ```
 

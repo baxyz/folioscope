@@ -14,6 +14,24 @@ folioscope bake app.fig public/app.folio
 
 Fonts are not needed for `.fig` files: Figma stores the outline of every letter, and the bake draws them.
 
+### Or let Vite bake them
+
+With Vite, `folioscope/vite` bakes your design files while the site builds, and serves them in
+dev. It runs the bake as WebAssembly, so nothing else needs installing, and caches each result by
+the hash of its source file.
+
+```ts
+// vite.config.ts
+import { folioscope } from "folioscope/vite";
+
+export default {
+  plugins: [folioscope({ include: "designs/*.fig" })],
+};
+```
+
+`designs/app.fig` is then served as `/folio/app.folio/`. Options: `include` (globs, relative to
+the Vite root), `base` (URL folder, `folio` by default), `cacheDir`.
+
 ## 2. Add the player
 
 ```html

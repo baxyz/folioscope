@@ -7,9 +7,9 @@ This repository inherits the [canonical workspace rules](https://github.com/baxy
 `<folioscope-player>`: a web component that plays the interactive prototype stored in a `.fig`,
 `.sketch`, `.xd` or `.penpot` file, with no Figma, Sketch or Adobe account.
 
-**Status:** Phase 0 (spikes) done: the four formats are read into a common summary, `.fig`
-nodes render to SVG and PNG, and a hand-baked `.folio` plays in a tiny HTML player. Next up is
-Phase 1 (bake and lite player), see [PROJECT.md § 8](PROJECT.md#8-roadmap).
+**Status:** Phase 1 under way. `.fig` files bake into `.folio` folders (CLI, and `folioscope/vite`
+through WebAssembly) and play in `<folioscope-player>`; the four formats are read into a common
+summary. See [PROJECT.md § 8](PROJECT.md#8-roadmap).
 
 ## The project plan: `PROJECT.md`
 
@@ -59,17 +59,17 @@ Defined in `scopes.json`:
 ```text
 folioscope/
   crates/
-    folioscope-core/   ← importers (figma, sketch, xd, penpot), format detection, summary; IR later
-    folioscope-bake/   ← rendering (SVG, then PNG with resvg), the .folio writer later
-    folioscope-cli/    ← `folioscope` binary: inspect, render
-                         (folioscope-wasm joins in Phase 4)
+    folioscope-core/   ← importers (figma, sketch, xd, penpot), format detection, IR v1, summary
+    folioscope-bake/   ← rendering (SVG, then PNG with resvg) and the .folio writer
+    folioscope-wasm/   ← the bake for JavaScript (folioscope/vite, later the full player)
+    folioscope-cli/    ← `folioscope` binary: inspect, render, bake
   packages/
-    folioscope/        ← npm package, defines <folioscope-player>
+    folioscope/        ← npm package: <folioscope-player> (src/), folioscope/vite (src/vite/),
+                         wasm/ built by `build:wasm`, git-ignored, published
   apps/site/           ← VitePress site on folioscope.baxyz.dev (ADR 0010); public/folio/ holds baked demos
   fixtures/            ← test files we generated, one folder per format;
                          external/ (git-ignored) holds real third-party files for local checks
   tools/fixtures/      ← the generators behind fixtures/
-  spikes/              ← throwaway Phase 0 experiments, deleted once Phase 1 replaces them
   docs/
     adr/               ← decisions D1–D7
     format-*.md        ← what we know of each file format
@@ -90,6 +90,9 @@ cargo deny check
 pnpm --filter @folioscope/fixtures-tools generate   # rewrite fixtures/ from tools/fixtures
 pnpm --filter @folioscope/site bake-demos            # re-bake the site demos after a fixture or bake change
 pnpm run build                                       # player package, then the site (what Workers Builds runs)
+pnpm --filter folioscope build:wasm                  # WebAssembly bake for folioscope/vite (Rust + wasm-bindgen-cli 0.2.129)
+pnpm --filter folioscope test:e2e                    # bakes a fixture and plays it in Firefox
+cargo run -p folioscope-cli -- bake <file.fig> <out.folio>
 cargo run -p folioscope-cli -- inspect <file>        # pages, frames, flows and links of any format
 cargo run -p folioscope-cli -- render <file.fig> <node-id> <out.png> [scale]
 ```

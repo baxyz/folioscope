@@ -551,7 +551,6 @@ console, and the pre-render spike displaying almost instantly.
 The fast path comes first: it is the one portfolio visitors will see.
 
 - [ ] `folioscope bake`: AVIF or WebP layers instead of PNG (ADR 0004).
-- [ ] `folioscope/vite` Vite plugin, with a cache keyed on the source file's hash.
 - [ ] Lite player: ThumbHash placeholder.
 - [ ] `<folioscope-player>`: `preload` attribute.
 - [ ] Budget measured in CI: first frame displayed in under a second on an average mobile on 4G

@@ -22,7 +22,6 @@ target
 # Third-party design files and fixture experiments, never committed
 fixtures/external/
 tools/fixtures/out/
-spikes/**/out/
 
 # VitePress output and cache
 apps/site/.vitepress/dist/
