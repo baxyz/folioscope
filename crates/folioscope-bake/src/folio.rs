@@ -82,12 +82,37 @@ struct FolioPage<'a> {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct FolioFrame<'a> {
+    /// The IR frame, its components left out: they follow, with their layers.
     #[serde(flatten)]
-    frame: &'a ir::Frame,
+    frame: ir::Frame,
     layers: Vec<Layer>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    components: Vec<FolioComponent<'a>>,
     /// [ThumbHash](https://evanw.github.io/thumbhash/), base64: a blurred preview shown until the
     /// layers load.
     placeholder: String,
+}
+
+/// An interactive component, with one layer per state.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FolioComponent<'a> {
+    id: &'a str,
+    name: &'a str,
+    bounds: Rect,
+    initial: &'a str,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    fixed: bool,
+    states: Vec<FolioState<'a>>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FolioState<'a> {
+    #[serde(flatten)]
+    state: &'a ir::ComponentState,
+    /// Drawn at the state's bounds, from the component's top-left corner.
+    layer: Layer,
 }
 
 /// An image drawn at `bounds` (frame coordinates); its files are
@@ -110,6 +135,7 @@ fn frame_parts(
     id: NodeId,
     frame: &ir::Frame,
     whole_markup: &str,
+    hidden: &[NodeId],
 ) -> Result<Vec<(String, Rect, bool)>, BakeError> {
     let whole = Rect {
         x: 0.0,
@@ -118,11 +144,18 @@ fn frame_parts(
         height: frame.bounds.height,
     };
     let Some(scroll) = &frame.scroll else {
-        return Ok(vec![(whole_markup.to_owned(), whole, false)]);
+        let markup = if hidden.is_empty() {
+            whole_markup.to_owned()
+        } else {
+            svg::render_node_without(tree, id, hidden)
+                .ok_or_else(|| BakeError::MissingFrame(frame.id.clone()))?
+                .markup
+        };
+        return Ok(vec![(markup, whole, false)]);
     };
     let fixed: Vec<NodeId> = scroll.fixed.iter().filter_map(|f| f.parse().ok()).collect();
     let part = |part| {
-        svg::render_part(tree, id, part)
+        svg::render_part(tree, id, part, hidden)
             .map(|svg| svg.markup)
             .ok_or_else(|| BakeError::MissingFrame(frame.id.clone()))
     };
@@ -142,6 +175,58 @@ fn frame_parts(
         parts.push((part(svg::Part::Fixed { fixed: &fixed })?, whole, false));
     }
     Ok(parts)
+}
+
+/// Renders every state of the frame's interactive components, each as a layer.
+fn bake_components<'a>(
+    tree: &Tree<'_>,
+    frame: &'a ir::Frame,
+    densities: &[u8],
+    options: &BakeOptions,
+    report: &mut BakeReport,
+    sink: &mut Sink<'_>,
+) -> Result<Vec<FolioComponent<'a>>, BakeError> {
+    let mut components = Vec::new();
+    for component in &frame.components {
+        let mut states = Vec::new();
+        for state in &component.states {
+            let missing = || BakeError::MissingFrame(state.variant.clone());
+            let variant = state.variant.parse().map_err(|_| missing())?;
+            let path: Vec<NodeId> = component
+                .id
+                .split(';')
+                .map(str::parse)
+                .collect::<Result<_, _>>()
+                .map_err(|_| missing())?;
+            let svg = svg::render_component_state(tree, &path, variant).ok_or_else(missing)?;
+            let (src, format) = encode_layer(&svg.markup, densities, options, report, sink)
+                .map_err(|e| match e {
+                    LayerError::Render(source) => BakeError::Render {
+                        frame: frame.id.clone(),
+                        source,
+                    },
+                    LayerError::Sink(e) => e,
+                })?;
+            states.push(FolioState {
+                state,
+                layer: Layer {
+                    src,
+                    format,
+                    bounds: state.bounds,
+                    scrolls: false,
+                },
+            });
+        }
+        components.push(FolioComponent {
+            id: &component.id,
+            name: &component.name,
+            bounds: component.bounds,
+            initial: &component.initial,
+            fixed: component.fixed,
+            states,
+        });
+    }
+    Ok(components)
 }
 
 enum LayerError {
@@ -242,8 +327,16 @@ pub fn bake_fig_into(
                 source,
             };
             let placeholder = crate::placeholder(&rendered.markup).map_err(render_error)?;
+            // Interactive components are left out of the frame's layers: they get their own.
+            let hidden: Vec<NodeId> = frame
+                .components
+                .iter()
+                .filter_map(|c| c.id.rsplit(';').next()?.parse().ok())
+                .collect();
             let mut layers = Vec::new();
-            for (markup, bounds, scrolls) in frame_parts(&tree, id, frame, &rendered.markup)? {
+            for (markup, bounds, scrolls) in
+                frame_parts(&tree, id, frame, &rendered.markup, &hidden)?
+            {
                 let (src, format) = encode_layer(&markup, &densities, options, &mut report, sink)
                     .map_err(|e| match e {
                     LayerError::Render(source) => render_error(source),
@@ -262,9 +355,14 @@ pub fn bake_fig_into(
                 poster = Some(encode(&pixmap, ImageFormat::Webp).map_err(render_error)?);
             }
             report.frames += 1;
+            let components = bake_components(&tree, frame, &densities, options, &mut report, sink)?;
             frames.push(FolioFrame {
-                frame,
+                frame: ir::Frame {
+                    components: Vec::new(),
+                    ..frame.clone()
+                },
                 layers,
+                components,
                 placeholder,
             });
         }

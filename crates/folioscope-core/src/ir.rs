@@ -65,6 +65,39 @@ pub struct Frame {
     /// Set when the frame's content scrolls past its bounds.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scroll: Option<Scroll>,
+    /// Interactive component instances: their variants change in place ("change to").
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub components: Vec<Component>,
+}
+
+/// An instance whose variants the prototype switches between, each drawn as a state of its own.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Component {
+    /// Ids of the instances from the frame down to this one, joined by `;` (instances nest).
+    pub id: String,
+    pub name: String,
+    /// Where the instance sits, in the frame's coordinates.
+    pub bounds: Rect,
+    /// The variant shown first.
+    pub initial: String,
+    /// In a fixed child of a scrolling frame.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub fixed: bool,
+    /// Every variant reachable from the first one through "change to" actions.
+    pub states: Vec<ComponentState>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ComponentState {
+    /// Id of the variant.
+    pub variant: String,
+    pub name: String,
+    /// The variant's size, from the instance's top-left corner.
+    pub bounds: Rect,
+    /// In the state's coordinates.
+    pub hotspots: Vec<Hotspot>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -189,6 +222,11 @@ pub enum Action {
         transition: Transition,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         offset: Option<Point>,
+    },
+    /// Switches the interactive component the hotspot belongs to to another of its variants.
+    ChangeTo {
+        to: String,
+        transition: Transition,
     },
     ScrollTo {
         to: String,

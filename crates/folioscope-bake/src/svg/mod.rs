@@ -9,6 +9,7 @@
 
 use std::fmt::Write;
 
+use folioscope_core::figma::instance::Overrides;
 use folioscope_core::figma::tree::{Node, NodeId, Tree, node_id};
 use folioscope_core::kiwi::Value;
 
@@ -31,6 +32,60 @@ pub fn render_node(tree: &Tree<'_>, id: NodeId) -> Option<Svg> {
     Some(render(tree, node, Root::WHOLE, Vec::new(), (width, height)))
 }
 
+/// Like [`render_node`], leaving out the `hidden` descendants: the interactive components, drawn
+/// as layers of their own.
+#[must_use]
+pub fn render_node_without(tree: &Tree<'_>, id: NodeId, hidden: &[NodeId]) -> Option<Svg> {
+    let node = tree.get(id)?;
+    let (width, height) = size(node.value);
+    Some(render(
+        tree,
+        node,
+        Root::WHOLE,
+        hidden.to_vec(),
+        (width, height),
+    ))
+}
+
+/// Renders one state of an interactive component: the instance at the end of `path` (the
+/// instances from the frame down to it) showing `variant`, through every instance's overrides.
+/// The variant it shows in the file is drawn as the instance; another variant is drawn in its
+/// place at the variant's own size, with the overrides that still apply (layout is not redone).
+#[must_use]
+pub fn render_component_state(tree: &Tree<'_>, path: &[NodeId], variant: NodeId) -> Option<Svg> {
+    let (last, outer) = path.split_last()?;
+    let mut overrides = Overrides::default();
+    for id in outer {
+        let node = tree.get(*id)?;
+        let resolved = overrides.resolve(node);
+        overrides.enter(node, &resolved);
+    }
+    let instance = tree.get(*last)?;
+    let resolved = overrides.resolve(instance);
+    let shows = resolved
+        .get("symbolData")
+        .and_then(|s| s.get("symbolID"))
+        .and_then(node_id);
+    let root = if shows == Some(variant) {
+        instance
+    } else {
+        overrides.enter(instance, &resolved);
+        tree.get(variant)?
+    };
+    let size = size(&overrides.resolve(root));
+    let mut ctx = Ctx {
+        tree,
+        defs: String::new(),
+        body: String::new(),
+        next_id: 0,
+        hidden: Vec::new(),
+        root: Root::WHOLE,
+        overrides,
+    };
+    ctx.node(root, true);
+    Some(svg(&ctx, size))
+}
+
 /// A layer of a scrolling frame (ADR 0004's layer split).
 #[derive(Debug, Clone, Copy)]
 pub enum Part<'f> {
@@ -45,21 +100,25 @@ pub enum Part<'f> {
     Fixed { fixed: &'f [NodeId] },
 }
 
-/// Renders one [`Part`] of the frame `id`.
+/// Renders one [`Part`] of the frame `id`, leaving out the `hidden` descendants.
 #[must_use]
-pub fn render_part(tree: &Tree<'_>, id: NodeId, part: Part<'_>) -> Option<Svg> {
+pub fn render_part(tree: &Tree<'_>, id: NodeId, part: Part<'_>, hidden: &[NodeId]) -> Option<Svg> {
     let node = tree.get(id)?;
     let frame_size = size(node.value);
+    let mut hidden = hidden.to_vec();
     Some(match part {
-        Part::Background => render(tree, node, Root::BACKGROUND, Vec::new(), frame_size),
-        Part::Content { fixed, size } => render(tree, node, Root::CONTENT, fixed.to_vec(), size),
+        Part::Background => render(tree, node, Root::BACKGROUND, hidden, frame_size),
+        Part::Content { fixed, size } => {
+            hidden.extend_from_slice(fixed);
+            render(tree, node, Root::CONTENT, hidden, size)
+        }
         Part::Fixed { fixed } => {
-            let others = tree
-                .children(id)
-                .map(|c| c.id)
-                .filter(|c| !fixed.contains(c))
-                .collect();
-            render(tree, node, Root::CONTENT, others, frame_size)
+            hidden.extend(
+                tree.children(id)
+                    .map(|c| c.id)
+                    .filter(|c| !fixed.contains(c)),
+            );
+            render(tree, node, Root::CONTENT, hidden, frame_size)
         }
     })
 }
@@ -104,8 +163,13 @@ fn render(
         next_id: 0,
         hidden,
         root,
+        overrides: Overrides::default(),
     };
     ctx.node(node, true);
+    svg(&ctx, (width, height))
+}
+
+fn svg(ctx: &Ctx<'_, '_>, (width, height): (f32, f32)) -> Svg {
     let markup = format!(
         r#"<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}"><defs>{}</defs>{}</svg>"#,
         ctx.defs, ctx.body
@@ -124,6 +188,8 @@ struct Ctx<'t, 'a> {
     next_id: u32,
     hidden: Vec<NodeId>,
     root: Root,
+    /// The instances being drawn, whose overrides apply to what is inside them.
+    overrides: Overrides,
 }
 
 impl Ctx<'_, '_> {
@@ -133,6 +199,13 @@ impl Ctx<'_, '_> {
     }
 
     fn node(&mut self, node: &Node<'_>, root: bool) {
+        let resolved = self.overrides.resolve(node);
+        let node = &Node {
+            id: node.id,
+            kind: node.kind,
+            name: node.name,
+            value: &resolved,
+        };
         let v = node.value;
         if matches!(v.get("visible"), Some(Value::Bool(false))) || self.hidden.contains(&node.id) {
             return;
@@ -221,10 +294,17 @@ impl Ctx<'_, '_> {
             let _ = write!(self.defs, r#"<clipPath id="{id}">{shape}</clipPath>"#);
             let _ = write!(self.body, r#"<g clip-path="url(#{id})">"#);
         }
+        let instance = node.kind == "INSTANCE";
+        if instance {
+            self.overrides.enter(node, node.value);
+        }
         for child in children {
             if let Some(child) = self.tree.get(child) {
                 self.node(child, false);
             }
+        }
+        if instance {
+            self.overrides.leave();
         }
         if clip {
             self.body.push_str("</g>");
