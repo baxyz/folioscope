@@ -37,7 +37,8 @@ in the browser, with no account and no Figma, Sketch or Adobe licence.
   player decodes and renders it in the browser (WASM, loaded on demand). Slower, but no build step.
 
 Everything stays on your site: no third-party service, no network call other than your own files.
-Made for archiving and showcasing work — portfolios, case studies.
+Made for archiving and showcasing work — portfolios, case studies — in plain files that keep
+playing whatever happens to the design tool that made them.
 
 ## Packages
 
