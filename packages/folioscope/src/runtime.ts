@@ -19,6 +19,8 @@ export class Runtime {
   readonly page: FolioPage;
   private readonly frames: Map<string, FolioFrame>;
   private history: string[] = [];
+  /** Frames left by a hover or press still under way, innermost last; `back` skips them. */
+  private held: string[] = [];
   private current: string;
   private readonly start: string;
 
@@ -37,6 +39,11 @@ export class Runtime {
 
   get frame(): FolioFrame {
     return this.frames.get(this.current)!;
+  }
+
+  /** How many hovers and presses currently hold a frame. */
+  get holding(): number {
+    return this.held.length;
   }
 
   get canGoBack(): boolean {
@@ -59,14 +66,42 @@ export class Runtime {
   goTo(frameId: string, transition?: Transition): Step | undefined {
     const frame = this.frames.get(frameId);
     if (!frame || frameId === this.current) return undefined;
-    this.history.push(this.current);
+    // Navigating while a hover or press holds a frame commits to it; back returns to where the
+    // hold started.
+    this.history.push(this.held[0] ?? this.current);
+    this.held = [];
     this.current = frameId;
     return { frame, transition };
   }
 
+  /**
+   * "While hovering" and "while pressing": shows the action's frame until `release()`, without
+   * adding it to the history.
+   */
+  hold(action: Action): Step | undefined {
+    if (action.type !== "navigate") return undefined;
+    const frame = this.frames.get(action.to);
+    if (!frame || action.to === this.current) return undefined;
+    this.held.push(this.current);
+    this.current = action.to;
+    return { frame, transition: action.transition };
+  }
+
+  /** Ends the innermost hold: back to the frame it started from, at once. */
+  release(): Step | undefined {
+    const from = this.held.pop();
+    if (from === undefined) return undefined;
+    this.current = from;
+    return { frame: this.frame };
+  }
+
   back(): Step | undefined {
+    // Back from a held frame starts from the frame the hold left.
+    const base = this.held[0];
+    this.held = [];
+    if (base !== undefined) this.current = base;
     const previous = this.history.pop();
-    if (previous === undefined) return undefined;
+    if (previous === undefined) return base === undefined ? undefined : { frame: this.frame };
     // The transition that led here, played backwards.
     const transition = this.lastTransitionTo(this.current, previous);
     this.current = previous;
@@ -75,6 +110,7 @@ export class Runtime {
 
   restart(): Step {
     this.history = [];
+    this.held = [];
     this.current = this.start;
     return { frame: this.frame };
   }

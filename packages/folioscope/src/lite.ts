@@ -1,11 +1,24 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import type { Action, FolioFrame, Layer, Side, Transition } from "./folio.ts";
+import type { Action, FolioFrame, Layer, Rect, Side, Transition, Trigger } from "./folio.ts";
 
-/** Builds a frame: its layers as images, its hotspots as transparent, focusable buttons. */
+/** A hold lasts while the pointer hovers its hotspot, or until the press is released. */
+export type HoldKind = "hover" | "press";
+
+export interface FrameHandlers {
+  /** Runs an action: a click, a timer, a pointer entering or leaving. */
+  action: (action: Action) => void;
+  /** Shows an action's frame for as long as the hover or the press lasts. */
+  hold: (action: Action, kind: HoldKind, bounds: Rect) => void;
+}
+
+/**
+ * Builds a frame: its layers as images, its hotspots as transparent elements. Clickable hotspots
+ * are focusable buttons; those that only react to the pointer are plain areas.
+ */
 export function renderFrame(
   frame: FolioFrame,
   layerUrl: (layer: Layer) => string,
-  onAction: (action: Action) => void,
+  on: FrameHandlers,
 ): HTMLElement {
   const el = document.createElement("div");
   el.className = "frame";
@@ -21,21 +34,51 @@ export function renderFrame(
     el.append(img);
   }
   for (const hotspot of frame.hotspots) {
-    const clicks = hotspot.interactions.filter((i) => i.trigger.type === "click");
-    if (clicks.length === 0) continue;
-    const button = document.createElement("button");
-    button.className = "hotspot";
-    button.type = "button";
-    button.setAttribute("aria-label", hotspot.name);
-    place(button, hotspot.bounds);
-    button.addEventListener("click", (event) => {
-      event.stopPropagation();
-      for (const { action } of clicks) onAction(action);
-    });
-    el.append(button);
+    const by = (type: Trigger["type"]) =>
+      hotspot.interactions.filter((i) => i.trigger.type === type).map((i) => i.action);
+    const clicks = by("click");
+    const pointer = POINTER_TRIGGERS.some((type) => by(type).length > 0);
+    if (clicks.length === 0 && !pointer) continue;
+    const area: HTMLElement = document.createElement(clicks.length > 0 ? "button" : "div");
+    area.className = "hotspot";
+    place(area, hotspot.bounds);
+    if (area instanceof HTMLButtonElement) {
+      area.type = "button";
+      area.setAttribute("aria-label", hotspot.name);
+      area.addEventListener("click", (event) => {
+        event.stopPropagation();
+        clicks.forEach(on.action);
+      });
+    }
+    if (pointer) {
+      const run = (actions: Action[]) => actions.forEach(on.action);
+      area.addEventListener("pointerenter", (event) => {
+        run(by("mouseEnter"));
+        // Touch screens have no hover: a tap is a press.
+        if (event.pointerType !== "touch") {
+          for (const action of by("hover")) on.hold(action, "hover", hotspot.bounds);
+        }
+      });
+      area.addEventListener("pointerleave", () => run(by("mouseLeave")));
+      area.addEventListener("pointerdown", () => {
+        run(by("mouseDown"));
+        for (const action of by("press")) on.hold(action, "press", hotspot.bounds);
+      });
+      area.addEventListener("pointerup", () => run(by("mouseUp")));
+    }
+    el.append(area);
   }
   return el;
 }
+
+const POINTER_TRIGGERS = [
+  "hover",
+  "press",
+  "mouseEnter",
+  "mouseLeave",
+  "mouseDown",
+  "mouseUp",
+] as const;
 
 /** Resolves once every image of `el` is decoded, so a frame never shows half-loaded. */
 export async function decoded(el: HTMLElement): Promise<void> {

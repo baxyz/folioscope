@@ -79,4 +79,29 @@ describe("Runtime", () => {
   test("fails on a page with nothing to show", () => {
     expect(() => new Runtime({ ...page, flows: [], frames: [] })).toThrow(/no frame/);
   });
+
+  test("a hover or press holds a frame until released, outside the history", () => {
+    const runtime = new Runtime(page);
+    const to = (id: string) => ({ type: "navigate", to: id, transition: dissolve }) as const;
+    expect(runtime.hold(to("details"))?.frame.id).toBe("details");
+    expect(runtime.hold(to("settings"))?.frame.id).toBe("settings");
+    expect(runtime.holding).toBe(2);
+    expect(runtime.canGoBack).toBe(false);
+    expect(runtime.release()?.frame.id).toBe("details");
+    expect(runtime.release()?.frame.id).toBe("home");
+    expect(runtime.release()).toBeUndefined();
+    expect(runtime.hold(to("home"))).toBeUndefined();
+  });
+
+  test("navigating from a held frame commits it, and back returns to where the hold started", () => {
+    const runtime = new Runtime(page);
+    runtime.hold({ type: "navigate", to: "details", transition: dissolve });
+    expect(runtime.goTo("settings")?.frame.id).toBe("settings");
+    expect(runtime.holding).toBe(0);
+    expect(runtime.back()?.frame.id).toBe("home");
+
+    runtime.hold({ type: "navigate", to: "details", transition: dissolve });
+    expect(runtime.back()?.frame.id).toBe("home");
+    expect(runtime.holding).toBe(0);
+  });
 });
