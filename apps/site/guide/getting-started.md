@@ -44,14 +44,15 @@ The poster shows straight from the HTML, before any JavaScript runs.
 
 ## Attributes
 
-| Attribute  | Values            | Role                                                            |
-| ---------- | ----------------- | --------------------------------------------------------------- |
-| `src`      | URL               | The `.folio` folder                                             |
-| `poster`   | URL               | Image shown until the first screen is ready                     |
-| `flow`     | name or index     | Starting point; the page's first flow by default                |
-| `page`     | name or index     | Page; the first page with a flow by default                     |
-| `fit`      | `contain`, `none` | `contain` scales the prototype to the element's width           |
-| `controls` | boolean           | Shows the control bar: restart, back, page and flow, fullscreen |
+| Attribute  | Values                              | Role                                                                                               |
+| ---------- | ----------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `src`      | URL                                 | The `.folio` folder                                                                                |
+| `poster`   | URL                                 | Image shown until the first screen is ready; without it, a blurred preview baked into the `.folio` |
+| `preload`  | `neighbors`, `all`, `start`, `none` | Screens to fetch ahead: those the current one links to (default), the whole page once, or none     |
+| `flow`     | name or index                       | Starting point; the page's first flow by default                                                   |
+| `page`     | name or index                       | Page; the first page with a flow by default                                                        |
+| `fit`      | `contain`, `none`                   | `contain` scales the prototype to the element's width                                              |
+| `controls` | boolean                             | Shows the control bar: restart, back, page and flow, fullscreen                                    |
 
 ## Methods and events
 
