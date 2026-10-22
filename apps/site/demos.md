@@ -26,9 +26,11 @@ Two pages, three flows: pick them in the control bar. Push and slide transitions
 <folioscope-player src="/folio/flows-and-pages.folio" flow="Log in" controls></folioscope-player>
 ```
 
-## After a delay
+## After a delay, while hovering, while pressing
 
-A splash screen that moves on by itself after 1.5 seconds.
+A splash screen that moves on by itself after 1.5 seconds. Then hover the button, and press it:
+each state is a frame of its own, shown while the pointer stays over the button or the button is
+held. On a touch screen, there is no hover: a tap shows the pressed state.
 
 <div class="demo">
   <folioscope-player src="/folio/triggers.folio" poster="/folio/triggers.folio/poster.webp" controls></folioscope-player>

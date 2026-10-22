@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import {
+  type Action,
   type FolioIndex,
   type FolioFrame,
   type Layer,
+  type Rect,
   SUPPORTED_FOLIO,
   SUPPORTED_IR,
 } from "./folio.ts";
 import { CONTROLS_STYLE, Controls } from "./controls.ts";
 import { thumbHashToDataURL } from "thumbhash";
-import { decoded, play, renderFrame } from "./lite.ts";
+import { decoded, type HoldKind, play, renderFrame } from "./lite.ts";
 import { Runtime, type Step } from "./runtime.ts";
 
 export const TAG_NAME = "folioscope-player";
@@ -51,6 +53,9 @@ export class FolioscopePlayer extends BaseElement {
   private showing = 0;
   private resize?: ResizeObserver;
   private readonly controls: Controls;
+  /** The hovers and presses holding a frame, innermost last, with the hotspot that started each. */
+  private holds: { kind: HoldKind; bounds: Rect }[] = [];
+  private readonly releasePress = () => this.release((hold) => hold.kind === "press");
 
   constructor() {
     super();
@@ -68,6 +73,13 @@ export class FolioscopePlayer extends BaseElement {
     });
     this.controls.element.hidden = !this.hasAttribute("controls");
     this.root.append(this.controls.element);
+    // A hover lasts while the pointer stays over the hotspot that started it.
+    this.viewport.addEventListener("pointermove", (event) =>
+      this.release((hold) => hold.kind === "hover" && !this.under(event, hold.bounds)),
+    );
+    this.viewport.addEventListener("pointerleave", () =>
+      this.release((hold) => hold.kind === "hover"),
+    );
     this.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && this.runtime?.canGoBack) {
         event.preventDefault();
@@ -90,12 +102,17 @@ export class FolioscopePlayer extends BaseElement {
   }
 
   connectedCallback(): void {
+    // A press ends wherever the button is released, even outside the player.
+    globalThis.addEventListener("pointerup", this.releasePress);
+    globalThis.addEventListener("pointercancel", this.releasePress);
     this.resize = new ResizeObserver(() => this.fit());
     this.resize.observe(this.viewport);
     if (!this.index) void this.load();
   }
 
   disconnectedCallback(): void {
+    globalThis.removeEventListener("pointerup", this.releasePress);
+    globalThis.removeEventListener("pointercancel", this.releasePress);
     this.resize?.disconnect();
     this.clearTimers();
   }
@@ -190,15 +207,14 @@ export class FolioscopePlayer extends BaseElement {
     this.viewport.style.setProperty("--w", String(frame.bounds.width));
     this.viewport.style.setProperty("--h", String(frame.bounds.height));
     this.fit();
-    const incoming = renderFrame(
-      frame,
-      (layer) => this.layerUrl(layer),
-      (action) => {
+    const incoming = renderFrame(frame, (layer) => this.layerUrl(layer), {
+      action: (action) => {
         void this.show(this.runtime?.run(action));
         if (action.type === "openUrl")
           window.open(action.url, action.newTab ? "_blank" : "_self", "noopener");
       },
-    );
+      hold: (action, kind, bounds) => this.hold(action, kind, bounds),
+    });
     await decoded(incoming);
     if (seq !== this.showing) return;
     // Clicking during a transition jumps it to its end.
@@ -217,6 +233,38 @@ export class FolioscopePlayer extends BaseElement {
     this.emit("folioscope:navigate", { frame: frame.id, name: frame.name });
     this.schedule(frame);
     this.preload(frame);
+  }
+
+  private hold(action: Action, kind: HoldKind, bounds: Rect): void {
+    const step = this.runtime?.hold(action);
+    if (!step) return;
+    this.holds.push({ kind, bounds });
+    void this.show(step);
+  }
+
+  /** Ends the innermost holds while `ends` says so, then shows the frame they return to. */
+  private release(ends: (hold: { kind: HoldKind; bounds: Rect }) => boolean): void {
+    const runtime = this.runtime;
+    if (!runtime) return;
+    // A navigation, back or restart drops every hold in the runtime.
+    this.holds.length = Math.min(this.holds.length, runtime.holding);
+    let step: Step | undefined;
+    while (this.holds.length > 0 && ends(this.holds.at(-1)!)) {
+      this.holds.pop();
+      step = runtime.release() ?? step;
+    }
+    if (step) void this.show(step);
+  }
+
+  /** Whether a pointer event falls inside `bounds`, in the frame's coordinates. */
+  private under(event: PointerEvent, bounds: Rect): boolean {
+    const stage = this.stage.getBoundingClientRect();
+    const scale = stage.width / (Number(this.viewport.style.getPropertyValue("--w")) || 1);
+    const x = (event.clientX - stage.left) / scale;
+    const y = (event.clientY - stage.top) / scale;
+    return (
+      x >= bounds.x && x < bounds.x + bounds.width && y >= bounds.y && y < bounds.y + bounds.height
+    );
   }
 
   /** "After delay" interactions start counting when the frame shows. */

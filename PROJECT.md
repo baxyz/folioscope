@@ -565,7 +565,6 @@ displayed almost instantly on a portfolio page.
       components.
 - [ ] Overlays: position, backdrop, close on outside click.
 - [ ] Frame scrolling (native scrolling), fixed elements, _scroll to_ action.
-- [ ] Hover, press and _after delay_ triggers.
 - [ ] Interactive components: instance and variant resolution, one image per state, _change to_
       action. Combinatorial explosion threshold (D7).
 - [ ] Visible hotspots (`hotspots="on-miss"`).

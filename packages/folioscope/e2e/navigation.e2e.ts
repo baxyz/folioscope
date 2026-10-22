@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { firefox } from "playwright";
 import { bakeFixtures, serve } from "./serve.ts";
 
-const site = bakeFixtures(["navigation", "flows-and-pages"]);
+const site = bakeFixtures(["navigation", "flows-and-pages", "triggers"]);
 const server = await serve(
   site,
   (query) => `<!doctype html><meta charset="utf-8">
@@ -62,6 +62,22 @@ try {
   await settledOn("Dashboard");
   assert.equal(await control("Flow").isHidden(), true);
   console.log("✓ controls: flow and page pickers, restart, back state");
+
+  // "While hovering" and "while pressing" hold a frame, and let go of it.
+  await tab.goto(`${server.origin}/?folio=triggers`);
+  await settledOn("Home"); // after the splash's 1.5 s delay
+  const button = (await tab
+    .locator('folioscope-player .frame[aria-label="Home"] .hotspot')
+    .boundingBox())!;
+  await tab.mouse.move(button.x + button.width / 2, button.y + button.height / 2);
+  await settledOn("Home, button hovered");
+  await tab.mouse.down();
+  await settledOn("Home, button pressed");
+  await tab.mouse.up();
+  await settledOn("Home, button hovered");
+  await tab.mouse.move(button.x + button.width / 2, button.y - 40);
+  await settledOn("Home");
+  console.log("✓ hover and press: a frame while they last, then back");
 
   // Without a poster, the frame's baked placeholder shows while its layers load.
   const slow = await browser.newPage();
