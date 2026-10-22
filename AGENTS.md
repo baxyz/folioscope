@@ -98,6 +98,12 @@ cargo run -p folioscope-cli -- inspect <file>        # pages, frames, flows and 
 cargo run -p folioscope-cli -- render <file.fig> <node-id> <out.png> [scale]
 ```
 
+## Releasing
+
+Bump `version` in `packages/folioscope/package.json`, merge, then push the tag `vX.Y.Z` on `main`.
+`release.yml` builds the WebAssembly bake and the player, publishes to npm through trusted
+publishing (OIDC, with provenance, no token), and creates the GitHub release.
+
 ## Rules
 
 - **helpers4 first.** Before writing a generic helper (geometry, binary reading, easing, FSM, DOM,

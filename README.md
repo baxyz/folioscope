@@ -30,7 +30,7 @@ in the browser, with no account and no Figma, Sketch or Adobe licence.
 </folioscope-player>
 ```
 
-- **Fast path:** pre-render your design file at build time (`folioscope bake app.fig -o
+- **Fast path:** pre-render your design file at build time (`folioscope bake app.fig
   public/app.folio`, or the `folioscope/vite` plugin). Visitors get layered images and DOM hotspots:
   no WASM, no fonts, under 15 KB of JS.
 - **Zero-setup path:** point `src` straight at a `.fig`, `.sketch`, `.xd` or `.penpot` file. The full

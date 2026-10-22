@@ -551,7 +551,8 @@ console, and the pre-render spike displaying almost instantly.
 The fast path comes first: it is the one portfolio visitors will see.
 
 - [ ] Add `fsm` and `dom` to helpers4.
-- [ ] Publish to npm from CI, with provenance.
+- [ ] First npm release: `release.yml` publishes on a `v*` tag; npm trusted publishing is set up
+      after a first manual publish.
 - [ ] Minimal site live on `folioscope.baxyz.dev` (built, waiting for the Worker's first deploy).
 
 **Exit criterion**: a simple `.fig` prototype, pre-rendered at build time, clickable end to end and
