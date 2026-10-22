@@ -3,7 +3,7 @@ layout: home
 hero:
   name: Folioscope
   text: Flip through your prototypes.
-  tagline: A web component that plays the interactive prototype in a .fig, .sketch, .xd or .penpot file. No account, no licence, no third-party service.
+  tagline: Not a viewer for design files, a player for their prototypes. Visitors click through the screens as the designer linked them, from a .fig, .sketch, .xd or .penpot file, on your own site. No account, no licence, no third-party service.
   actions:
     - theme: brand
       text: Get started
