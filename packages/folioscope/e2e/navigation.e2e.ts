@@ -155,6 +155,22 @@ try {
   assert.ok(Math.abs((await scrollTop()) - 112) < 1);
   console.log("✓ scroll: the content scrolls under fixed layers, scroll to reaches its target");
 
+  // Fullscreen on a wide screen: the prototype fits the height, centered, with the controls visible.
+  const wide = await browser.newPage({ viewport: { width: 1600, height: 900 } });
+  await wide.goto(`${server.origin}/?folio=navigation&controls`);
+  await wide.locator('folioscope-player .frame[aria-label="Home"]').waitFor();
+  await wide.locator('folioscope-player .controls [aria-label="Fullscreen"]').click();
+  await wide.waitForFunction(() => document.fullscreenElement !== null);
+  await wide.waitForTimeout(300);
+  const screen = (await wide.locator("folioscope-player .viewport").boundingBox())!;
+  const shown = (await wide.locator("folioscope-player .stage").boundingBox())!;
+  const bar = (await wide.locator("folioscope-player .controls").boundingBox())!;
+  assert.ok(shown.height <= screen.height + 1 && shown.y >= screen.y - 1, "fits the height");
+  assert.ok(Math.abs(shown.x - screen.x - (screen.x + screen.width - shown.x - shown.width)) < 2);
+  assert.ok(bar.y + bar.height <= 901, "controls stay on screen");
+  await wide.close();
+  console.log("✓ fullscreen: the prototype fits the screen, centered, controls visible");
+
   // Without a poster, the frame's baked placeholder shows while its layers load.
   const slow = await browser.newPage();
   await slow.route("**/layers/**", async (route) => {
