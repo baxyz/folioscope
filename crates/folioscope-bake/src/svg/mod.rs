@@ -26,32 +26,95 @@ pub struct Svg {
 /// Renders `id` and its descendants, at the origin, in its own coordinate space.
 #[must_use]
 pub fn render_node(tree: &Tree<'_>, id: NodeId) -> Option<Svg> {
-    render_node_without(tree, id, &[])
-}
-
-/// Like [`render_node`], leaving out the `hidden` descendants: what the bake does to cut a frame
-/// into a background and the layers drawn above it.
-#[must_use]
-pub fn render_node_without(tree: &Tree<'_>, id: NodeId, hidden: &[NodeId]) -> Option<Svg> {
     let node = tree.get(id)?;
     let (width, height) = size(node.value);
+    Some(render(tree, node, Root::WHOLE, Vec::new(), (width, height)))
+}
+
+/// A layer of a scrolling frame (ADR 0004's layer split).
+#[derive(Debug, Clone, Copy)]
+pub enum Part<'f> {
+    /// The frame's own fills and strokes, without its children: stays in place.
+    Background,
+    /// The children but the `fixed` ones, unclipped, on a transparent canvas of `size`: scrolls.
+    Content {
+        fixed: &'f [NodeId],
+        size: (f32, f32),
+    },
+    /// Only the `fixed` children, on a transparent canvas of the frame's size: drawn on top.
+    Fixed { fixed: &'f [NodeId] },
+}
+
+/// Renders one [`Part`] of the frame `id`.
+#[must_use]
+pub fn render_part(tree: &Tree<'_>, id: NodeId, part: Part<'_>) -> Option<Svg> {
+    let node = tree.get(id)?;
+    let frame_size = size(node.value);
+    Some(match part {
+        Part::Background => render(tree, node, Root::BACKGROUND, Vec::new(), frame_size),
+        Part::Content { fixed, size } => render(tree, node, Root::CONTENT, fixed.to_vec(), size),
+        Part::Fixed { fixed } => {
+            let others = tree
+                .children(id)
+                .map(|c| c.id)
+                .filter(|c| !fixed.contains(c))
+                .collect();
+            render(tree, node, Root::CONTENT, others, frame_size)
+        }
+    })
+}
+
+/// What to draw of the root node itself.
+#[derive(Debug, Clone, Copy)]
+struct Root {
+    paint: bool,
+    children: bool,
+    clip: bool,
+}
+
+impl Root {
+    const WHOLE: Root = Root {
+        paint: true,
+        children: true,
+        clip: true,
+    };
+    const BACKGROUND: Root = Root {
+        paint: true,
+        children: false,
+        clip: true,
+    };
+    const CONTENT: Root = Root {
+        paint: false,
+        children: true,
+        clip: false,
+    };
+}
+
+fn render(
+    tree: &Tree<'_>,
+    node: &Node<'_>,
+    root: Root,
+    hidden: Vec<NodeId>,
+    (width, height): (f32, f32),
+) -> Svg {
     let mut ctx = Ctx {
         tree,
         defs: String::new(),
         body: String::new(),
         next_id: 0,
         hidden,
+        root,
     };
     ctx.node(node, true);
     let markup = format!(
         r#"<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}"><defs>{}</defs>{}</svg>"#,
         ctx.defs, ctx.body
     );
-    Some(Svg {
+    Svg {
         width,
         height,
         markup,
-    })
+    }
 }
 
 struct Ctx<'t, 'a> {
@@ -59,7 +122,8 @@ struct Ctx<'t, 'a> {
     defs: String,
     body: String,
     next_id: u32,
-    hidden: &'t [NodeId],
+    hidden: Vec<NodeId>,
+    root: Root,
 }
 
 impl Ctx<'_, '_> {
@@ -98,7 +162,13 @@ impl Ctx<'_, '_> {
         let _ = write!(self.body, "<g{attrs}>");
         open += 1;
 
-        for effect in v.get("effects").map_or(&[][..], Value::as_array) {
+        let paint = !root || self.root.paint;
+        for effect in v
+            .get("effects")
+            .map_or(&[][..], Value::as_array)
+            .iter()
+            .filter(|_| paint)
+        {
             if effect.get("type").and_then(Value::as_str) == Some("DROP_SHADOW") && visible(effect)
             {
                 let filter = self.drop_shadow(effect);
@@ -110,9 +180,15 @@ impl Ctx<'_, '_> {
         if node.kind == "TEXT" {
             self.text(node);
         } else {
-            self.paint_geometry(v, "fillGeometry", "fillPaints", true);
-            self.children(node);
-            self.paint_geometry(v, "strokeGeometry", "strokePaints", false);
+            if paint {
+                self.paint_geometry(v, "fillGeometry", "fillPaints", true);
+            }
+            if !root || self.root.children {
+                self.children(node, root);
+            }
+            if paint {
+                self.paint_geometry(v, "strokeGeometry", "strokePaints", false);
+            }
         }
 
         for _ in 0..open {
@@ -120,7 +196,7 @@ impl Ctx<'_, '_> {
         }
     }
 
-    fn children(&mut self, node: &Node<'_>) {
+    fn children(&mut self, node: &Node<'_>, root: bool) {
         let container = matches!(node.kind, "FRAME" | "SYMBOL" | "INSTANCE" | "COMPONENT_SET");
         // Instances do not store their children: draw the component's, without overrides.
         let source = if node.kind == "INSTANCE" {
@@ -136,8 +212,9 @@ impl Ctx<'_, '_> {
         if children.is_empty() {
             return;
         }
-        let clip =
-            container && !matches!(node.value.get("frameMaskDisabled"), Some(Value::Bool(true)));
+        let clip = container
+            && (!root || self.root.clip)
+            && !matches!(node.value.get("frameMaskDisabled"), Some(Value::Bool(true)));
         if clip {
             let id = self.id("c");
             let shape = self.outline(node.value);

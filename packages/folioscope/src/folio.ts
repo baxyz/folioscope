@@ -39,6 +39,13 @@ export interface FolioFrame {
   placeholder?: string;
   /** How the frame shows when opened as an overlay. */
   overlay?: OverlaySettings;
+  /** Set when the frame's content scrolls past its bounds. */
+  scroll?: {
+    direction: "vertical" | "horizontal" | "both";
+    /** What scrolls, from the frame's top-left corner. */
+    content: Rect;
+    fixed?: string[];
+  };
 }
 
 export interface OverlaySettings {
@@ -67,6 +74,8 @@ export interface Layer {
   /** File extension: `webp`, or `avif` for large, photo-like layers. */
   format: "webp" | "avif";
   bounds: Rect;
+  /** The frame's scrolling content: moves with the scroll, under the layers that follow. */
+  scrolls?: boolean;
 }
 
 export interface Hotspot {
@@ -74,6 +83,8 @@ export interface Hotspot {
   name: string;
   bounds: Rect;
   interactions: Interaction[];
+  /** In a fixed child of a scrolling frame: stays in place while the content scrolls. */
+  fixed?: boolean;
 }
 
 export interface Interaction {
@@ -88,7 +99,16 @@ export type Trigger =
   | { type: "other"; name: string };
 
 export type Action =
-  | { type: "navigate" | "scrollTo"; to: string; transition: Transition }
+  | { type: "navigate"; to: string; transition: Transition }
+  | {
+      type: "scrollTo";
+      to: string;
+      transition: Transition;
+      /** The node scrolled to, in the frame's coordinates. */
+      target?: Rect;
+      /** Stops this far before the target. */
+      offset?: Point;
+    }
   | {
       type: "overlay" | "swapOverlay";
       to: string;

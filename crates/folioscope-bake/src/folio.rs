@@ -1,12 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! Writes a `.folio` folder (ADR 0004): `index.json` (the IR plus each frame's layers), hashed
-//! layer images at every density, and `poster.webp`. Phase 1: one layer per frame.
+//! layer images at every density, and `poster.webp`. A frame is one layer, or, when it scrolls,
+//! three: its background, the content that scrolls, and the fixed children on top.
 
 use std::fmt::Write as _;
 use std::path::Path;
 
-use folioscope_core::figma::{FigFile, ir::to_ir, tree::Tree};
+use folioscope_core::figma::{
+    FigFile,
+    ir::to_ir,
+    tree::{NodeId, Tree},
+};
 use folioscope_core::ir::{self, Flow, Rect};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
@@ -93,6 +98,83 @@ struct Layer {
     src: String,
     format: ImageFormat,
     bounds: Rect,
+    /// The frame's scrolling content: moves with the scroll, under the layers that follow.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    scrolls: bool,
+}
+
+/// `(markup, bounds, scrolls)` of each layer of `frame`, bottom first: the whole frame, or the
+/// three parts of a scrolling one.
+fn frame_parts(
+    tree: &Tree<'_>,
+    id: NodeId,
+    frame: &ir::Frame,
+    whole_markup: &str,
+) -> Result<Vec<(String, Rect, bool)>, BakeError> {
+    let whole = Rect {
+        x: 0.0,
+        y: 0.0,
+        width: frame.bounds.width,
+        height: frame.bounds.height,
+    };
+    let Some(scroll) = &frame.scroll else {
+        return Ok(vec![(whole_markup.to_owned(), whole, false)]);
+    };
+    let fixed: Vec<NodeId> = scroll.fixed.iter().filter_map(|f| f.parse().ok()).collect();
+    let part = |part| {
+        svg::render_part(tree, id, part)
+            .map(|svg| svg.markup)
+            .ok_or_else(|| BakeError::MissingFrame(frame.id.clone()))
+    };
+    let size = (scroll.content.width, scroll.content.height);
+    let mut parts = vec![
+        (part(svg::Part::Background)?, whole, false),
+        (
+            part(svg::Part::Content {
+                fixed: &fixed,
+                size,
+            })?,
+            scroll.content,
+            true,
+        ),
+    ];
+    if !fixed.is_empty() {
+        parts.push((part(svg::Part::Fixed { fixed: &fixed })?, whole, false));
+    }
+    Ok(parts)
+}
+
+enum LayerError {
+    Render(RenderError),
+    Sink(BakeError),
+}
+
+/// Encodes one layer at every density, highest first (it picks the format), into `sink`.
+fn encode_layer(
+    markup: &str,
+    densities: &[u8],
+    options: &BakeOptions,
+    report: &mut BakeReport,
+    sink: &mut Sink<'_>,
+) -> Result<(String, ImageFormat), LayerError> {
+    let src = hash(markup);
+    let mut format = None;
+    for &density in densities {
+        let pixmap = render_pixmap(markup, f32::from(density)).map_err(LayerError::Render)?;
+        let (chosen, bytes) = match format {
+            None => encode_best(&pixmap, options.avif).map_err(LayerError::Render)?,
+            Some(f) => (f, encode(&pixmap, f).map_err(LayerError::Render)?),
+        };
+        format = Some(chosen);
+        report.bytes += bytes.len();
+        report.layers += 1;
+        sink(
+            &format!("layers/{src}@{density}x.{}", chosen.extension()),
+            bytes.as_slice(),
+        )
+        .map_err(LayerError::Sink)?;
+    }
+    Ok((src, format.unwrap_or(ImageFormat::Webp)))
 }
 
 /// Receives each baked file: its path inside the `.folio` folder, and its bytes.
@@ -155,31 +237,24 @@ pub fn bake_fig_into(
                 .map_err(|_| BakeError::MissingFrame(frame.id.clone()))?;
             let rendered = svg::render_node(&tree, id)
                 .ok_or_else(|| BakeError::MissingFrame(frame.id.clone()))?;
-            let src = hash(&rendered.markup);
-            let placeholder =
-                crate::placeholder(&rendered.markup).map_err(|source| BakeError::Render {
-                    frame: frame.id.clone(),
-                    source,
-                })?;
             let render_error = |source| BakeError::Render {
                 frame: frame.id.clone(),
                 source,
             };
-            let mut format = None;
-            for &density in &densities {
-                let pixmap =
-                    render_pixmap(&rendered.markup, f32::from(density)).map_err(render_error)?;
-                let (chosen, bytes) = match format {
-                    None => encode_best(&pixmap, options.avif).map_err(render_error)?,
-                    Some(f) => (f, encode(&pixmap, f).map_err(render_error)?),
-                };
-                format = Some(chosen);
-                report.bytes += bytes.len();
-                report.layers += 1;
-                sink(
-                    &format!("layers/{src}@{density}x.{}", chosen.extension()),
-                    &bytes,
-                )?;
+            let placeholder = crate::placeholder(&rendered.markup).map_err(render_error)?;
+            let mut layers = Vec::new();
+            for (markup, bounds, scrolls) in frame_parts(&tree, id, frame, &rendered.markup)? {
+                let (src, format) = encode_layer(&markup, &densities, options, &mut report, sink)
+                    .map_err(|e| match e {
+                    LayerError::Render(source) => render_error(source),
+                    LayerError::Sink(e) => e,
+                })?;
+                layers.push(Layer {
+                    src,
+                    format,
+                    bounds,
+                    scrolls,
+                });
             }
             // The poster stands in for the starting frame until the player runs: 1x, lossless.
             if Some(frame.id.as_str()) == first_start {
@@ -189,16 +264,7 @@ pub fn bake_fig_into(
             report.frames += 1;
             frames.push(FolioFrame {
                 frame,
-                layers: vec![Layer {
-                    src,
-                    format: format.unwrap_or(ImageFormat::Webp),
-                    bounds: Rect {
-                        x: 0.0,
-                        y: 0.0,
-                        width: frame.bounds.width,
-                        height: frame.bounds.height,
-                    },
-                }],
+                layers,
                 placeholder,
             });
         }

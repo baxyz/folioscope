@@ -4,9 +4,12 @@
 
 use crate::figma::FigFile;
 use crate::figma::tree::{Node, Tree, node_id};
+use std::collections::HashMap;
+
 use crate::ir::{
     Action, Document, Easing, Flow, Frame, Hotspot, Interaction, OverlayPosition, OverlaySettings,
-    Page, Point, Rect, Side, SourceFormat, Transition, TransitionKind, Trigger,
+    Page, Point, Rect, Scroll, ScrollDirection, Side, SourceFormat, Transition, TransitionKind,
+    Trigger,
 };
 use crate::kiwi::Value;
 
@@ -71,7 +74,8 @@ fn page(tree: &Tree<'_>, canvas: &Node<'_>) -> Page {
         .iter()
         .map(|frame| {
             let mut hotspots = Vec::new();
-            collect_hotspots(tree, frame, Affine::IDENTITY, &mut hotspots);
+            collect_hotspots(tree, frame, Affine::IDENTITY, false, &mut hotspots);
+            resolve_scroll_targets(tree, frame, &mut hotspots);
             let (x, y) = translation(frame.value);
             let (width, height) = size(frame.value);
             Frame {
@@ -85,6 +89,7 @@ fn page(tree: &Tree<'_>, canvas: &Node<'_>) -> Page {
                 },
                 hotspots,
                 overlay: overlay(frame.value),
+                scroll: scroll(tree, frame),
             }
         })
         .collect();
@@ -97,8 +102,15 @@ fn page(tree: &Tree<'_>, canvas: &Node<'_>) -> Page {
     }
 }
 
-/// Walks a frame's subtree; `to_frame` maps the node's own coordinates to the frame's.
-fn collect_hotspots(tree: &Tree<'_>, node: &Node<'_>, to_frame: Affine, out: &mut Vec<Hotspot>) {
+/// Walks a frame's subtree; `to_frame` maps the node's own coordinates to the frame's, `fixed`
+/// says the node is in a fixed child of a scrolling frame.
+fn collect_hotspots(
+    tree: &Tree<'_>,
+    node: &Node<'_>,
+    to_frame: Affine,
+    fixed: bool,
+    out: &mut Vec<Hotspot>,
+) {
     if matches!(node.value.get("visible"), Some(Value::Bool(false))) {
         return;
     }
@@ -127,11 +139,103 @@ fn collect_hotspots(tree: &Tree<'_>, node: &Node<'_>, to_frame: Affine, out: &mu
             name: node.name.to_owned(),
             bounds: to_frame.bounding_box(width, height),
             interactions,
+            fixed,
         });
     }
+    // Only the top-level frame's direct children can be fixed.
+    let top = node
+        .value
+        .get("parentIndex")
+        .and_then(|p| p.get("guid"))
+        .and_then(node_id)
+        .and_then(|id| tree.get(id))
+        .is_some_and(|parent| parent.kind == "CANVAS");
     for child in tree.children(node.id) {
         let to_frame = to_frame.then(Affine::of(child.value));
-        collect_hotspots(tree, child, to_frame, out);
+        collect_hotspots(
+            tree,
+            child,
+            to_frame,
+            fixed || (top && is_fixed(child)),
+            out,
+        );
+    }
+}
+
+fn is_fixed(node: &Node<'_>) -> bool {
+    node.value.get("scrollBehavior").and_then(Value::as_str)
+        == Some("FIXED_WHEN_CHILD_OF_SCROLLING_FRAME")
+}
+
+/// The frame's scrolling, when its content goes past its bounds in a direction it scrolls.
+fn scroll(tree: &Tree<'_>, frame: &Node<'_>) -> Option<Scroll> {
+    let direction = match frame.value.get("scrollDirection").and_then(Value::as_str)? {
+        "VERTICAL" => ScrollDirection::Vertical,
+        "HORIZONTAL" => ScrollDirection::Horizontal,
+        "BOTH" => ScrollDirection::Both,
+        _ => return None,
+    };
+    let (width, height) = size(frame.value);
+    let (mut right, mut bottom) = (width, height);
+    let mut fixed = Vec::new();
+    for child in tree.children(frame.id) {
+        if matches!(child.value.get("visible"), Some(Value::Bool(false))) {
+            continue;
+        }
+        if is_fixed(child) {
+            fixed.push(child.id.to_string());
+            continue;
+        }
+        let (w, h) = size(child.value);
+        let bounds = Affine::of(child.value).bounding_box(w, h);
+        right = right.max(bounds.x + bounds.width);
+        bottom = bottom.max(bounds.y + bounds.height);
+    }
+    match direction {
+        ScrollDirection::Vertical => right = width,
+        ScrollDirection::Horizontal => bottom = height,
+        ScrollDirection::Both => {}
+    }
+    (right > width || bottom > height).then_some(Scroll {
+        direction,
+        content: Rect {
+            x: 0.0,
+            y: 0.0,
+            width: right,
+            height: bottom,
+        },
+        fixed,
+    })
+}
+
+/// Fills in where each "scroll to" action of the frame's hotspots goes.
+fn resolve_scroll_targets(tree: &Tree<'_>, frame: &Node<'_>, hotspots: &mut [Hotspot]) {
+    let wanted = |a: &Action| matches!(a, Action::ScrollTo { .. });
+    if !hotspots
+        .iter()
+        .any(|h| h.interactions.iter().any(|i| wanted(&i.action)))
+    {
+        return;
+    }
+    let mut bounds = HashMap::new();
+    node_bounds(tree, frame, Affine::IDENTITY, &mut bounds);
+    for interaction in hotspots.iter_mut().flat_map(|h| &mut h.interactions) {
+        if let Action::ScrollTo { to, target, .. } = &mut interaction.action {
+            *target = bounds.get(to.as_str()).copied();
+        }
+    }
+}
+
+fn node_bounds(
+    tree: &Tree<'_>,
+    node: &Node<'_>,
+    to_frame: Affine,
+    out: &mut HashMap<String, Rect>,
+) {
+    let (width, height) = size(node.value);
+    out.insert(node.id.to_string(), to_frame.bounding_box(width, height));
+    for child in tree.children(node.id) {
+        node_bounds(tree, child, to_frame.then(Affine::of(child.value)), out);
     }
 }
 
@@ -194,7 +298,15 @@ fn action(action: &Value) -> Option<Action> {
                     transition,
                     offset,
                 },
-                "SCROLL_TO" => Action::ScrollTo { to, transition },
+                "SCROLL_TO" => Action::ScrollTo {
+                    to,
+                    transition,
+                    target: None,
+                    offset: action.get("extraScrollOffset").map(|v| {
+                        let (x, y) = vector(v);
+                        Point { x, y }
+                    }),
+                },
                 other => Action::Unsupported {
                     name: other.to_owned(),
                 },

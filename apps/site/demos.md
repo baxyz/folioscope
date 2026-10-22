@@ -44,3 +44,12 @@ with its button, or with a click outside.
 <div class="demo">
   <folioscope-player src="/folio/overlay.folio" poster="/folio/overlay.folio/poster.webp" controls></folioscope-player>
 </div>
+
+## Scrolling
+
+A feed taller than the screen: it scrolls under a fixed header and tab bar, which stay in place.
+The button at the end scrolls back to the first card.
+
+<div class="demo">
+  <folioscope-player src="/folio/scroll.folio" poster="/folio/scroll.folio/poster.webp" controls></folioscope-player>
+</div>

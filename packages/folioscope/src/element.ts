@@ -12,7 +12,7 @@ import {
 } from "./folio.ts";
 import { CONTROLS_STYLE, Controls } from "./controls.ts";
 import { thumbHashToDataURL } from "thumbhash";
-import { decoded, type HoldKind, play, playOverlay, renderFrame } from "./lite.ts";
+import { decoded, type HoldKind, play, playOverlay, renderFrame, scrollFrame } from "./lite.ts";
 import { type OpenOverlay, Runtime, type Step } from "./runtime.ts";
 
 export const TAG_NAME = "folioscope-player";
@@ -30,6 +30,9 @@ const STYLE = `
 .frame img, .poster { position: absolute; display: block; user-select: none; pointer-events: none; }
 .poster { inset: 0; width: 100%; height: 100%; object-fit: contain; }
 .overlay, .backdrop, .sheet { position: absolute; inset: 0; }
+.scroll { position: absolute; inset: 0; overscroll-behavior: contain; scrollbar-width: none; }
+.scroll::-webkit-scrollbar { display: none; }
+.content { position: relative; }
 .sheet { pointer-events: none; }
 .sheet > .frame { pointer-events: auto; }
 .hotspot { position: absolute; margin: 0; padding: 0; border: 0; background: none; cursor: pointer; }
@@ -279,8 +282,9 @@ export class FolioscopePlayer extends BaseElement {
 
   /** A frame with its hotspots wired to the runtime; `at` places it in the screen's coordinates. */
   private render(frame: FolioFrame, at: Point = { x: 0, y: 0 }): HTMLElement {
-    return renderFrame(frame, (layer) => this.layerUrl(layer), {
+    const el = renderFrame(frame, (layer) => this.layerUrl(layer), {
       action: (action, bounds) => {
+        if (action.type === "scrollTo") return scrollFrame(el, action);
         const origin = { ...bounds, x: bounds.x + at.x, y: bounds.y + at.y };
         void this.show(this.runtime?.run(action, origin));
         if (action.type === "openUrl")
@@ -288,6 +292,7 @@ export class FolioscopePlayer extends BaseElement {
       },
       hold: (action, kind, bounds) => this.hold(action, kind, bounds),
     });
+    return el;
   }
 
   /** An overlay layer: a backdrop over the whole screen, and the overlay frame at its position. */

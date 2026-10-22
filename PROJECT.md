@@ -561,9 +561,8 @@ displayed almost instantly on a portfolio page.
 ### Phase 2 — Sketch, layer split and rich interactions (v0.2 to v0.4)
 
 - [ ] `.sketch` importer to the IR, with the same pre-rendering.
-- [ ] Layer split at pre-render: background, scrolling content, fixed elements, overlays, interactive
-      components.
-- [ ] Frame scrolling (native scrolling), fixed elements, _scroll to_ action.
+- [ ] Scrolling inside a frame (a nested frame that scrolls), sticky elements, hover and press
+      inside scrolled content and inside overlays.
 - [ ] Interactive components: instance and variant resolution, one image per state, _change to_
       action. Combinatorial explosion threshold (D7).
 - [ ] Visible hotspots (`hotspots="on-miss"`).
