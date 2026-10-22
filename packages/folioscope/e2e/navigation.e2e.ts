@@ -103,6 +103,20 @@ try {
   assert.equal(await control("Flow").isHidden(), true);
   console.log("✓ controls: flow and page pickers, restart, back state");
 
+  // Without a poster, the frame's baked placeholder shows while its layers load.
+  const slow = await browser.newPage();
+  await slow.route("**/layers/**", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    await route.continue();
+  });
+  await slow.goto(`http://localhost:${port}/?folio=navigation`);
+  const placeholder = slow.locator("folioscope-player .poster");
+  await placeholder.waitFor();
+  assert.match((await placeholder.getAttribute("src")) ?? "", /^data:image\/png;base64,/);
+  await slow.locator('folioscope-player .frame[aria-label="Home"]').waitFor();
+  await placeholder.waitFor({ state: "detached" });
+  console.log("✓ placeholder: a blurred preview until the first frame is decoded");
+
   assert.deepEqual(errors, []);
 } finally {
   await browser.close();
