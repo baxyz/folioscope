@@ -25,7 +25,9 @@ const STYLE = `
 :host { display: block; position: relative; contain: content; }
 :host([hidden]) { display: none; }
 .viewport { position: relative; width: 100%; overflow: hidden; aspect-ratio: var(--w) / var(--h); }
-.stage { position: absolute; top: 0; left: 0; width: calc(var(--w) * 1px); height: calc(var(--h) * 1px); transform-origin: 0 0; transform: scale(var(--scale, 1)); }
+.stage { position: absolute; top: 0; left: 0; width: calc(var(--w) * 1px); height: calc(var(--h) * 1px); transform-origin: 0 0; transform: translate(var(--x, 0px), var(--y, 0px)) scale(var(--scale, 1)); }
+:host(:fullscreen) { display: flex; flex-direction: column; background: #111; }
+:host(:fullscreen) .viewport { flex: 1; min-height: 0; aspect-ratio: auto; }
 .frame { position: absolute; inset: 0; overflow: hidden; background: transparent; }
 .frame img, .poster { position: absolute; display: block; user-select: none; pointer-events: none; }
 .poster { inset: 0; width: 100%; height: 100%; object-fit: contain; }
@@ -97,6 +99,7 @@ export class FolioscopePlayer extends BaseElement {
       }
     });
     this.viewport.addEventListener("animationend", () => this.viewport.classList.remove("flash"));
+    this.addEventListener("fullscreenchange", () => this.fit());
     // A hover lasts while the pointer stays over the hotspot that started it.
     this.viewport.addEventListener("pointermove", (event) =>
       this.release((hold) => hold.kind === "hover" && !this.under(event, hold.bounds)),
@@ -429,11 +432,28 @@ export class FolioscopePlayer extends BaseElement {
     this.viewport.append(img);
   }
 
+  /**
+   * Scales the prototype to the element's width. In fullscreen, the screen's height bounds it too,
+   * and the prototype is centered.
+   */
   private fit(): void {
-    const width = Number(this.viewport.style.getPropertyValue("--w")) || 1;
-    const fit = this.getAttribute("fit") ?? "contain";
-    const scale = fit === "none" ? 1 : this.viewport.clientWidth / width;
-    this.viewport.style.setProperty("--scale", String(scale || 1));
+    const style = this.viewport.style;
+    const width = Number(style.getPropertyValue("--w")) || 1;
+    const height = Number(style.getPropertyValue("--h")) || 1;
+    const { clientWidth, clientHeight } = this.viewport;
+    const full = document.fullscreenElement === this;
+    let scale = 1;
+    if ((this.getAttribute("fit") ?? "contain") !== "none") {
+      scale = clientWidth / width;
+      if (full) scale = Math.min(scale, clientHeight / height);
+    }
+    scale ||= 1;
+    style.setProperty("--scale", String(scale));
+    style.setProperty("--x", full ? `${Math.max(0, (clientWidth - width * scale) / 2)}px` : "0px");
+    style.setProperty(
+      "--y",
+      full ? `${Math.max(0, (clientHeight - height * scale) / 2)}px` : "0px",
+    );
   }
 
   private layerUrl(layer: Layer): string {
