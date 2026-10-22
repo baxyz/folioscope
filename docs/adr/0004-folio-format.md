@@ -29,6 +29,8 @@ app.folio/
 - **Layers are named by a hash of their content**: an unchanged layer keeps its URL across bakes
   and stays in the HTTP cache. Identical layers in two frames are stored once.
 - **One file per density** (1x and 2x by default). The player picks one density per page load.
+- **Each frame carries a ThumbHash placeholder** (about 25 bytes, base64) in `index.json`: without
+  a `poster`, the player shows it, blurred, from the moment `index.json` arrives.
 - `index.json` carries the IR version; a player refuses a newer major version.
 
 ## Phase 0 spike (removed once Phase 1's bake and player replaced it)
