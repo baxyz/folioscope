@@ -35,3 +35,12 @@ held. On a touch screen, there is no hover: a tap shows the pressed state.
 <div class="demo">
   <folioscope-player src="/folio/triggers.folio" poster="/folio/triggers.folio/poster.webp" controls></folioscope-player>
 </div>
+
+## Overlay
+
+A menu opens over the screen, moving in from the bottom, centered on a dimmed backdrop. Close it
+with its button, or with a click outside.
+
+<div class="demo">
+  <folioscope-player src="/folio/overlay.folio" poster="/folio/overlay.folio/poster.webp" controls></folioscope-player>
+</div>

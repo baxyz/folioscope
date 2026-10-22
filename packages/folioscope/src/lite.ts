@@ -5,8 +5,8 @@ import type { Action, FolioFrame, Layer, Rect, Side, Transition, Trigger } from 
 export type HoldKind = "hover" | "press";
 
 export interface FrameHandlers {
-  /** Runs an action: a click, a timer, a pointer entering or leaving. */
-  action: (action: Action) => void;
+  /** Runs an action: a click, a pointer entering or leaving; `bounds` is the hotspot's. */
+  action: (action: Action, bounds: Rect) => void;
   /** Shows an action's frame for as long as the hover or the press lasts. */
   hold: (action: Action, kind: HoldKind, bounds: Rect) => void;
 }
@@ -47,11 +47,13 @@ export function renderFrame(
       area.setAttribute("aria-label", hotspot.name);
       area.addEventListener("click", (event) => {
         event.stopPropagation();
-        clicks.forEach(on.action);
+        for (const action of clicks) on.action(action, hotspot.bounds);
       });
     }
     if (pointer) {
-      const run = (actions: Action[]) => actions.forEach(on.action);
+      const run = (actions: Action[]) => {
+        for (const action of actions) on.action(action, hotspot.bounds);
+      };
       area.addEventListener("pointerenter", (event) => {
         run(by("mouseEnter"));
         // Touch screens have no hover: a tap is a press.
@@ -79,6 +81,35 @@ const POINTER_TRIGGERS = [
   "mouseDown",
   "mouseUp",
 ] as const;
+
+/**
+ * Opens or closes an overlay layer (its `.backdrop` and `.sheet`) with the overlay's transition:
+ * slides and moves bring the sheet in from that side of the screen, anything else fades it.
+ */
+export async function playOverlay(
+  layer: HTMLElement,
+  transition: Transition,
+  closing: boolean,
+): Promise<void> {
+  const reduced = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  if (reduced || transition.durationMs === 0 || transition.kind.type === "instant") return;
+  const timing: KeyframeAnimationOptions = {
+    duration: transition.durationMs,
+    easing: easing(transition),
+    fill: "both",
+  };
+  const kind = transition.kind;
+  const [hidden, shown]: Keyframe[] =
+    kind.type === "slideIn" || kind.type === "moveIn" || kind.type === "push"
+      ? [{ transform: offset(kind.from, 1) }, { transform: "none" }]
+      : [{ opacity: 0 }, { opacity: 1 }];
+  const run = (el: Element | null, from: Keyframe, to: Keyframe) =>
+    el?.animate(closing ? [to, from] : [from, to], timing).finished.catch(() => undefined);
+  await Promise.all([
+    run(layer.querySelector(".sheet"), hidden!, shown!),
+    run(layer.querySelector(".backdrop"), { opacity: 0 }, { opacity: 1 }),
+  ]);
+}
 
 /** Resolves once every image of `el` is decoded, so a frame never shows half-loaded. */
 export async function decoded(el: HTMLElement): Promise<void> {

@@ -5,8 +5,8 @@
 use crate::figma::FigFile;
 use crate::figma::tree::{Node, Tree, node_id};
 use crate::ir::{
-    Action, Document, Easing, Flow, Frame, Hotspot, Interaction, Page, Rect, Side, SourceFormat,
-    Transition, TransitionKind, Trigger,
+    Action, Document, Easing, Flow, Frame, Hotspot, Interaction, OverlayPosition, OverlaySettings,
+    Page, Point, Rect, Side, SourceFormat, Transition, TransitionKind, Trigger,
 };
 use crate::kiwi::Value;
 
@@ -84,6 +84,7 @@ fn page(tree: &Tree<'_>, canvas: &Node<'_>) -> Page {
                     height,
                 },
                 hotspots,
+                overlay: overlay(frame.value),
             }
         })
         .collect();
@@ -177,10 +178,22 @@ fn action(action: &Value) -> Option<Action> {
             };
             let to = to.to_string();
             let transition = transition(action);
+            let offset = action.get("overlayRelativePosition").map(|v| {
+                let (x, y) = vector(v);
+                Point { x, y }
+            });
             match text("navigationType").unwrap_or("NAVIGATE") {
                 "NAVIGATE" => Action::Navigate { to, transition },
-                "OVERLAY" => Action::Overlay { to, transition },
-                "SWAP" => Action::SwapOverlay { to, transition },
+                "OVERLAY" => Action::Overlay {
+                    to,
+                    transition,
+                    offset,
+                },
+                "SWAP" => Action::SwapOverlay {
+                    to,
+                    transition,
+                    offset,
+                },
                 "SCROLL_TO" => Action::ScrollTo { to, transition },
                 other => Action::Unsupported {
                     name: other.to_owned(),
@@ -190,6 +203,43 @@ fn action(action: &Value) -> Option<Action> {
         other => Action::Unsupported {
             name: other.to_owned(),
         },
+    })
+}
+
+/// A frame's overlay settings, when the designer set them.
+fn overlay(frame: &Value) -> Option<OverlaySettings> {
+    let text = |k: &str| frame.get(k).and_then(Value::as_str);
+    let position = match text("overlayPositionType")? {
+        "TOP_LEFT" => OverlayPosition::TopLeft,
+        "TOP_CENTER" => OverlayPosition::TopCenter,
+        "TOP_RIGHT" => OverlayPosition::TopRight,
+        "BOTTOM_LEFT" => OverlayPosition::BottomLeft,
+        "BOTTOM_CENTER" => OverlayPosition::BottomCenter,
+        "BOTTOM_RIGHT" => OverlayPosition::BottomRight,
+        "MANUAL" => OverlayPosition::Manual,
+        _ => OverlayPosition::Center,
+    };
+    let appearance = frame.get("overlayBackgroundAppearance");
+    let backdrop = appearance
+        .filter(|a| a.get("backgroundType").and_then(Value::as_str) == Some("SOLID_COLOR"))
+        .and_then(|a| a.get("backgroundColor"))
+        .map(|c| {
+            let ch = |k: &str| c.get(k).and_then(Value::as_f32).unwrap_or(0.0);
+            #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+            let byte = |k: &str| (ch(k).clamp(0.0, 1.0) * 255.0).round() as u8;
+            format!(
+                "#{:02x}{:02x}{:02x}{:02x}",
+                byte("r"),
+                byte("g"),
+                byte("b"),
+                byte("a")
+            )
+        });
+    Some(OverlaySettings {
+        position,
+        close_on_click_outside: text("overlayBackgroundInteraction")
+            == Some("CLOSE_ON_CLICK_OUTSIDE"),
+        backdrop,
     })
 }
 
@@ -253,12 +303,12 @@ fn flag(value: &Value, name: &str) -> bool {
 }
 
 fn size(v: &Value) -> (f32, f32) {
-    let axis = |a: &str| {
-        v.get("size")
-            .and_then(|s| s.get(a))
-            .and_then(Value::as_f32)
-            .unwrap_or(0.0)
-    };
+    v.get("size").map_or((0.0, 0.0), vector)
+}
+
+/// A Kiwi `Vector`: `{ x, y }`.
+fn vector(v: &Value) -> (f32, f32) {
+    let axis = |a: &str| v.get(a).and_then(Value::as_f32).unwrap_or(0.0);
     (axis("x"), axis("y"))
 }
 

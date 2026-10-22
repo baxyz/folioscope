@@ -82,11 +82,15 @@ Any node can carry `prototypeInteractions: PrototypeInteraction[]`:
 | `transitionDuration`                            | Seconds                                                                                          |
 | `easingType`, `easingFunction`                  | Named easing, or cubic Bézier control points for `CUSTOM_CUBIC`                                  |
 | `transitionPreserveScroll`, `extraScrollOffset` | Scroll handling                                                                                  |
-| `overlayRelativePosition`                       | Manual overlay position                                                                          |
+| `overlayRelativePosition`                       | `Vector`: a `MANUAL` overlay's top-left corner, from the triggering node's (Figma plugin docs)   |
 | `connectionURL`, `openUrlInNewTab`              | For `URL`                                                                                        |
 
 Overlay settings (`overlayPositionType`, `overlayBackgroundInteraction`,
 `overlayBackgroundAppearance`) live on the **destination** frame or component, not on the action.
+`overlayPositionType` is `CENTER`, `TOP_LEFT`, `TOP_CENTER`, `TOP_RIGHT`, `BOTTOM_LEFT`,
+`BOTTOM_CENTER`, `BOTTOM_RIGHT` or `MANUAL`; `overlayBackgroundAppearance` holds a `backgroundType`
+(`NONE`, `SOLID_COLOR`) and a `backgroundColor`. None of the third-party files at hand opens a
+`MANUAL` overlay, so the offset's reading is unchecked against a real file.
 
 An absent field takes its schema default, so a missing `transitionType` means
 `INSTANT_TRANSITION`. `easingFunction` holds the four cubic Bézier control points of a

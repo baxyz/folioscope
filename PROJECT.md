@@ -563,7 +563,6 @@ displayed almost instantly on a portfolio page.
 - [ ] `.sketch` importer to the IR, with the same pre-rendering.
 - [ ] Layer split at pre-render: background, scrolling content, fixed elements, overlays, interactive
       components.
-- [ ] Overlays: position, backdrop, close on outside click.
 - [ ] Frame scrolling (native scrolling), fixed elements, _scroll to_ action.
 - [ ] Interactive components: instance and variant resolution, one image per state, _change to_
       action. Combinatorial explosion threshold (D7).

@@ -10,7 +10,7 @@ const demos = fileURLToPath(new URL("../public/folio/", import.meta.url));
 const cli = process.env.FOLIOSCOPE_CLI ?? `${repo}target/debug/folioscope`;
 
 rmSync(demos, { recursive: true, force: true });
-for (const name of ["navigation", "flows-and-pages", "triggers"]) {
+for (const name of ["navigation", "flows-and-pages", "triggers", "overlay"]) {
   execFileSync(cli, ["bake", `${repo}fixtures/figma/${name}.fig`, `${demos}${name}.folio`], {
     stdio: "inherit",
   });

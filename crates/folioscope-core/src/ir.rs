@@ -58,6 +58,41 @@ pub struct Frame {
     pub bounds: Rect,
     /// Clickable areas, in layer order (later ones on top).
     pub hotspots: Vec<Hotspot>,
+    /// How the frame shows when an action opens it as an overlay; the player's defaults
+    /// (centered, no backdrop, no close on click outside) when absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub overlay: Option<OverlaySettings>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OverlaySettings {
+    pub position: OverlayPosition,
+    /// A click on the backdrop, outside the overlay, closes it.
+    pub close_on_click_outside: bool,
+    /// Color drawn over the frame below, as CSS `#rrggbbaa`; none when absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub backdrop: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum OverlayPosition {
+    Center,
+    TopLeft,
+    TopCenter,
+    TopRight,
+    BottomLeft,
+    BottomCenter,
+    BottomRight,
+    /// At the opening action's `offset`, from the top-left corner of the hotspot that opened it.
+    Manual,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Default, Serialize, Deserialize)]
+pub struct Point {
+    pub x: f32,
+    pub y: f32,
 }
 
 /// A node that carries interactions.
@@ -119,11 +154,16 @@ pub enum Action {
     Overlay {
         to: String,
         transition: Transition,
+        /// For a `Manual` overlay: its top-left corner, from the hotspot's.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        offset: Option<Point>,
     },
     /// Replaces the overlay on top with another one.
     SwapOverlay {
         to: String,
         transition: Transition,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        offset: Option<Point>,
     },
     ScrollTo {
         to: String,
