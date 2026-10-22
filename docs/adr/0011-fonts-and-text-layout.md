@@ -48,5 +48,7 @@ fonts embedded in the file and fonts the user gives it.
 ## Consequences
 
 - `.fig` files keep baking with no font: fonts only fill in what Figma did not store.
-- The WebAssembly module grows by parley, HarfRust and skrifa (measured when first used).
+- The WebAssembly module grows from 3.8 MB to 6.1 MB (1.9 MB gzipped) with parley, HarfRust,
+  skrifa and their Unicode data. It runs at build time only and never reaches a site's
+  JavaScript; the npm package carries it.
 - Test fonts live in `fixtures/fonts/`: Inter, cut down to Latin (SIL OFL 1.1).

@@ -70,6 +70,23 @@ describe.skipIf(!wasmBuilt)("folioscope/vite", () => {
     }
   });
 
+  test("reads the fonts given, and bakes with them", async () => {
+    const root = site();
+    cpSync(
+      fileURLToPath(new URL("../../../fixtures/fonts/", import.meta.url)),
+      join(root, "fonts"),
+      {
+        recursive: true,
+      },
+    );
+    await build({
+      root,
+      logLevel: "silent",
+      plugins: [folioscope({ include: "designs/*.fig", fonts: "fonts" })],
+    });
+    expect(existsSync(join(root, "dist/folio/app.folio/index.json"))).toBe(true);
+  });
+
   test("refuses two designs served under the same name", async () => {
     const root = site();
     mkdirSync(join(root, "other"));

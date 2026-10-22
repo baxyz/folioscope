@@ -7,6 +7,7 @@
 //! Not handled yet: instance overrides, radial and angular gradients, blend modes, blurs, image
 //! transforms and tiling, auto-layout changes since the file was saved.
 
+use std::collections::BTreeSet;
 use std::fmt::Write;
 
 use folioscope_core::figma::instance::Overrides;
@@ -15,6 +16,9 @@ use folioscope_core::kiwi::Value;
 
 use path::path_commands;
 
+use crate::fonts::weight_of_style;
+use crate::text::{Align, Paragraph, Typesetter};
+
 mod paint;
 mod path;
 
@@ -22,6 +26,9 @@ pub struct Svg {
     pub width: f32,
     pub height: f32,
     pub markup: String,
+    /// Fonts the text needed and was not given (`Family Style`): their text keeps the file's
+    /// glyphs, which may be of another style.
+    pub missing_fonts: BTreeSet<String>,
 }
 
 /// Renders `id` and its descendants, at the origin, in its own coordinate space.
@@ -52,7 +59,12 @@ pub fn render_node_without(tree: &Tree<'_>, id: NodeId, hidden: &[NodeId]) -> Op
 /// The variant it shows in the file is drawn as the instance; another variant is drawn in its
 /// place at the variant's own size, with the overrides that still apply (layout is not redone).
 #[must_use]
-pub fn render_component_state(tree: &Tree<'_>, path: &[NodeId], variant: NodeId) -> Option<Svg> {
+pub fn render_component_state<'t>(
+    tree: &'t Tree<'_>,
+    path: &[NodeId],
+    variant: NodeId,
+    typesetter: Option<&'t mut Typesetter>,
+) -> Option<Svg> {
     let (last, outer) = path.split_last()?;
     let mut overrides = Overrides::default();
     for id in outer {
@@ -105,6 +117,8 @@ pub fn render_component_state(tree: &Tree<'_>, path: &[NodeId], variant: NodeId)
         hidden: Vec::new(),
         root: Root::WHOLE,
         overrides,
+        typesetter,
+        missing_fonts: BTreeSet::new(),
     };
     ctx.node(root, true);
     Some(svg(&ctx, size))
@@ -188,6 +202,8 @@ fn render(
         hidden,
         root,
         overrides: Overrides::default(),
+        typesetter: None,
+        missing_fonts: BTreeSet::new(),
     };
     ctx.node(node, true);
     svg(&ctx, (width, height))
@@ -218,6 +234,7 @@ fn svg(ctx: &Ctx<'_, '_>, (width, height): (f32, f32)) -> Svg {
         width,
         height,
         markup,
+        missing_fonts: ctx.missing_fonts.clone(),
     }
 }
 
@@ -230,6 +247,9 @@ struct Ctx<'t, 'a> {
     root: Root,
     /// The instances being drawn, whose overrides apply to what is inside them.
     overrides: Overrides,
+    /// Lays text out where the file's glyphs do not fit it; none when no font was given.
+    typesetter: Option<&'t mut Typesetter>,
+    missing_fonts: BTreeSet<String>,
 }
 
 impl Ctx<'_, '_> {
@@ -438,13 +458,35 @@ impl Ctx<'_, '_> {
             Some(Value::Int(i)) => usize::try_from(*i).unwrap_or(glyphs.len()),
             _ => glyphs.len(),
         };
-        let mut path = String::new();
-        for glyph in glyphs.iter().take(shown) {
-            self.glyph(glyph, &mut path);
+        // The file's glyphs, unless they were laid out in another font (a variant other than
+        // the one stored, with another style) and the right one was given.
+        let mut path = if stale_glyphs(v) {
+            self.lay_out(v).unwrap_or_default()
+        } else {
+            String::new()
+        };
+        if path.is_empty() {
+            for glyph in glyphs.iter().take(shown) {
+                self.glyph(glyph, &mut path);
+            }
         }
         if !path.is_empty() {
             let _ = write!(self.body, r#"<path d="{path}" {fill}/>"#);
         }
+    }
+
+    /// The text laid out with the fonts given; records its font as missing when there is none.
+    fn lay_out(&mut self, text: &Value) -> Option<String> {
+        let style = TextStyle::of(text)?;
+        let laid_out = self
+            .typesetter
+            .as_deref_mut()
+            .and_then(|t| t.path(&style.paragraph()));
+        if laid_out.is_none() {
+            self.missing_fonts
+                .insert(format!("{} {}", style.family, style.style));
+        }
+        laid_out
     }
 
     /// Appends a glyph's outline to `d`.
@@ -476,6 +518,93 @@ impl Ctx<'_, '_> {
     }
 }
 
+/// Whether a text's stored glyphs were laid out in another font than its own: Figma lists the
+/// fonts of the glyphs in `fontMetaData`.
+fn stale_glyphs(text: &Value) -> bool {
+    let Some(font) = text.get("fontName") else {
+        return false;
+    };
+    let fonts = text
+        .get("derivedTextData")
+        .and_then(|d| d.get("fontMetaData"))
+        .map_or(&[][..], Value::as_array);
+    let same = |a: Option<&Value>, b: Option<&Value>, field: &str| {
+        a.and_then(|v| v.get(field)).and_then(Value::as_str)
+            == b.and_then(|v| v.get(field)).and_then(Value::as_str)
+    };
+    !fonts.is_empty()
+        && !fonts.iter().any(|f| {
+            same(f.get("key"), Some(font), "family") && same(f.get("key"), Some(font), "style")
+        })
+}
+
+/// A `.fig` text's style, as a paragraph to lay out.
+struct TextStyle {
+    characters: String,
+    family: String,
+    style: String,
+    size: f32,
+    line_height: Option<f32>,
+    letter_spacing: f32,
+    align: Align,
+    width: Option<f32>,
+}
+
+impl TextStyle {
+    fn of(text: &Value) -> Option<Self> {
+        let font = text.get("fontName")?;
+        let field = |v: &Value, k: &str| v.get(k).and_then(Value::as_str).unwrap_or("").to_owned();
+        let font_size = text.get("fontSize").and_then(Value::as_f32).unwrap_or(12.0);
+        // `{ value, units }`: pixels, a percentage of the font size, or a multiple of it.
+        let measure = |name: &str| {
+            let m = text.get(name)?;
+            let value = m.get("value").and_then(Value::as_f32)?;
+            Some(match m.get("units").and_then(Value::as_str) {
+                Some("PERCENT") => value / 100.0 * font_size,
+                Some("RAW") => value * font_size,
+                _ => value,
+            })
+        };
+        Some(Self {
+            characters: text
+                .get("textData")
+                .and_then(|t| t.get("characters"))
+                .and_then(Value::as_str)?
+                .to_owned(),
+            family: field(font, "family"),
+            style: field(font, "style"),
+            size: font_size,
+            line_height: measure("lineHeight"),
+            letter_spacing: measure("letterSpacing").unwrap_or(0.0),
+            align: match text.get("textAlignHorizontal").and_then(Value::as_str) {
+                Some("CENTER") => Align::Center,
+                Some("RIGHT") => Align::Right,
+                Some("JUSTIFIED") => Align::Justify,
+                _ => Align::Left,
+            },
+            // A text that grows with its content does not wrap; others wrap at their width.
+            width: match text.get("textAutoResize").and_then(Value::as_str) {
+                Some("WIDTH_AND_HEIGHT") => None,
+                _ => Some(size(text).0),
+            },
+        })
+    }
+
+    fn paragraph(&self) -> Paragraph<'_> {
+        Paragraph {
+            text: &self.characters,
+            family: &self.family,
+            weight: weight_of_style(&self.style),
+            italic: self.style.to_ascii_lowercase().contains("italic"),
+            size: self.size,
+            line_height: self.line_height,
+            letter_spacing: self.letter_spacing,
+            align: self.align,
+            width: self.width,
+        }
+    }
+}
+
 fn size(v: &Value) -> (f32, f32) {
     let axis = |a: &str| {
         v.get("size")
@@ -488,4 +617,76 @@ fn size(v: &Value) -> (f32, f32) {
 
 fn visible(paint: &Value) -> bool {
     !matches!(paint.get("visible"), Some(Value::Bool(false)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn object(fields: Vec<(&str, Value)>) -> Value {
+        Value::Object(fields.into_iter().map(|(k, v)| (k.into(), v)).collect())
+    }
+
+    fn text(family: &str, style: &str, glyphs_in: (&str, &str)) -> Value {
+        let font = |family: &str, style: &str| {
+            object(vec![
+                ("family", Value::String(family.into())),
+                ("style", Value::String(style.into())),
+            ])
+        };
+        object(vec![
+            ("fontName", font(family, style)),
+            ("fontSize", Value::Float(16.0)),
+            (
+                "lineHeight",
+                object(vec![
+                    ("value", Value::Float(150.0)),
+                    ("units", Value::Enum("PERCENT".into())),
+                ]),
+            ),
+            ("textAlignHorizontal", Value::Enum("CENTER".into())),
+            ("textAutoResize", Value::Enum("HEIGHT".into())),
+            (
+                "size",
+                object(vec![("x", Value::Float(120.0)), ("y", Value::Float(24.0))]),
+            ),
+            (
+                "textData",
+                object(vec![("characters", Value::String("Mains".into()))]),
+            ),
+            (
+                "derivedTextData",
+                object(vec![(
+                    "fontMetaData",
+                    Value::Array(vec![object(vec![("key", font(glyphs_in.0, glyphs_in.1))])]),
+                )]),
+            ),
+        ])
+    }
+
+    #[test]
+    fn glyphs_of_another_font_are_stale() {
+        assert!(!stale_glyphs(&text(
+            "Karla",
+            "ExtraBold",
+            ("Karla", "ExtraBold")
+        )));
+        assert!(stale_glyphs(&text(
+            "Karla",
+            "Regular",
+            ("Karla", "ExtraBold")
+        )));
+    }
+
+    #[test]
+    fn reads_a_text_style() {
+        let style = TextStyle::of(&text("Karla", "Semi Bold Italic", ("Karla", "Bold"))).unwrap();
+        let paragraph = style.paragraph();
+        assert_eq!(paragraph.text, "Mains");
+        assert_eq!(paragraph.weight, 600.0);
+        assert!(paragraph.italic);
+        assert_eq!(paragraph.line_height, Some(24.0));
+        assert_eq!(paragraph.align, Align::Center);
+        assert_eq!(paragraph.width, Some(120.0));
+    }
 }

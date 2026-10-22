@@ -3,7 +3,15 @@
 // oxlint-disable-next-line vite-plus/prefer-vite-plus-imports
 import type { Plugin, ResolvedConfig } from "vite";
 import { createHash } from "node:crypto";
-import { existsSync, globSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  globSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { basename, dirname, extname, join, relative, resolve } from "node:path";
 
 export interface FolioscopeOptions {
@@ -21,17 +29,28 @@ export interface FolioscopeOptions {
    * to bake, lossy. Defaults to `true`.
    */
   avif?: boolean;
+  /**
+   * Fonts for text the design file stores no glyphs for: font files, folders of them, or globs,
+   * relative to the Vite root (TTF, OTF, TTC, WOFF, WOFF2). A `.fig` file rarely needs any.
+   */
+  fonts?: string | string[];
 }
 
 /** Files of one `.folio` folder, by path inside it (`index.json`, `layers/…`). */
 type Folio = Map<string, Uint8Array>;
 
 interface Wasm {
-  bake(input: Uint8Array, avif: boolean): Map<string, Uint8Array>;
+  bake(
+    input: Uint8Array,
+    avif: boolean,
+    fonts: Map<string, Uint8Array>,
+  ): { files: Map<string, Uint8Array>; missingFonts: string[] };
 }
 
 /** Bumped when the bake's output changes, so stale cache entries are not reused. */
-const CACHE_VERSION = "2";
+const CACHE_VERSION = "3";
+
+const FONT_FILE = /\.(ttf|otf|ttc|woff2?)$/i;
 
 const TYPES: Record<string, string> = {
   ".json": "application/json",
@@ -77,10 +96,36 @@ export function folioscope(options: FolioscopeOptions = {}): Plugin {
     return found;
   };
 
+  let fonts: Map<string, Uint8Array> | undefined;
+  /** The `fonts` option's files, by path from the root, read once. */
+  const loadFonts = (): Map<string, Uint8Array> => {
+    if (fonts) return fonts;
+    fonts = new Map();
+    for (const pattern of [options.fonts ?? []].flat()) {
+      const matches = globSync(pattern, { cwd: config.root });
+      for (const match of matches.toSorted()) {
+        const path = resolve(config.root, match);
+        const files = statSync(path).isDirectory()
+          ? readdirSync(path, { recursive: true, encoding: "utf8" })
+              .toSorted()
+              .map((f) => join(path, f))
+          : [path];
+        for (const file of files) {
+          if (FONT_FILE.test(file)) fonts.set(relative(config.root, file), readFileSync(file));
+        }
+      }
+    }
+    return fonts;
+  };
+
   const bake = (path: string): Promise<Folio> => {
     let folio = baked.get(path);
     if (!folio) {
-      folio = bakeCached(path, cacheDir, options.avif ?? true);
+      folio = bakeCached(path, cacheDir, options.avif ?? true, loadFonts(), (font) =>
+        config.logger.warn(
+          `folioscope: ${relative(config.root, path)}: no font for ${font}; its text keeps glyphs of another style (fonts option)`,
+        ),
+      );
       baked.set(path, folio);
     }
     return folio;
@@ -138,17 +183,22 @@ export function folioscope(options: FolioscopeOptions = {}): Plugin {
 }
 
 /** Bakes `path`, or reads the result of an earlier bake of the same bytes from `cacheDir`. */
-async function bakeCached(path: string, cacheDir: string, avif: boolean): Promise<Folio> {
+async function bakeCached(
+  path: string,
+  cacheDir: string,
+  avif: boolean,
+  fonts: Map<string, Uint8Array>,
+  warn: (font: string) => void,
+): Promise<Folio> {
   const source = readFileSync(path);
-  const key = createHash("sha256")
-    .update(`${CACHE_VERSION}:${avif}`)
-    .update(source)
-    .digest("hex")
-    .slice(0, 32);
+  const hash = createHash("sha256").update(`${CACHE_VERSION}:${avif}`).update(source);
+  for (const [name, bytes] of fonts) hash.update(name).update(bytes);
+  const key = hash.digest("hex").slice(0, 32);
   const dir = join(cacheDir, key);
   if (existsSync(join(dir, "index.json"))) return readFolder(dir);
 
-  const folio = (await loadWasm()).bake(source, avif);
+  const { files: folio, missingFonts } = (await loadWasm()).bake(source, avif, fonts);
+  missingFonts.forEach(warn);
   for (const [file, bytes] of folio) {
     mkdirSync(dirname(join(dir, file)), { recursive: true });
     writeFileSync(join(dir, file), bytes);
