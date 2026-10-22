@@ -37,6 +37,9 @@ const STYLE = `
 .sheet > .frame { pointer-events: auto; }
 .hotspot { position: absolute; margin: 0; padding: 0; border: 0; background: none; cursor: pointer; }
 .hotspot:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+:host([hotspots="always"]) .hotspot { background: rgb(37 99 235 / 0.15); box-shadow: inset 0 0 0 2px rgb(37 99 235 / 0.6); }
+.viewport.flash .hotspot { animation: folioscope-flash 0.7s ease-out; }
+@keyframes folioscope-flash { from { background: rgb(37 99 235 / 0.35); box-shadow: inset 0 0 0 2px rgb(37 99 235 / 0.8); } }
 `;
 
 /**
@@ -45,7 +48,8 @@ const STYLE = `
  */
 export class FolioscopePlayer extends BaseElement {
   static readonly observedAttributes: readonly string[] = ["src", "flow", "page", "controls"];
-  // `poster`, `fit` and `preload` are read when needed, so changing them needs no callback.
+  // `poster`, `fit`, `preload` and `hotspots` are read when needed, so changing them needs no
+  // callback.
 
   private readonly root: ShadowRoot;
   private readonly viewport: HTMLElement;
@@ -81,6 +85,18 @@ export class FolioscopePlayer extends BaseElement {
     });
     this.controls.element.hidden = !this.hasAttribute("controls");
     this.root.append(this.controls.element);
+    // `hotspots="on-miss"` (the default): a click beside every hotspot shows where they are.
+    this.viewport.addEventListener("click", (event) => {
+      const missed = !event
+        .composedPath()
+        .some((el) => el instanceof HTMLElement && el.classList.contains("hotspot"));
+      if (missed && (this.getAttribute("hotspots") ?? "on-miss") === "on-miss") {
+        this.viewport.classList.remove("flash");
+        void this.viewport.offsetWidth; // restarts the animation
+        this.viewport.classList.add("flash");
+      }
+    });
+    this.viewport.addEventListener("animationend", () => this.viewport.classList.remove("flash"));
     // A hover lasts while the pointer stays over the hotspot that started it.
     this.viewport.addEventListener("pointermove", (event) =>
       this.release((hold) => hold.kind === "hover" && !this.under(event, hold.bounds)),

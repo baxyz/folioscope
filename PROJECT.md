@@ -565,7 +565,6 @@ displayed almost instantly on a portfolio page.
       inside scrolled content and inside overlays.
 - [ ] Interactive components: instance and variant resolution, one image per state, _change to_
       action. Combinatorial explosion threshold (D7).
-- [ ] Visible hotspots (`hotspots="on-miss"`).
 - [ ] Fonts for pre-rendering: `folioscope.config.ts` and `--fonts`, with the five modes; bake-time
       warning for any missing font.
 - [ ] `folioscope fonts <folder>` CLI: generates the `folioscope-fonts.json` manifest.
