@@ -90,6 +90,7 @@ cargo deny check
 pnpm --filter @folioscope/fixtures-tools generate   # rewrite fixtures/ from tools/fixtures
 pnpm --filter @folioscope/site bake-demos            # re-bake the site demos after a fixture or bake change
 pnpm run build                                       # player package, then the site (what Workers Builds runs)
+pnpm --filter @folioscope/site dev                   # the site on http://localhost:4323 (build the player first)
 pnpm --filter folioscope build:wasm                  # WebAssembly bake for folioscope/vite (Rust + wasm-bindgen-cli 0.2.129)
 pnpm --filter folioscope test:e2e                    # bakes a fixture and plays it in Firefox
 pnpm --filter folioscope test:budget                 # first frame under 1 s on throttled 4G (Chromium)
@@ -103,6 +104,10 @@ cargo run -p folioscope-cli -- render <file.fig> <node-id> <out.png> [scale]
 Bump `version` in `packages/folioscope/package.json`, merge, then push the tag `vX.Y.Z` on `main`.
 `release.yml` builds the WebAssembly bake and the player, publishes to npm through trusted
 publishing (OIDC, with provenance, no token), and creates the GitHub release.
+
+The pnpm version is pinned in three places, to change together: `devEngines` in `package.json`,
+the `pnpm/action-setup` steps of the workflows, and the `PNPM_VERSION` build variable of the
+Cloudflare Worker (production and preview triggers).
 
 ## Rules
 
