@@ -102,12 +102,37 @@ cargo run -p folioscope-cli -- render <file.fig> <node-id> <out.png> [scale]
 
 ## Releasing
 
-Bump `version` in `packages/folioscope/package.json`, merge, then push the tag `vX.Y.Z` on `main`.
-`release.yml` builds the WebAssembly bake and the player, publishes to npm through trusted
-publishing (OIDC, with provenance, no token), and creates the GitHub release.
+Releases go through [`helpers4/action-release`](https://github.com/helpers4/action-release): run the
+**Release** workflow from the Actions tab (`bump`: `auto`, `patch`, `minor`, `major`, `alpha`,
+`beta`, `rc`, or `resume`; tick `dry-run` to stop before the tag). `release.yml` runs the checks of
+`ci.yml`, then the action:
+
+- computes the version from the last `v*` tag and the Conventional Commits (`auto`; before 1.0.0 a
+  `feat` is a patch and a breaking change a minor);
+- builds the WebAssembly bake and the player, packs one tarball, dry-runs `npm publish`;
+- creates a signed release commit **on no branch** (parent: the tested `main` commit; it only
+  changes the package version and `CHANGELOG.md`), tags it `vX.Y.Z`, publishes the same tarball
+  through npm trusted publishing (OIDC, provenance) and creates the GitHub release.
+
+What this means when you work here:
+
+- **Never bump `version`, edit `CHANGELOG.md` or push a `v*` tag by hand.** `main` keeps the
+  placeholder `0.0.0-development` in `packages/folioscope/package.json`; the real version exists in
+  the tag only (`git checkout v0.1.0`, or `npm view folioscope`). `main` has no `CHANGELOG.md`: the
+  changelog is generated from the commits into the release commit and the GitHub release notes, so
+  write Conventional Commits that read well there.
+- A release never writes to `main`, so branch protection does not apply and there is no release PR.
+- If a registry step fails after the tag exists, the release stays a draft: fix the cause and run
+  **Release** again with `bump: resume`. Never delete the tag.
+- `release.yml` must keep its file name and the `npm` environment: the npm trusted publisher of the
+  `folioscope` package checks both. Change them only together with the setting on npmjs.com.
+- Every preflight message links to
+  [the action's troubleshooting page](https://github.com/helpers4/action-release/blob/main/docs/troubleshooting.md).
+- The Rust crates are not published by this workflow; only the npm package is released, and the
+  workspace crates keep version `0.0.0`.
 
 The pnpm version is pinned in three places, to change together: `devEngines` in `package.json`,
-the `pnpm/action-setup` steps of the workflows, and the `PNPM_VERSION` build variable of the
+the `pnpm/action-setup` steps of `ci.yml`, and the `PNPM_VERSION` build variable of the
 Cloudflare Worker (production and preview triggers).
 
 ## Rules
