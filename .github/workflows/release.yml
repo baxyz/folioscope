@@ -1,62 +1,70 @@
 name: Release
 
-# Pushing a tag vX.Y.Z publishes the folioscope npm package at version X.Y.Z, then creates the
-# GitHub release. npm trusted publishing: npm authenticates this workflow through OIDC, so no
-# token is stored, and the package gets a provenance attestation.
+# Run from the Actions tab. The checks of ci.yml run first, then helpers4/action-release computes
+# the version from the last v* tag and the commits, builds (job `build`, the only one running
+# project code), then `publish` creates a signed release commit on no
+# branch (so main is never written), tags it, publishes the folioscope npm package with trusted
+# publishing (OIDC, provenance) and creates the GitHub release.
+#
+# npm validates this file name and the `npm` environment: change neither without updating the
+# trusted publisher of the folioscope package on npmjs.com.
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Type de release
+        type: choice
+        default: auto
+        options: [auto, patch, minor, major, alpha, beta, rc, resume]
+      dry-run:
+        description: Stop before the tag is created (nothing is published)
+        type: boolean
+        default: false
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
-  npm:
-    name: Publish to npm
+  checks:
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
+  build:
+    needs: checks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 0, persist-credentials: false }
+      - uses: actions/setup-node@v6
+        with: { node-version-file: .node-version }
+      - run: rustup show active-toolchain || rustup toolchain install
+      - uses: taiki-e/install-action@v2
+        with: { tool: "wasm-bindgen@0.2.129" }
+      - uses: helpers4/action-release@v0
+        with:
+          mode: build
+          bump: ${{ inputs.bump }}
+          package: packages/folioscope
+          build: pnpm --filter folioscope build:wasm && pnpm --filter folioscope build
+
+  publish:
+    needs: build
     runs-on: ubuntu-latest
     environment: npm
+    concurrency: { group: "release-${{ github.repository }}", cancel-in-progress: false }
     permissions:
       contents: write
       id-token: write
+      attestations: write
+      issues: write
+      pull-requests: write
     steps:
-      - uses: actions/checkout@v7
-      - run: rustup show active-toolchain || rustup toolchain install
-      - uses: pnpm/action-setup@v6
-        with:
-          version: 11.8.0
       - uses: actions/setup-node@v6
+        with: { node-version: lts/* }
+      - uses: helpers4/action-release@v0
         with:
-          node-version: lts/*
-          cache: pnpm
-          registry-url: https://registry.npmjs.org
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: wasm-bindgen@0.2.129
-      - run: pnpm install --frozen-lockfile
-
-      - name: The tag matches the package version
-        env:
-          TAG: ${{ github.ref_name }}
-        run: |
-          version=$(node -p 'require("./packages/folioscope/package.json").version')
-          test "v$version" = "$TAG" || { echo "tag $TAG, package $version"; exit 1; }
-
-      - run: pnpm --filter folioscope build:wasm
-      - run: pnpm --filter folioscope build
-      - run: pnpm --filter folioscope test
-
-      # pnpm pack turns catalog: versions into real ones; npm publishes the tarball, as only npm
-      # speaks trusted publishing. Outside the repository, so its devEngines (pnpm) don't apply.
-      - name: Publish
-        run: |
-          pnpm --filter folioscope pack --pack-destination "$RUNNER_TEMP"
-          cd "$RUNNER_TEMP"
-          npm install --global npm@11
-          npm publish folioscope-*.tgz --provenance --access public
-
-      - name: Create the GitHub release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
-        run: gh release create "$TAG" --generate-notes --verify-tag
+          mode: publish
+          bump: ${{ inputs.bump }}
+          dry-run: ${{ inputs.dry-run }}
