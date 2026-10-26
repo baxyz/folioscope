@@ -551,8 +551,6 @@ console, and the pre-render spike displaying almost instantly.
 The fast path comes first: it is the one portfolio visitors will see.
 
 - [ ] Add `fsm` and `dom` to helpers4.
-- [ ] First npm release: `release.yml` publishes on a `v*` tag; npm trusted publishing is set up
-      after a first manual publish.
 - [ ] Minimal site live on `folioscope.baxyz.dev` (built, waiting for the Worker's first deploy).
 
 **Exit criterion**: a simple `.fig` prototype, pre-rendered at build time, clickable end to end and
@@ -667,7 +665,8 @@ The "works right away" path with no build step, and the fallback for dynamic lay
 | **crates.io**       | `folioscope-core`, `folioscope-cli`                                                                                                                                                                                       | From phase 4                                                    |
 | **GitHub Releases** | CLI binaries (Linux, macOS, Windows)                                                                                                                                                                                      | Built with cargo-dist or equivalent                             |
 
-- SemVer versioning, with Changesets (or equivalent) for the changelog.
+- SemVer versioning; version and changelog are generated at release time from the Conventional
+  Commits by `helpers4/action-release` (see "Releasing" in `AGENTS.md`).
 - Conventional commits, checked with `helpers4/commit`.
 - The npm package must work with no configuration: the `.wasm` is loaded through a URL relative to
   `import.meta.url`.
