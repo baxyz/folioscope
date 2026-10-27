@@ -44,6 +44,7 @@ interface Wasm {
     input: Uint8Array,
     avif: boolean,
     fonts: Map<string, Uint8Array>,
+    densities?: Uint8Array,
   ): { files: Map<string, Uint8Array>; missingFonts: string[] };
 }
 

@@ -32,6 +32,8 @@
   ],
   "exports": {
     ".": "./dist/index.mjs",
+    "./full": "./dist/full/index.mjs",
+    "./full/worker": "./dist/full/worker.mjs",
     "./vite": "./dist/vite/index.mjs",
     "./package.json": "./package.json"
   },

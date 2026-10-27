@@ -3,7 +3,12 @@
 // Run with `pnpm --filter folioscope test:e2e` after `vp pack` and `cargo build -p folioscope-cli`.
 import assert from "node:assert/strict";
 import { firefox } from "playwright";
+import { copyFileSync, mkdirSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { bakeFixtures, serve } from "./serve.ts";
+
+const fixtures = fileURLToPath(new URL("../../../fixtures/", import.meta.url));
 
 const site = bakeFixtures([
   "navigation",
@@ -16,11 +21,15 @@ const site = bakeFixtures([
   "sketch/navigation.sketch",
   "penpot/navigation.penpot",
 ]);
+// Raw design files for the full player: one alone, one next to its baked .folio.
+mkdirSync(join(site, "raw"));
+copyFileSync(join(fixtures, "figma/navigation.fig"), join(site, "raw/navigation.fig"));
+copyFileSync(join(fixtures, "figma/navigation.fig"), join(site, "navigation.fig"));
 const server = await serve(
   site,
   (query) => `<!doctype html><meta charset="utf-8">
 <script type="module" src="/player.mjs"></script>
-<folioscope-player src="/${query.get("folio")}.folio" ${query.has("controls") ? "controls" : ""} hotspots="${query.get("hotspots") ?? "on-miss"}" style="width: 375px"></folioscope-player>`,
+<folioscope-player src="${query.get("src") ?? `/${query.get("folio")}.folio`}" ${query.has("controls") ? "controls" : ""} hotspots="${query.get("hotspots") ?? "on-miss"}" style="width: 375px"></folioscope-player>`,
 );
 
 const browser = await firefox.launch();
@@ -251,6 +260,33 @@ try {
   await tab.locator('folioscope-player .frame button[aria-label="Back"]').click();
   await settledOn("Home");
   console.log("✓ penpot: a .penpot prototype plays the same way");
+
+  // A raw .fig next to its .folio plays the .folio; alone, the full player bakes it in a worker.
+  const layerSrc = () =>
+    tab.locator('folioscope-player .frame[aria-label="Home"] img').first().getAttribute("src");
+  await tab.goto(`${server.origin}/?src=/navigation.fig`);
+  await settledOn("Home");
+  assert.match((await layerSrc()) ?? "", /^\/navigation\.folio\/layers\//);
+  const stages: string[] = [];
+  await tab.exposeFunction("onStage", (stage: string) => stages.push(stage));
+  await tab.addInitScript(() =>
+    document.addEventListener("folioscope:progress", (event) =>
+      (window as unknown as { onStage(s: string): void }).onStage(
+        (event as CustomEvent<{ stage: string }>).detail.stage,
+      ),
+    ),
+  );
+  await tab.goto(`${server.origin}/?src=/raw/navigation.fig`);
+  await settledOn("Home");
+  assert.match((await layerSrc()) ?? "", /^blob:/);
+  await tab.locator('folioscope-player .frame button[aria-label="Open details"]').click();
+  await settledOn("Details");
+  assert.deepEqual(stages, ["download", "bake"]);
+  // A second visit reads the bake from the cache.
+  await tab.goto(`${server.origin}/?src=/raw/navigation.fig`);
+  await settledOn("Home");
+  assert.deepEqual(stages.slice(2), ["download", "cache"]);
+  console.log("✓ full player: a raw .fig plays, baked in the browser, then from the cache");
 
   // Without a poster, the frame's baked placeholder shows while its layers load.
   const slow = await browser.newPage();

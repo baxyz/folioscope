@@ -30,6 +30,10 @@ nothing else is installed, and is cached between builds.
 </folioscope-player>
 ```
 
+`src` may also be the design file itself (`/designs/app.fig`): the player plays `app.folio/` when
+it sits next to it, and otherwise bakes the file in the browser, in a worker (about 2 MB of
+WebAssembly, loaded only then), and caches the result.
+
 Or `import "folioscope";` from a bundled app. The player is a vanilla custom element, under 15 KB
 of JS gzipped, with no WebAssembly and no fonts.
 
