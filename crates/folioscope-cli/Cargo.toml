@@ -1,5 +1,5 @@
 [package]
-name = "folioscope-cli"
+name = "folioscope"
 description = "Command-line tool to bake .fig, .sketch, .xd and .penpot prototypes into .folio folders"
 keywords = ["prototype", "design", "mockup", "cli"]
 categories = ["command-line-utilities", "multimedia::images"]

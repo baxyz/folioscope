@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // End-to-end: bakes fixtures/figma/navigation.fig, plays it in Firefox through the built player.
-// Run with `pnpm --filter folioscope test:e2e` after `vp pack` and `cargo build -p folioscope-cli`.
+// Run with `pnpm --filter folioscope test:e2e` after `vp pack` and `cargo build -p folioscope`.
 import assert from "node:assert/strict";
 import { firefox } from "playwright";
 import { copyFileSync, mkdirSync } from "node:fs";

@@ -46,7 +46,7 @@ Defined in `scopes.json`:
 | `core`                                      | `crates/folioscope-core`: IR, importers, instance resolution              |
 | `bake`                                      | `crates/folioscope-bake`: layer split, state enumeration, `.folio` writer |
 | `wasm`                                      | `crates/folioscope-wasm`: wasm-bindgen bindings                           |
-| `cli`                                       | `crates/folioscope-cli`: `folioscope bake`, `inspect`, `fonts`            |
+| `cli`                                       | `crates/folioscope-cli` (crate `folioscope`): `bake`, `inspect`, `fonts`  |
 | `player`                                    | `packages/folioscope`: custom elements, runtime, lite and full players    |
 | `vite`                                      | `folioscope/vite` plugin                                                  |
 | `site`                                      | `apps/site`: VitePress site on folioscope.baxyz.dev                       |
@@ -62,7 +62,7 @@ folioscope/
     folioscope-core/   ← importers (figma, sketch, xd, penpot), format detection, IR v1, summary
     folioscope-bake/   ← rendering (SVG, then PNG with resvg) and the .folio writer
     folioscope-wasm/   ← the bake for JavaScript (folioscope/vite, later the full player)
-    folioscope-cli/    ← `folioscope` binary: inspect, render, bake
+    folioscope-cli/    ← crate and binary `folioscope`: inspect, render, bake, fonts
   packages/
     folioscope/        ← npm package: <folioscope-player> (src/), folioscope/vite (src/vite/),
                          wasm/ built by `build:wasm`, git-ignored, published
@@ -94,10 +94,10 @@ pnpm --filter @folioscope/site dev                   # the site on http://localh
 pnpm --filter folioscope build:wasm                  # WebAssembly bake for folioscope/vite (Rust + wasm-bindgen-cli 0.2.129)
 pnpm --filter folioscope test:e2e                    # bakes a fixture and plays it in Firefox
 pnpm --filter folioscope test:budget                 # first frame under 1 s on throttled 4G (Chromium)
-cargo run -p folioscope-cli -- bake <file.fig> <out.folio> [--fonts <file or folder>]
-cargo run -p folioscope-cli -- fonts <folder>        # writes the folioscope-fonts.json manifest
-cargo run -p folioscope-cli -- inspect <file>        # pages, frames, flows and links of any format
-cargo run -p folioscope-cli -- render <file.fig> <node-id> <out.png> [scale]
+cargo run -p folioscope -- bake <file.fig> <out.folio> [--fonts <file or folder>]
+cargo run -p folioscope -- fonts <folder>        # writes the folioscope-fonts.json manifest
+cargo run -p folioscope -- inspect <file>        # pages, frames, flows and links of any format
+cargo run -p folioscope -- render <file.fig> <node-id> <out.png> [scale]
 ```
 
 ## Releasing
