@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { spring, toCssLinear } from "helpers4/animation";
 import { prefersReducedMotion } from "helpers4/browser";
 import type {
   Action,
@@ -166,8 +167,7 @@ function renderComponent(
     // Smart animate and the rest fade for now.
     void img
       .animate([{ opacity: 0 }, { opacity: 1 }], {
-        duration: transition.durationMs,
-        easing: easing(transition),
+        ...timing(transition),
       })
       .finished.catch(() => undefined)
       .then(() => before.remove());
@@ -215,9 +215,8 @@ export async function playOverlay(
 ): Promise<void> {
   const reduced = prefersReducedMotion();
   if (reduced || transition.durationMs === 0 || transition.kind.type === "instant") return;
-  const timing: KeyframeAnimationOptions = {
-    duration: transition.durationMs,
-    easing: easing(transition),
+  const options: KeyframeAnimationOptions = {
+    ...timing(transition),
     fill: "both",
   };
   const kind = transition.kind;
@@ -226,7 +225,7 @@ export async function playOverlay(
       ? [{ transform: offset(kind.from, 1) }, { transform: "none" }]
       : [{ opacity: 0 }, { opacity: 1 }];
   const run = (el: Element | null, from: Keyframe, to: Keyframe) =>
-    el?.animate(closing ? [to, from] : [from, to], timing).finished.catch(() => undefined);
+    el?.animate(closing ? [to, from] : [from, to], options).finished.catch(() => undefined);
   await Promise.all([
     run(layer.querySelector(".sheet"), hidden!, shown!),
     run(layer.querySelector(".backdrop"), { opacity: 0 }, { opacity: 1 }),
@@ -269,9 +268,8 @@ export async function play(
     transition.kind.type === "instant"
   )
     return;
-  const timing: KeyframeAnimationOptions = {
-    duration: transition.durationMs,
-    easing: easing(transition),
+  const options: KeyframeAnimationOptions = {
+    ...timing(transition),
     fill: "both",
   };
   const kind = transition.kind;
@@ -284,21 +282,21 @@ export async function play(
       if (reverse) {
         outgoing.style.zIndex = "1";
         animations.push(
-          outgoing.animate([{ transform: "none" }, { transform: slide(kind.from, 1) }], timing),
+          outgoing.animate([{ transform: "none" }, { transform: slide(kind.from, 1) }], options),
         );
       } else {
         animations.push(
-          incoming.animate([{ transform: slide(kind.from, 1) }, { transform: "none" }], timing),
+          incoming.animate([{ transform: slide(kind.from, 1) }, { transform: "none" }], options),
         );
       }
       break;
     case "push": {
       const sign = reverse ? -1 : 1;
       animations.push(
-        incoming.animate([{ transform: slide(kind.from, sign) }, { transform: "none" }], timing),
+        incoming.animate([{ transform: slide(kind.from, sign) }, { transform: "none" }], options),
         outgoing.animate(
           [{ transform: "none" }, { transform: slide(kind.from, -sign as 1 | -1) }],
-          timing,
+          options,
         ),
       );
       break;
@@ -307,12 +305,12 @@ export async function play(
     case "moveOut":
       outgoing.style.zIndex = "1";
       animations.push(
-        outgoing.animate([{ transform: "none" }, { transform: slide(kind.to, 1) }], timing),
+        outgoing.animate([{ transform: "none" }, { transform: slide(kind.to, 1) }], options),
       );
       break;
     default:
       // Dissolve; smart animate and unknown kinds fall back to it until they are supported.
-      animations.push(incoming.animate([{ opacity: 0 }, { opacity: 1 }], timing));
+      animations.push(incoming.animate([{ opacity: 0 }, { opacity: 1 }], options));
   }
   await Promise.all(animations.map((a) => a.finished.catch(() => undefined)));
 }
@@ -334,6 +332,19 @@ function offset(side: Side, sign: 1 | -1): string {
   const axis = side === "left" || side === "right" ? "X" : "Y";
   const direction = side === "left" || side === "top" ? -1 : 1;
   return `translate${axis}(${direction * sign * 100}%)`;
+}
+
+/** Duration and CSS easing of a transition; a spring lasts as long as it takes to settle. */
+function timing(transition: Transition): { duration: number; easing: string } {
+  const curve = transition.easing;
+  if (curve.type === "spring") {
+    const motion = spring(curve);
+    return {
+      duration: motion.durationMs,
+      easing: toCssLinear((t) => motion.at(t * motion.durationMs)),
+    };
+  }
+  return { duration: transition.durationMs, easing: easing(transition) };
 }
 
 function easing(transition: Transition): string {
