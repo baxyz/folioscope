@@ -232,6 +232,79 @@ export async function playOverlay(
   ]);
 }
 
+/**
+ * Smart animate (ADR 0003): over `stage`, the parts of `from` and `to` paired by name move and
+ * scale from their bounds in one frame to those in the other, the second image fading in over the
+ * first; parts on one side only fade out or in. Resolves when it is over; does nothing when a
+ * frame has no parts or motion is reduced.
+ */
+export async function playSmart(
+  stage: HTMLElement,
+  from: FolioFrame,
+  to: FolioFrame,
+  transition: Transition,
+  layerUrl: (layer: Layer) => string,
+): Promise<void> {
+  if (!from.parts?.length || !to.parts?.length || prefersReducedMotion()) return;
+  const options: KeyframeAnimationOptions = { ...timing(transition), fill: "both" };
+  const layer = document.createElement("div");
+  layer.className = "smart";
+  const image = (bounds: Rect, src: Layer) => {
+    const img = document.createElement("img");
+    img.src = layerUrl(src);
+    img.alt = "";
+    place(img, bounds);
+    layer.append(img);
+    return img;
+  };
+  // Where `a` would be drawn at `b`'s place, from `a`'s own (transform-origin: 0 0).
+  const toward = (a: Rect, b: Rect) =>
+    `translate(${b.x - a.x}px, ${b.y - a.y}px) scale(${b.width / a.width || 1}, ${b.height / a.height || 1})`;
+  // Pairs by name, in order: the n-th part named X in `from` with the n-th one in `to`.
+  const pairs = new Map<number, number>();
+  for (const [i, part] of from.parts.entries()) {
+    const j = to.parts.findIndex(
+      (other, k) => other.name === part.name && ![...pairs.values()].includes(k),
+    );
+    if (j >= 0) pairs.set(i, j);
+  }
+  const paired = new Set(pairs.values());
+  const moves: [HTMLElement, Keyframe[]][] = [];
+  for (const [i, part] of from.parts.entries()) {
+    const j = pairs.get(i);
+    const end = j === undefined ? undefined : to.parts[j]!.layer.bounds;
+    const img = image(part.layer.bounds, part.layer);
+    moves.push([
+      img,
+      // A paired part stays opaque under its partner fading in: a cross-fade of two half
+      // transparent images would show what is behind them.
+      end
+        ? [{ transform: "none" }, { transform: toward(part.layer.bounds, end) }]
+        : [{ opacity: 1 }, { opacity: 0 }],
+    ]);
+  }
+  for (const [j, part] of to.parts.entries()) {
+    const i = [...pairs].find(([, k]) => k === j)?.[0];
+    const start = paired.has(j) && i !== undefined ? from.parts[i]!.layer.bounds : undefined;
+    const img = image(part.layer.bounds, part.layer);
+    moves.push([
+      img,
+      start
+        ? [
+            { transform: toward(part.layer.bounds, start), opacity: 0 },
+            { transform: "none", opacity: 1 },
+          ]
+        : [{ opacity: 0 }, { opacity: 1 }],
+    ]);
+  }
+  stage.append(layer);
+  await decoded(layer);
+  await Promise.all(
+    moves.map(([img, frames]) => img.animate(frames, options).finished.catch(() => undefined)),
+  );
+  layer.remove();
+}
+
 /** Scrolls the frame `el` to a "scroll to" action's target, smoothly unless it is instant. */
 export function scrollFrame(el: HTMLElement, action: Extract<Action, { type: "scrollTo" }>): void {
   const scroller = el.querySelector(".scroll");

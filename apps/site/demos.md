@@ -63,6 +63,16 @@ switch that toggles on each click. Each variant is a state of the component, cha
   <folioscope-player src="/folio/components.folio" poster="/folio/components.folio/poster.webp" controls></folioscope-player>
 </div>
 
+## Smart animate
+
+The card grows into the header of the next screen, the title fades out and the body fades in:
+layers with the same name on both screens move from one to the other. The back button plays it
+in reverse.
+
+<div class="demo">
+  <folioscope-player src="/folio/smart-animate.folio" poster="/folio/smart-animate.folio/poster.webp" controls></folioscope-player>
+</div>
+
 ## From a `.sketch` file
 
 The navigation demo again, made in Sketch's format and baked the same way: the button slides

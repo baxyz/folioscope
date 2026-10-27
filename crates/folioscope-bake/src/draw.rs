@@ -7,6 +7,7 @@ use std::collections::BTreeSet;
 
 use folioscope_core::figma::tree::{NodeId, Tree};
 use folioscope_core::ir::{self, Rect};
+use folioscope_core::kiwi::Value;
 
 use crate::folio::BakeError;
 use crate::svg;
@@ -34,6 +35,12 @@ pub trait Draw {
 
     /// Fonts some text needed and was not given (`Family Style`), over every call so far.
     fn missing_fonts(&mut self) -> BTreeSet<String>;
+
+    /// The parts smart animate pairs (ADR 0003): the frame's background, named `""`, then each
+    /// direct child, as `(name, markup, bounds)` in the frame's coordinates. None by default.
+    fn parts(&mut self, _frame: &ir::Frame) -> Vec<(String, String, Rect)> {
+        Vec::new()
+    }
 }
 
 /// Draws a `.fig` from its node tree.
@@ -129,5 +136,46 @@ impl Draw for FigmaDraw<'_, '_> {
 
     fn missing_fonts(&mut self) -> BTreeSet<String> {
         std::mem::take(&mut self.missing_fonts)
+    }
+
+    fn parts(&mut self, frame: &ir::Frame) -> Vec<(String, String, Rect)> {
+        let Ok(id) = frame.id.parse::<NodeId>() else {
+            return Vec::new();
+        };
+        let mut parts = Vec::new();
+        if let Some(background) = svg::render_part(self.tree, id, svg::Part::Background, &[]) {
+            let bounds = Rect {
+                x: 0.0,
+                y: 0.0,
+                width: frame.bounds.width,
+                height: frame.bounds.height,
+            };
+            parts.push((String::new(), background.markup, bounds));
+        }
+        for child in self.tree.children(id) {
+            if matches!(child.value.get("visible"), Some(Value::Bool(false))) {
+                continue;
+            }
+            let Some(svg) = svg::render_node(self.tree, child.id) else {
+                continue;
+            };
+            // Where the child sits; its rotation is not animated (ADR 0003).
+            let offset = |k: &str| {
+                child
+                    .value
+                    .get("transform")
+                    .and_then(|m| m.get(k))
+                    .and_then(Value::as_f32)
+                    .unwrap_or(0.0)
+            };
+            let bounds = Rect {
+                x: offset("m02"),
+                y: offset("m12"),
+                width: svg.width,
+                height: svg.height,
+            };
+            parts.push((child.name.to_owned(), svg.markup, bounds));
+        }
+        parts
     }
 }

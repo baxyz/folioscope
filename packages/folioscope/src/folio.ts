@@ -48,6 +48,8 @@ export interface FolioFrame {
   };
   /** Interactive component instances, whose variants change in place. */
   components?: FolioComponent[];
+  /** For smart animate: the background (named `""`), then each direct child, by name. */
+  parts?: { name: string; layer: Layer }[];
 }
 
 /** An instance switching between variants ("change to"), each a state with its own layer. */

@@ -396,11 +396,10 @@ player.fonts = fonts;
 
 These are settled with ADRs, in [`docs/adr/`](docs/adr/).
 
-| ID     | Question                                     | Starting recommendation                                                                                 | How to decide                                            |
-| ------ | -------------------------------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| **D3** | Transitions: CSS or frame-by-frame rendering | Instant and dissolve first, then slide and push by compositing two bitmaps. Smart animate later         | Phase 3                                                  |
-| **D6** | Raster or SVG layers                         | Raster by default. SVG as an option for simple layers (shapes and vectorized text), crisp at every zoom | Compare weight and effect rendering (blurs, blend modes) |
-| **D7** | Combinatorial explosion threshold            | Maximum number of pre-rendered states per frame, configurable; beyond it, dynamic layer                 | Measure on real files                                    |
+| ID     | Question                          | Starting recommendation                                                                                 | How to decide                                            |
+| ------ | --------------------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| **D6** | Raster or SVG layers              | Raster by default. SVG as an option for simple layers (shapes and vectorized text), crisp at every zoom | Compare weight and effect rendering (blurs, blend modes) |
+| **D7** | Combinatorial explosion threshold | Maximum number of pre-rendered states per frame, configurable; beyond it, dynamic layer                 | Measure on real files                                    |
 
 ---
 
@@ -603,10 +602,11 @@ passing everywhere.
 
 ### Phase 3 — Transitions (v0.5 to v0.6)
 
-- [ ] Dissolve, slide, push, move in and move out, with easings from `helpers4/easing`.
-- [ ] Honour `prefers-reduced-motion`.
-- [ ] Smart animate and auto-animate, basic version: layer pairing by name and path at pre-render,
-      computed keyframes, interpolation of position, size and opacity played in CSS.
+- [ ] Smart animate, what is left (ADR 0003): pairing nested layers by path (direct children only
+      now), rotation, corner radii that do not stretch, smart animate between component states and
+      to or from overlays; XD's auto-animate, with its importer.
+- [ ] Figma's "slide in" moves the screen below a little too, and "move in" does not; both slide
+      the new screen only for now.
 
 ### Phase 4 — Full player: raw files in the browser (v0.7 to v0.9)
 

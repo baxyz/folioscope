@@ -13,7 +13,15 @@ import {
 import { CONTROLS_STYLE, Controls } from "./controls.ts";
 import { contains, fitContain } from "helpers4/geometry";
 import { thumbHashToDataURL } from "thumbhash";
-import { decoded, type HoldKind, play, playOverlay, renderFrame, scrollFrame } from "./lite.ts";
+import {
+  decoded,
+  type HoldKind,
+  play,
+  playOverlay,
+  playSmart,
+  renderFrame,
+  scrollFrame,
+} from "./lite.ts";
 import { type OpenOverlay, Runtime, type Step } from "./runtime.ts";
 
 export const TAG_NAME = "folioscope-player";
@@ -39,6 +47,8 @@ const STYLE = `
 .sheet { pointer-events: none; }
 .sheet > .frame { pointer-events: auto; }
 .component { position: absolute; }
+.smart { position: absolute; inset: 0; overflow: hidden; }
+.smart img { position: absolute; display: block; transform-origin: 0 0; pointer-events: none; }
 .hotspot { position: absolute; margin: 0; padding: 0; border: 0; background: none; cursor: pointer; }
 .hotspot:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
 :host([hotspots="always"]) .hotspot { background: rgb(37 99 235 / 0.15); box-shadow: inset 0 0 0 2px rgb(37 99 235 / 0.6); }
@@ -63,6 +73,8 @@ export class FolioscopePlayer extends BaseElement {
   private base = "";
   private density = 1;
   private shown?: HTMLElement;
+  /** The frame `shown` draws, for smart animate. */
+  private shownFrame?: FolioFrame;
   private timers: ReturnType<typeof setTimeout>[] = [];
   private loading = 0;
   private preloadedPage?: FolioIndex["pages"][number];
@@ -264,7 +276,13 @@ export class FolioscopePlayer extends BaseElement {
     for (const el of this.stage.querySelectorAll(":scope > .overlay")) el.remove();
     this.stage.append(incoming, ...overlays);
     this.root.querySelector(".poster")?.remove();
-    await play(outgoing, incoming, step.transition, step.reverse ?? false);
+    const before = this.shownFrame;
+    this.shownFrame = frame;
+    if (step.transition?.kind.type === "smartAnimate" && before?.parts && frame.parts) {
+      await playSmart(this.stage, before, frame, step.transition, (layer) => this.layerUrl(layer));
+    } else {
+      await play(outgoing, incoming, step.transition, step.reverse ?? false);
+    }
     if (seq !== this.showing) return undefined;
     for (const el of this.stage.querySelectorAll(":scope > .frame"))
       if (el !== incoming) el.remove();
@@ -408,8 +426,12 @@ export class FolioscopePlayer extends BaseElement {
         .flatMap(({ action }) => ("to" in action ? [frames.get(action.to)] : []))
         .filter((f) => f !== undefined);
     }
-    for (const target of targets) {
-      for (const layer of target.layers) new Image().src = this.layerUrl(layer);
+    // Smart animate draws both frames' parts: fetch this one's, and the targets'.
+    for (const target of [frame, ...targets]) {
+      const parts = (target.parts ?? []).map((part) => part.layer);
+      for (const layer of target === frame ? parts : [...target.layers, ...parts]) {
+        new Image().src = this.layerUrl(layer);
+      }
     }
   }
 

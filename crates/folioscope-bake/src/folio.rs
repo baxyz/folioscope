@@ -4,7 +4,7 @@
 //! layer images at every density, and `poster.webp`. A frame is one layer, or, when it scrolls,
 //! three: its background, the content that scrolls, and the fixed children on top.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 use std::fmt::Write as _;
 use std::path::Path;
 
@@ -100,9 +100,20 @@ struct FolioFrame<'a> {
     layers: Vec<Layer>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     components: Vec<FolioComponent<'a>>,
+    /// For smart animate (ADR 0003): the background, then each direct child, by name.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    parts: Vec<FolioPart>,
     /// [ThumbHash](https://evanw.github.io/thumbhash/), base64: a blurred preview shown until the
     /// layers load.
     placeholder: String,
+}
+
+/// A part of a frame that smart animate moves: the background is named `""`.
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FolioPart {
+    name: String,
+    layer: Layer,
 }
 
 /// An interactive component, with one layer per state.
@@ -184,6 +195,54 @@ fn bake_components<'a>(
         });
     }
     Ok(components)
+}
+
+/// Frames a smart animate leaves or reaches: they need their parts (ADR 0003).
+fn smart_animated(document: &Document) -> HashSet<&str> {
+    let mut frames = HashSet::new();
+    for frame in document.pages.iter().flat_map(|p| &p.frames) {
+        for interaction in frame.hotspots.iter().flat_map(|h| &h.interactions) {
+            if let ir::Action::Navigate { to, transition } = &interaction.action
+                && matches!(transition.kind, ir::TransitionKind::SmartAnimate)
+            {
+                frames.insert(frame.id.as_str());
+                frames.insert(to.as_str());
+            }
+        }
+    }
+    frames
+}
+
+/// Renders the parts of a frame smart animate pairs, each as a layer.
+fn bake_parts(
+    draw: &mut dyn Draw,
+    frame: &ir::Frame,
+    options: &BakeOptions,
+    report: &mut BakeReport,
+    sink: &mut Sink<'_>,
+) -> Result<Vec<FolioPart>, BakeError> {
+    let densities = &sorted_densities(options);
+    let mut parts = Vec::new();
+    for (name, markup, bounds) in draw.parts(frame) {
+        let (src, format) =
+            encode_layer(&markup, densities, options, report, sink).map_err(|e| match e {
+                LayerError::Render(source) => BakeError::Render {
+                    frame: frame.id.clone(),
+                    source,
+                },
+                LayerError::Sink(e) => e,
+            })?;
+        parts.push(FolioPart {
+            name,
+            layer: Layer {
+                src,
+                format,
+                bounds,
+                scrolls: false,
+            },
+        });
+    }
+    Ok(parts)
 }
 
 /// The densities to render, highest first: it decides each layer's format for the others.
@@ -374,6 +433,7 @@ pub fn bake_into(
                 .map(|f| f.id.as_str())
         });
 
+    let smart = smart_animated(document);
     let mut pages = Vec::new();
     for page in &document.pages {
         let mut frames = Vec::new();
@@ -407,6 +467,11 @@ pub fn bake_into(
             }
             report.frames += 1;
             let components = bake_components(draw, frame, options, &mut report, sink)?;
+            let parts = if smart.contains(frame.id.as_str()) {
+                bake_parts(draw, frame, options, &mut report, sink)?
+            } else {
+                Vec::new()
+            };
             frames.push(FolioFrame {
                 frame: ir::Frame {
                     components: Vec::new(),
@@ -414,6 +479,7 @@ pub fn bake_into(
                 },
                 layers,
                 components,
+                parts,
                 placeholder,
             });
         }

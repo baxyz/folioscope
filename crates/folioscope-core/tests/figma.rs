@@ -17,6 +17,7 @@ fn generated_fixtures_list_frames_flows_and_links() {
         "triggers",
         "flows-and-pages",
         "components",
+        "smart-animate",
     ] {
         let file = decode(&fixture(&format!("{name}.fig"))).unwrap();
         insta::assert_snapshot!(name, summarize(&file).to_string());
@@ -38,6 +39,7 @@ fn generated_fixtures_convert_to_ir() {
         "triggers",
         "flows-and-pages",
         "components",
+        "smart-animate",
     ] {
         let file = decode(&fixture(&format!("{name}.fig"))).unwrap();
         let ir = folioscope_core::figma::ir::to_ir(&file);

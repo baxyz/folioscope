@@ -41,6 +41,34 @@ function navigation(): FigmaBuilder {
   return figma;
 }
 
+/**
+ * Smart animate: the card of Home grows into the header of Details, the title fades out and a body
+ * fades in; the back button returns the same way.
+ */
+function smartAnimate(): FigmaBuilder {
+  const figma = new FigmaBuilder();
+  const page = figma.page("Prototype");
+  const home = figma.frame(page, "Home", { x: 0, y: 0, ...PHONE });
+  const details = figma.frame(page, "Details", { x: 475, y: 0, ...PHONE });
+  figma.flowStart(home, "Smart animate flow");
+
+  figma.rect(home, "Title", { x: 24, y: 64, width: 200, height: 32 }, GREY, 8);
+  figma.rect(home, "Card", { x: 24, y: 128, width: 160, height: 120 }, BLUE, 16);
+  const open = figma.rect(home, "Open", { x: 88, y: 640, width: 200, height: 48 }, "#1E3A8A", 24);
+  figma.on(open, "ON_CLICK", {
+    kind: "navigate",
+    to: details,
+    transition: { type: "SMART_ANIMATE", durationMs: 400, easing: "INOUT_CUBIC" },
+  });
+
+  figma.rect(details, "Card", { x: 0, y: 0, width: 375, height: 320 }, BLUE, 0);
+  figma.rect(details, "Body", { x: 24, y: 352, width: 327, height: 240 }, GREY, 12);
+  const back = figma.rect(details, "Back", { x: 16, y: 56, width: 80, height: 32 }, "#FFFFFF", 16);
+  figma.on(back, "ON_CLICK", { kind: "back" });
+
+  return figma;
+}
+
 /** A menu opened as a centered overlay over a dimmed backdrop, closed by a button or outside. */
 function overlay(): FigmaBuilder {
   const figma = new FigmaBuilder();
@@ -295,6 +323,7 @@ const fixtures: Record<string, () => { toBytes(): Uint8Array }> = {
   "figma/navigation.fig": navigation,
   "figma/components.fig": components,
   "figma/overlay.fig": overlay,
+  "figma/smart-animate.fig": smartAnimate,
   "figma/scroll.fig": scroll,
   "figma/triggers.fig": triggers,
   "figma/flows-and-pages.fig": flowsAndPages,
