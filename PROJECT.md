@@ -578,10 +578,10 @@ displayed almost instantly on a portfolio page.
 
 ### Phase 2b — Penpot and Adobe XD (v0.4 to v0.5)
 
-- [ ] `.penpot` v3 importer to the IR:
-  - pages, shapes, components, typographies;
-  - `flows` and `interactions`;
-  - embedded images and fonts (`objects/`).
+- [ ] `.penpot`, what is left: component variants (Penpot 2) as interactive components, custom
+      fonts embedded in `objects/`, blurs, inner shadows, inside and outside strokes (drawn
+      centred), `svg-raw` shapes, scrolling boards, fixed elements; a toggled overlay opens like
+      any other (the next toggle does not close it yet).
 - [ ] `.xd` importer to the IR:
   - artboards (`graphicContent.agc`), shared resources (`resources/`);
   - interactions (`interactions/interactions.json`): tap, hover, delay, navigate, overlay, back,

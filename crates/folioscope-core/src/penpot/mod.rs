@@ -35,6 +35,8 @@ pub enum PenpotError {
 pub struct PenpotFile {
     pub manifest: Value,
     pub pages: Vec<PenpotPage>,
+    /// Bitmaps by the media id shapes refer to (`metadata.id`, `fillImage.id`).
+    pub media: HashMap<String, Vec<u8>>,
 }
 
 #[derive(Debug)]
@@ -54,15 +56,7 @@ pub fn decode(archive: &[u8]) -> Result<PenpotFile, PenpotError> {
         .file_names()
         .filter_map(|name| name.ok().map(std::borrow::Cow::into_owned))
         .collect();
-    let mut json = |entry: &str| -> Result<Value, PenpotError> {
-        let mut text = String::new();
-        zip.by_name(entry)?.read_to_string(&mut text)?;
-        serde_json::from_str(&text).map_err(|source| PenpotError::Json {
-            entry: entry.to_owned(),
-            source,
-        })
-    };
-    let manifest = json("manifest.json")?;
+    let manifest = read_json(&mut zip, "manifest.json")?;
     let mut pages = Vec::new();
     for file in manifest["files"].as_array().into_iter().flatten() {
         let prefix = format!("files/{}/pages/", file["id"].as_str().unwrap_or(""));
@@ -75,11 +69,11 @@ pub fn decode(archive: &[u8]) -> Result<PenpotFile, PenpotError> {
                     .extension()
                     .is_some_and(|e| e.eq_ignore_ascii_case("json"))
             {
-                let page = json(name)?;
+                let page = read_json(&mut zip, name)?;
                 let dir = format!("{prefix}{}/", rest.trim_end_matches(".json"));
                 let mut shapes = HashMap::new();
                 for shape_name in names.iter().filter(|n| n.starts_with(&dir)) {
-                    let shape = json(shape_name)?;
+                    let shape = read_json(&mut zip, shape_name)?;
                     if let Some(id) = shape["id"].as_str() {
                         shapes.insert(id.to_owned(), shape);
                     }
@@ -90,7 +84,41 @@ pub fn decode(archive: &[u8]) -> Result<PenpotFile, PenpotError> {
         file_pages.sort_by_key(|p| p.page["index"].as_u64().unwrap_or(0));
         pages.extend(file_pages);
     }
-    Ok(PenpotFile { manifest, pages })
+    // `files/<file>/media/<id>.json` points a media id at its bytes, `objects/<mediaId>.<ext>`.
+    let mut media = HashMap::new();
+    let is_json = |name: &str| {
+        std::path::Path::new(name)
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case("json"))
+    };
+    for name in names.iter().filter(|n| n.contains("/media/") && is_json(n)) {
+        let entry = read_json(&mut zip, name)?;
+        let (Some(id), Some(object)) = (entry["id"].as_str(), entry["mediaId"].as_str()) else {
+            continue;
+        };
+        let stored = names
+            .iter()
+            .find(|n| n.starts_with(&format!("objects/{object}.")) && !is_json(n));
+        if let Some(stored) = stored {
+            let mut bytes = Vec::new();
+            zip.by_name(stored)?.read_to_end(&mut bytes)?;
+            media.insert(id.to_owned(), bytes);
+        }
+    }
+    Ok(PenpotFile {
+        manifest,
+        pages,
+        media,
+    })
+}
+
+fn read_json(zip: &mut zip::ZipArchive<Cursor<&[u8]>>, entry: &str) -> Result<Value, PenpotError> {
+    let mut text = String::new();
+    zip.by_name(entry)?.read_to_string(&mut text)?;
+    serde_json::from_str(&text).map_err(|source| PenpotError::Json {
+        entry: entry.to_owned(),
+        source,
+    })
 }
 
 /// Summarizes the prototype of a decoded `.penpot`: boards, named flows and interactions.

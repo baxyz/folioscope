@@ -11,6 +11,7 @@ use std::path::Path;
 use folioscope_core::Format;
 use folioscope_core::figma::{FigFile, ir::to_ir, tree::Tree};
 use folioscope_core::ir::{self, Document, Flow, Rect};
+use folioscope_core::penpot::{PenpotFile, ir::to_ir as penpot_ir};
 use folioscope_core::sketch::{SketchFile, ir::to_ir as sketch_ir};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
@@ -18,6 +19,7 @@ use sha2::{Digest, Sha256};
 use crate::draw::{Draw, FigmaDraw};
 use crate::fonts::FontLibrary;
 use crate::image::{ImageFormat, encode, encode_best};
+use crate::penpot::PenpotDraw;
 use crate::sketch::SketchDraw;
 use crate::text::Typesetter;
 use crate::{RenderError, render_pixmap};
@@ -243,6 +245,20 @@ pub fn bake_fig(
     })
 }
 
+/// Bakes a decoded `.penpot` (see [`bake_fig_into`]).
+///
+/// # Errors
+///
+/// Fails when a frame cannot be rendered or `sink` fails.
+pub fn bake_penpot_into(
+    file: &PenpotFile,
+    options: &BakeOptions,
+    sink: &mut Sink<'_>,
+) -> Result<BakeReport, BakeError> {
+    let mut draw = PenpotDraw::new(file, Typesetter::new(options.fonts.clone()));
+    bake_into(&penpot_ir(file), &mut draw, options, sink)
+}
+
 /// Bakes a design file of any format the bake draws into the folder `out`, created if needed.
 ///
 /// # Errors
@@ -297,7 +313,7 @@ pub fn bake_sketch_into(
     bake_into(&sketch_ir(file), &mut draw, options, sink)
 }
 
-/// Bakes a design file of any format the bake draws (`.fig`, `.sketch`).
+/// Bakes a design file of any format the bake draws (`.fig`, `.sketch`, `.penpot`).
 ///
 /// # Errors
 ///
@@ -316,6 +332,10 @@ pub fn bake_file_into(
         Some(Format::Sketch) => {
             let file = folioscope_core::sketch::decode(bytes).map_err(|e| error(&e))?;
             bake_sketch_into(&file, options, sink)
+        }
+        Some(Format::Penpot) => {
+            let file = folioscope_core::penpot::decode(bytes).map_err(|e| error(&e))?;
+            bake_penpot_into(&file, options, sink)
         }
         Some(format) => Err(BakeError::Decode(format!(
             "{format:?} files cannot be baked yet"

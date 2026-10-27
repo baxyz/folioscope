@@ -18,8 +18,9 @@ for (const name of [
   "scroll",
   "components",
   "sketch/navigation.sketch",
+  "penpot/navigation.penpot",
 ]) {
-  // `sketch/navigation.sketch` bakes as `sketch-navigation.folio`; the others are `.fig` files.
+  // `sketch/navigation.sketch` bakes as `sketch-navigation.folio`; bare names are `.fig` files.
   const [file, folio] = name.includes("/")
     ? [name, name.replace("/", "-").replace(/\.\w+$/, "")]
     : [`figma/${name}.fig`, name];

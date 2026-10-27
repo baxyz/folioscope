@@ -8,7 +8,7 @@ use folioscope_bake::fonts::FontLibrary;
 use js_sys::{Array, Map, Object, Reflect, Uint8Array};
 use wasm_bindgen::prelude::*;
 
-/// Bakes a `.fig` or `.sketch` file; `avif` lets large, photo-like layers use AVIF; `fonts` maps font file
+/// Bakes a `.fig`, `.sketch` or `.penpot` file; `avif` lets large, photo-like layers use AVIF; `fonts` maps font file
 /// names to their bytes, for text the file stores no glyphs for. Returns `{ files, missingFonts }`:
 /// a `Map` from paths inside the `.folio` folder (`index.json`, `poster.webp`, `layers/…`) to
 /// their bytes, and the fonts some text needed and was not given (`Family Style`).
