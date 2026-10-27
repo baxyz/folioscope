@@ -137,6 +137,7 @@ fn gradient_line(
     Some((in_node(0.0, 0.5), in_node(1.0, 0.5)))
 }
 
+// TODO(helpers4): media type sniffing (docs/helpers4-requests.md § 5).
 pub(crate) fn mime(bytes: &[u8]) -> &'static str {
     match bytes {
         [0x89, b'P', b'N', b'G', ..] => "image/png",

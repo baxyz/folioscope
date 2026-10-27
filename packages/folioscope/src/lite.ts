@@ -257,6 +257,7 @@ export async function playSmart(
     layer.append(img);
     return img;
   };
+  // TODO(helpers4): rectToRect (docs/helpers4-requests.md § 4).
   // Where `a` would be drawn at `b`'s place, from `a`'s own (transform-origin: 0 0).
   const toward = (a: Rect, b: Rect) =>
     `translate(${b.x - a.x}px, ${b.y - a.y}px) scale(${b.width / a.width || 1}, ${b.height / a.height || 1})`;

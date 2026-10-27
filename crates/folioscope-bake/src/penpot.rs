@@ -467,6 +467,7 @@ fn ellipse_path(shape: &Value) -> String {
     )
 }
 
+// TODO(helpers4): rounded rectangles and ellipses (docs/helpers4-requests.md § 4).
 /// A rectangle's or board's outline, with its corner radii (`r1` top-left, then clockwise; `rx`
 /// for older files).
 fn rect_path(shape: &Value) -> String {

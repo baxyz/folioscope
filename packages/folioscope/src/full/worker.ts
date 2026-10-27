@@ -13,6 +13,7 @@ interface Glue {
   ): { files: Map<string, Uint8Array>; missingFonts: string[] };
 }
 
+// TODO(helpers4): worker requests and a Cache API file store (docs/helpers4-requests.md § 7).
 /** Bumped when the bake's output changes, so stale entries are not reused. */
 const CACHE_VERSION = "1";
 const CACHE = "folioscope";

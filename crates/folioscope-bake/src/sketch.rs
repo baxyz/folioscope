@@ -583,6 +583,7 @@ fn shape_path(layer: &Value) -> Option<String> {
     Some(path)
 }
 
+// TODO(helpers4): path data parsing and transforms (docs/helpers4-requests.md § 4).
 /// Moves absolute path data by (`dx`, `dy`): the paths `shape_path` writes only use absolute
 /// commands with x, y pairs (and the arcs of rounded rectangles).
 fn offset_path(d: &str, dx: f32, dy: f32) -> String {
