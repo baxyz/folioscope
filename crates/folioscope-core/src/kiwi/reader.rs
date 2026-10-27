@@ -1,60 +1,50 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! A cursor over Kiwi bytes: LEB128 varints, zigzag integers, Kiwi floats, NUL-terminated strings.
+//! A cursor over Kiwi bytes: LEB128 varints, zigzag integers, Kiwi floats, NUL-terminated strings,
+//! on helpers4's `ByteReader`. Kiwi's 64-bit varints and floats have their own encoding, read here.
+
+use helpers4::bytes::ByteReader;
 
 use super::{KiwiError, Result};
 
-// TODO(helpers4): move the cursor and the LEB128/zigzag readers to the helpers4 `binary` module.
 pub(super) struct Reader<'a> {
-    data: &'a [u8],
-    pos: usize,
+    bytes: ByteReader<'a>,
 }
 
 impl<'a> Reader<'a> {
     pub(super) fn new(data: &'a [u8]) -> Self {
-        Self { data, pos: 0 }
-    }
-
-    pub(super) fn remaining(&self) -> usize {
-        self.data.len() - self.pos
-    }
-
-    pub(super) fn byte(&mut self) -> Result<u8> {
-        let b = *self.data.get(self.pos).ok_or(KiwiError::Eof(self.pos))?;
-        self.pos += 1;
-        Ok(b)
-    }
-
-    pub(super) fn take(&mut self, len: usize) -> Result<&'a [u8]> {
-        let end = self.pos.checked_add(len).ok_or(KiwiError::Eof(self.pos))?;
-        let slice = self
-            .data
-            .get(self.pos..end)
-            .ok_or(KiwiError::Eof(self.pos))?;
-        self.pos = end;
-        Ok(slice)
-    }
-
-    pub(super) fn var_uint(&mut self) -> Result<u32> {
-        let mut value = 0u32;
-        let mut shift = 0;
-        loop {
-            let byte = self.byte()?;
-            value |= u32::from(byte & 0x7f) << shift;
-            shift += 7;
-            if byte & 0x80 == 0 || shift >= 35 {
-                return Ok(value);
-            }
+        Self {
+            bytes: ByteReader::new(data),
         }
     }
 
-    // Kiwi's zigzag on 32 bits: the decoded bits are reinterpreted, so the casts are intended.
-    #[allow(clippy::cast_possible_wrap)]
-    pub(super) fn var_int(&mut self) -> Result<i32> {
-        let v = self.var_uint()?;
-        Ok(((v >> 1) as i32) ^ -((v & 1) as i32))
+    pub(super) fn remaining(&self) -> usize {
+        self.bytes.remaining()
     }
 
+    /// The end of the data, where a read fell short.
+    fn eof(&self) -> KiwiError {
+        KiwiError::Eof(self.bytes.position())
+    }
+
+    pub(super) fn byte(&mut self) -> Result<u8> {
+        self.bytes.read_u8().ok_or_else(|| self.eof())
+    }
+
+    pub(super) fn take(&mut self, len: usize) -> Result<&'a [u8]> {
+        self.bytes.read_bytes(len).ok_or_else(|| self.eof())
+    }
+
+    pub(super) fn var_uint(&mut self) -> Result<u32> {
+        self.bytes.read_var_u32().ok_or_else(|| self.eof())
+    }
+
+    pub(super) fn var_int(&mut self) -> Result<i32> {
+        self.bytes.read_var_i32().ok_or_else(|| self.eof())
+    }
+
+    /// Kiwi's 64-bit varints are not LEB128: after eight groups of 7 bits, the ninth byte holds
+    /// 8 full bits.
     pub(super) fn var_uint64(&mut self) -> Result<u64> {
         let mut value = 0u64;
         let mut shift = 0;
@@ -68,7 +58,7 @@ impl<'a> Reader<'a> {
         }
     }
 
-    #[allow(clippy::cast_possible_wrap)]
+    #[allow(clippy::cast_possible_wrap)] // zigzag: the decoded bits are reinterpreted
     pub(super) fn var_int64(&mut self) -> Result<i64> {
         let v = self.var_uint64()?;
         Ok(((v >> 1) as i64) ^ -((v & 1) as i64))
@@ -86,15 +76,11 @@ impl<'a> Reader<'a> {
     }
 
     pub(super) fn string(&mut self) -> Result<String> {
-        let start = self.pos;
-        let len = self.data[start..]
-            .iter()
-            .position(|&b| b == 0)
-            .ok_or(KiwiError::Eof(self.data.len()))?;
-        let s = std::str::from_utf8(&self.data[start..start + len])
-            .map_err(|_| KiwiError::Utf8(start))?;
-        self.pos = start + len + 1;
-        Ok(s.to_owned())
+        let start = self.bytes.position();
+        self.bytes
+            .read_cstr()
+            .map(str::to_owned)
+            .ok_or(KiwiError::Utf8(start))
     }
 }
 

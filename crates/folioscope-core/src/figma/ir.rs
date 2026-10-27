@@ -3,6 +3,8 @@
 //! `.fig` → IR v1 (ADR 0008): pages, flows, top-level frames and their hotspots.
 
 use crate::figma::FigFile;
+use helpers4::geometry::{self, Matrix};
+
 use crate::figma::instance::Overrides;
 use crate::figma::tree::{Node, NodeId, Tree, node_id};
 use std::collections::HashMap;
@@ -607,97 +609,68 @@ fn vector(v: &Value) -> (f32, f32) {
     (axis("x"), axis("y"))
 }
 
+#[allow(clippy::cast_possible_truncation)] // design coordinates fit in f32
 fn translation(v: &Value) -> (f32, f32) {
-    let m = Affine::of(v);
-    (m.e, m.f)
+    let m = Affine::of(v).0;
+    (m.e as f32, m.f as f32)
 }
 
-/// 2D affine map, column-major like SVG's `matrix(a b c d e f)`.
-// TODO(helpers4): move to the helpers4 `geometry` module.
+/// A node's transform, as helpers4's [`Matrix`] (the layout of SVG's `matrix(a b c d e f)`).
 #[derive(Debug, Clone, Copy)]
-struct Affine {
-    a: f32,
-    b: f32,
-    c: f32,
-    d: f32,
-    e: f32,
-    f: f32,
-}
+struct Affine(Matrix);
 
 impl Affine {
-    const IDENTITY: Affine = Affine {
-        a: 1.0,
-        b: 0.0,
-        c: 0.0,
-        d: 1.0,
-        e: 0.0,
-        f: 0.0,
-    };
+    const IDENTITY: Affine = Affine(Matrix::IDENTITY);
 
     /// A node's `transform`: from its own coordinates to its parent's.
     fn of(v: &Value) -> Affine {
         let Some(m) = v.get("transform") else {
             return Affine::IDENTITY;
         };
-        let k = |name: &str, default: f32| m.get(name).and_then(Value::as_f32).unwrap_or(default);
-        Affine {
-            a: k("m00", 1.0),
-            b: k("m10", 0.0),
-            c: k("m01", 0.0),
-            d: k("m11", 1.0),
-            e: k("m02", 0.0),
-            f: k("m12", 0.0),
-        }
+        let k = |name: &str, default: f32| {
+            f64::from(m.get(name).and_then(Value::as_f32).unwrap_or(default))
+        };
+        Affine(Matrix::new(
+            k("m00", 1.0),
+            k("m10", 0.0),
+            k("m01", 0.0),
+            k("m11", 1.0),
+            k("m02", 0.0),
+            k("m12", 0.0),
+        ))
     }
 
     /// `self` after `inner`: maps `inner`'s input space to `self`'s output space.
     fn then(self, inner: Affine) -> Affine {
-        Affine {
-            a: self.a * inner.a + self.c * inner.b,
-            b: self.b * inner.a + self.d * inner.b,
-            c: self.a * inner.c + self.c * inner.d,
-            d: self.b * inner.c + self.d * inner.d,
-            e: self.a * inner.e + self.c * inner.f + self.e,
-            f: self.b * inner.e + self.d * inner.f + self.f,
-        }
+        Affine(self.0.multiply(inner.0))
     }
 
+    /// Where a `width`×`height` box at the origin lands: its axis-aligned bounding box.
+    #[allow(clippy::cast_possible_truncation)] // design coordinates fit in f32
     fn bounding_box(self, width: f32, height: f32) -> Rect {
-        let corners = [(0.0, 0.0), (width, 0.0), (width, height), (0.0, height)].map(|(x, y)| {
-            (
-                self.a * x + self.c * y + self.e,
-                self.b * x + self.d * y + self.f,
-            )
-        });
-        let xs = corners.map(|p| p.0);
-        let ys = corners.map(|p| p.1);
-        let min = |v: [f32; 4]| v.into_iter().fold(f32::INFINITY, f32::min);
-        let max = |v: [f32; 4]| v.into_iter().fold(f32::NEG_INFINITY, f32::max);
+        let area = self.0.bounding_box(geometry::Rect::new(
+            0.0,
+            0.0,
+            f64::from(width),
+            f64::from(height),
+        ));
         Rect {
-            x: min(xs),
-            y: min(ys),
-            width: max(xs) - min(xs),
-            height: max(ys) - min(ys),
+            x: area.x as f32,
+            y: area.y as f32,
+            width: area.width as f32,
+            height: area.height as f32,
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::Affine;
+    use super::{Affine, Matrix};
 
     #[test]
     fn composed_translations_add_up() {
-        let parent = Affine {
-            e: 10.0,
-            f: 20.0,
-            ..Affine::IDENTITY
-        };
-        let child = Affine {
-            e: 5.0,
-            f: 7.0,
-            ..Affine::IDENTITY
-        };
+        let parent = Affine(Matrix::translate(10.0, 20.0));
+        let child = Affine(Matrix::translate(5.0, 7.0));
         let rect = parent.then(child).bounding_box(4.0, 3.0);
         assert_eq!(
             (rect.x, rect.y, rect.width, rect.height),
@@ -708,13 +681,7 @@ mod tests {
     #[test]
     fn rotation_gives_the_bounding_box() {
         // 90° rotation: (x, y) → (-y, x).
-        let rotate = Affine {
-            a: 0.0,
-            b: 1.0,
-            c: -1.0,
-            d: 0.0,
-            ..Affine::IDENTITY
-        };
+        let rotate = Affine(Matrix::new(0.0, 1.0, -1.0, 0.0, 0.0, 0.0));
         let rect = rotate.bounding_box(4.0, 2.0);
         assert_eq!(
             (rect.x, rect.y, rect.width, rect.height),

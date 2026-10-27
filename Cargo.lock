@@ -586,9 +586,9 @@ dependencies = [
 
 [[package]]
 name = "helpers4"
-version = "0.0.7"
+version = "0.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9a7739bcae23ec1992f485cb0e2439604391305b9daa49a479f4bf4e5c26715"
+checksum = "b08cae115671517f1a88ac9b90e1315b9dc4c49f827343fc1ed48fd336606455"
 
 [[package]]
 name = "hybrid-array"

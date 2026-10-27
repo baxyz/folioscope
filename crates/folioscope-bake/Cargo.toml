@@ -12,7 +12,7 @@ publish = false
 
 [dependencies]
 folioscope-core.workspace = true
-helpers4 = { workspace = true, features = ["hex"] }
+helpers4 = { workspace = true, features = ["geometry", "hex"] }
 image-webp.workspace = true
 parley.workspace = true
 ravif.workspace = true

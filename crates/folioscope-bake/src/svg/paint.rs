@@ -5,6 +5,7 @@
 use std::fmt::Write;
 
 use folioscope_core::kiwi::Value;
+use helpers4::geometry::{Matrix, Point};
 
 use super::Ctx;
 
@@ -106,28 +107,34 @@ fn color(c: &Value) -> (String, f32) {
 
 /// Start and end of a linear gradient, in node pixels. The paint transform maps node space
 /// (normalized to 0–1) to gradient space, where the gradient runs from (0, 0.5) to (1, 0.5).
-// TODO(helpers4): affine inversion belongs to the helpers4 `geometry` module.
-#[allow(clippy::many_single_char_names)] // matrix notation
-fn gradient_line(transform: Option<&Value>, w: f32, h: f32) -> Option<((f32, f32), (f32, f32))> {
-    let m = |k: &str| transform.and_then(|t| t.get(k)).and_then(Value::as_f32);
-    let (a, c, e) = (
-        m("m00").unwrap_or(1.0),
-        m("m01").unwrap_or(0.0),
-        m("m02").unwrap_or(0.0),
+#[allow(clippy::cast_possible_truncation)] // design coordinates fit in f32
+fn gradient_line(
+    transform: Option<&Value>,
+    width: f32,
+    height: f32,
+) -> Option<((f32, f32), (f32, f32))> {
+    let entry = |name: &str, default: f32| {
+        f64::from(
+            transform
+                .and_then(|t| t.get(name))
+                .and_then(Value::as_f32)
+                .unwrap_or(default),
+        )
+    };
+    let to_gradient = Matrix::new(
+        entry("m00", 1.0),
+        entry("m10", 0.0),
+        entry("m01", 0.0),
+        entry("m11", 1.0),
+        entry("m02", 0.0),
+        entry("m12", 0.0),
     );
-    let (b, d, f) = (
-        m("m10").unwrap_or(0.0),
-        m("m11").unwrap_or(1.0),
-        m("m12").unwrap_or(0.0),
-    );
-    let det = a * d - b * c;
-    if det.abs() < 1e-12 {
-        return None;
-    }
-    let (ia, ic, ie) = (d / det, -c / det, (c * f - d * e) / det);
-    let (ib, id, iff) = (-b / det, a / det, (b * e - a * f) / det);
-    let point = |gx: f32, gy: f32| ((ia * gx + ic * gy + ie) * w, (ib * gx + id * gy + iff) * h);
-    Some((point(0.0, 0.5), point(1.0, 0.5)))
+    let to_node = to_gradient.invert()?;
+    let in_node = |gx: f64, gy: f64| {
+        let p = to_node.apply(Point::new(gx, gy));
+        (p.x as f32 * width, p.y as f32 * height)
+    };
+    Some((in_node(0.0, 0.5), in_node(1.0, 0.5)))
 }
 
 pub(crate) fn mime(bytes: &[u8]) -> &'static str {
