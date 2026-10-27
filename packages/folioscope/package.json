@@ -50,6 +50,7 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "helpers4": "catalog:",
     "playwright": "catalog:",
     "thumbhash": "0.1.1",
     "typescript": "catalog:",
@@ -65,6 +66,8 @@
     }
   },
   "inlinedDependencies": {
+    "@helpers4/browser": "3.1.9",
+    "@helpers4/geometry": "3.1.9",
     "thumbhash": "0.1.1"
   }
 }

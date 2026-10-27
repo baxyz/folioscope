@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { prefersReducedMotion } from "helpers4/browser";
 import type {
   Action,
   FolioComponent,
@@ -151,7 +152,7 @@ function renderComponent(
     const before = zone.querySelector("img");
     const areas = state.hotspots.flatMap((h) => renderHotspot(h, handlers) ?? []);
     zone.replaceChildren(...(before ? [before] : []), img, ...areas);
-    const reduced = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const reduced = prefersReducedMotion();
     if (
       !before ||
       !transition ||
@@ -212,7 +213,7 @@ export async function playOverlay(
   transition: Transition,
   closing: boolean,
 ): Promise<void> {
-  const reduced = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const reduced = prefersReducedMotion();
   if (reduced || transition.durationMs === 0 || transition.kind.type === "instant") return;
   const timing: KeyframeAnimationOptions = {
     duration: transition.durationMs,
@@ -236,7 +237,7 @@ export async function playOverlay(
 export function scrollFrame(el: HTMLElement, action: Extract<Action, { type: "scrollTo" }>): void {
   const scroller = el.querySelector(".scroll");
   if (!scroller || !action.target) return;
-  const reduced = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const reduced = prefersReducedMotion();
   const instant = reduced || action.transition.kind.type === "instant";
   scroller.scrollTo({
     left: action.target.x - (action.offset?.x ?? 0),
@@ -259,7 +260,7 @@ export async function play(
   transition: Transition | undefined,
   reverse: boolean,
 ): Promise<void> {
-  const reduced = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  const reduced = prefersReducedMotion();
   if (
     !outgoing ||
     !transition ||

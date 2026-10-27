@@ -11,6 +11,7 @@ import {
   SUPPORTED_IR,
 } from "./folio.ts";
 import { CONTROLS_STYLE, Controls } from "./controls.ts";
+import { contains, fitContain } from "helpers4/geometry";
 import { thumbHashToDataURL } from "thumbhash";
 import { decoded, type HoldKind, play, playOverlay, renderFrame, scrollFrame } from "./lite.ts";
 import { type OpenOverlay, Runtime, type Step } from "./runtime.ts";
@@ -371,9 +372,7 @@ export class FolioscopePlayer extends BaseElement {
     const scale = stage.width / (Number(this.viewport.style.getPropertyValue("--w")) || 1);
     const x = (event.clientX - stage.left) / scale;
     const y = (event.clientY - stage.top) / scale;
-    return (
-      x >= bounds.x && x < bounds.x + bounds.width && y >= bounds.y && y < bounds.y + bounds.height
-    );
+    return contains(bounds, { x, y });
   }
 
   /** "After delay" interactions start counting when the frame shows. */
@@ -442,19 +441,19 @@ export class FolioscopePlayer extends BaseElement {
     const width = Number(style.getPropertyValue("--w")) || 1;
     const height = Number(style.getPropertyValue("--h")) || 1;
     const { clientWidth, clientHeight } = this.viewport;
-    const full = document.fullscreenElement === this;
-    let scale = 1;
+    let [scale, x, y] = [1, 0, 0];
     if ((this.getAttribute("fit") ?? "contain") !== "none") {
-      scale = clientWidth / width;
-      if (full) scale = Math.min(scale, clientHeight / height);
+      if (document.fullscreenElement === this) {
+        // As large as the screen allows, centred.
+        const placed = fitContain({ width, height }, { width: clientWidth, height: clientHeight });
+        [scale, x, y] = [placed.a, placed.e, placed.f];
+      } else {
+        scale = clientWidth / width;
+      }
     }
-    scale ||= 1;
-    style.setProperty("--scale", String(scale));
-    style.setProperty("--x", full ? `${Math.max(0, (clientWidth - width * scale) / 2)}px` : "0px");
-    style.setProperty(
-      "--y",
-      full ? `${Math.max(0, (clientHeight - height * scale) / 2)}px` : "0px",
-    );
+    style.setProperty("--scale", String(scale || 1));
+    style.setProperty("--x", `${x}px`);
+    style.setProperty("--y", `${y}px`);
   }
 
   private layerUrl(layer: Layer): string {

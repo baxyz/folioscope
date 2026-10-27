@@ -214,6 +214,9 @@ catalogs:
     fflate:
       specifier: 0.8.3
       version: 0.8.3
+    helpers4:
+      specifier: 3.1.9
+      version: 3.1.9
     openfig-core:
       specifier: 0.4.1
       version: 0.4.1
@@ -263,6 +266,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.19.2
+      helpers4:
+        specifier: 'catalog:'
+        version: 3.1.9(@types/node@24.19.2)(rxjs@7.8.2)
       playwright:
         specifier: 'catalog:'
         version: 1.64.1
@@ -541,6 +547,126 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@helpers4/animation@3.1.9':
+    resolution: {integrity: sha512-8Dwm1KEjz+j2BAbcj2NP8vOZkaVCiOyYpLc9xjcj1rhZn3hF3gC5fBLma+wJXznZUgILlHBG74cAgvfuu9AGcw==}
+    engines: {node: '>=26.0.0'}
+
+  '@helpers4/array@3.1.9':
+    resolution: {integrity: sha512-fv7IiDrBmZH+SthAPT1jCX4U/zF/FwbsQDtvwVh7eE30AunVecvCaZLiVjPsCX3fbcRO60PWs6JFCYwgioPfww==}
+    engines: {node: '>=26.0.0'}
+
+  '@helpers4/binary@3.1.9':
+    resolution: {integrity: sha512-NoFGBecczjKf9pfbC2JhUur7ZiNRVpfk44ByMAEefDNwSCYdvtESEtsUuZBd0YluzPkkc/pIKM4b6x5+Va/kqA==}
+    engines: {node: '>=26.0.0'}
+
+  '@helpers4/browser@3.1.9':
+    resolution: {integrity: sha512-T1RgLsL2VEbjCw/yHrOl0Xvptj2gzleuXQXNFoN6fnUv7WD75HYXSUJNFYO3bCy9s0UsPTNqLaXVUDyGJn25KA==}
+    engines: {node: '>=26.0.0'}
+
+  '@helpers4/ci@3.1.9':
+    resolution: {integrity: sha512-rvft9sQfqz5mvmj+lWqSDFoIT0fw4dw/CX32ocjOoiYNqOeEgUiBlkU4FEwl+ITA57aYFh0QuU758L7ERvKcqA==}
+    engines: {node: '>=26.0.0'}
+
+  '@helpers4/color@3.1.9':
+    resolution: {integrity: sha512-+mqbKA5wfuwG37X7d6XZiMwarg4qspP4QhI8sr/KAJupbLb+Gn8Cw+odH1+p7ouDmjgw6b2AWz+5CEExSTwdTg==}
+    engines: {node: '>=26.0.0'}
+
+  '@helpers4/commit@3.1.9':
+    resolution: {integrity: sha512-NPuvuHt8glz/R6/i0Z89/qYw9QuG2OwwqW0aaaCyNByFhmH3/1xcOUAjtpA/EtbZCjvYmQupaXSc/+8KgNPkzw==}
+    engines: {node: '>=26.0.0'}
+
+  '@helpers4/date@3.1.9':
+    resolution: {integrity: sha512-R7ysX70lkPbwF8mOyyuI0VW5Vkx7DOraneU6G7MFIppO+tpjBzt72cM5kuUuoFolJinyp3Yt6+f+cI4Qe2Yqag==}
+    engines: {node: '>=26.0.0'}
+
+  '@helpers4/font@3.1.9':
+    resolution: {integrity: sha512-Vc+leudHkw012QhxCciPRXRrhrxCDyqbeNO9ZD3WLT71Rg55I3H3JEJGlDSI03+WTvp6P22KoBM4is1YGOoedw==}
+    engines: {node: '>=26.0.0'}
+
+  '@helpers4/function@3.1.9':
+    resolution: {integrity: sha512-kzJDRDG+3yB13CBdKQLCN4bzIVZjfO6HLyU7PEYnMpxICBgG1/ioYUHymQRglbQ91tYNAIkaRL8BO+V4dcS8Eg==}
+    engines: {node: '>=26.0.0'}
+
+  '@helpers4/geography@3.1.9':
+    resolution: {integrity: sha512-mJj7xWdhRayzcqPuUI5Tjh44GCRwHPgGbNdJWx8KkM591KLw7O2jCZ4Xp70khOr08KE72r1yZSVqo9Hq9IuqRA==}
+    engines: {node: '>=26.0.0'}
+
+  '@helpers4/geometry@3.1.9':
+    resolution: {integrity: sha512-GvA+sUzlZzdidbSy68qiHJv79/EjWPGgYgNNfHGnBerQQgoFzEWd/Eo9exW+0w18lBmh2iOjpT+aOoO87HMDGA==}
+    engines: {node: '>=26.0.0'}
+
+  '@helpers4/guard@3.1.9':
+    resolution: {integrity: sha512-xC0+iLu+FkANapyjk7Iblfft5Qh3O+SmYXMvAQ8Y+yTHOrUI0xSmOsvHDn+78lN+0z7H51FBd65k0Xw1Fsmmtw==}
+    engines: {node: '>=26.0.0'}
+
+  '@helpers4/id@3.1.9':
+    resolution: {integrity: sha512-/7fTh9pqYCND0QrlD6ltaCP+bzP593S1bpeTOKYyuYGYD9BZ3V8EgnXltl1eubPvfBzaXATtbxwr1Rr1sNOVdQ==}
+    engines: {node: '>=26.0.0'}
+
+  '@helpers4/json@3.1.9':
+    resolution: {integrity: sha512-pRN9UgEt0nPFyhlV6fUZUSfb/dhr3B52xmGNZGcoJMb3qMPo+WokxXgJUlLPqA2pqViKBPcfMbBY67FJ1B5REw==}
+    engines: {node: '>=26.0.0'}
+
+  '@helpers4/license@3.1.9':
+    resolution: {integrity: sha512-MzqmpZi0Hwl8XCG9UkWld2AABJYlsediMy8zOALY+Benpk6ymuOCd8ai+Gmb+TOLTVEezT6AUO/a6xwvzj3AQw==}
+    engines: {node: '>=26.0.0'}
+
+  '@helpers4/map@3.1.9':
+    resolution: {integrity: sha512-h0sljVt1V81VZe56ZACvJoSD8RmI9Z2cP65keqLBHUb0qiifzpyRfNSYoZtjJYF8CoL7japXxK/YtxOQtuFlDw==}
+    engines: {node: '>=26.0.0'}
+
+  '@helpers4/markdown@3.1.9':
+    resolution: {integrity: sha512-czdZ67QIhTIQ7A21QLtGkGoz28iG8kCSwaHz3dqgd3hxsQyNsYW9hLg0Tu5KTs3MqMphLWfRR5/sowpimJJ90g==}
+    engines: {node: '>=26.0.0'}
+
+  '@helpers4/node@3.1.9':
+    resolution: {integrity: sha512-qBhp9lP1iOB4P+SV0kBzwmawt8p4/Dz4evOsPl7G4aJ+zc3M2xfLQ8BA02tPoN0IIcZzVTj33YdWwleBVwjk1w==}
+    engines: {node: '>=26.0.0'}
+    peerDependencies:
+      '@types/node': '>=22'
+
+  '@helpers4/number@3.1.9':
+    resolution: {integrity: sha512-lK7gAqrmBk3FNrVIaDX2NEreHqEfZbkCj0ucGMOc6GXfXHfPchUTOsdCctZAM6PRcEMmPpVfzlNNCxxWgfx2yA==}
+    engines: {node: '>=26.0.0'}
+
+  '@helpers4/object@3.1.9':
+    resolution: {integrity: sha512-fiT16nzOwoha2LKE7e4W+ZbBh2Ky3eEuyu8SSI88x7PR/P11RiUnHeUN4TYhFSFdzUDjiM//iSXlE/yrqD+iAw==}
+    engines: {node: '>=26.0.0'}
+
+  '@helpers4/observable@3.1.9':
+    resolution: {integrity: sha512-+FhPwrzB4hSGgPmKmkmZJrr2nphvk15toCwmFBqukNf3elfTJMEYYnA+kr3sLO0mUuLmowYDTTwRKZ1JZ9xa1A==}
+    engines: {node: '>=26.0.0'}
+    peerDependencies:
+      rxjs: ^7.0.0
+
+  '@helpers4/promise@3.1.9':
+    resolution: {integrity: sha512-xiJIXdBDnAwIyISdwtWzjeelayHB4FH8DqmDwRh4Df7YS8GMIvWfWrSlj9sxLgDiGcMfxwg+bekk4eM4JW1rGg==}
+    engines: {node: '>=26.0.0'}
+
+  '@helpers4/set@3.1.9':
+    resolution: {integrity: sha512-vicx4BU2gosjL31J4UD9//NdF8V5cYeQh7DfMGl/Ua5Iqqzm1ifEPSKy4v8ZODhmmda/gUjqV2SplA85fECpSA==}
+    engines: {node: '>=26.0.0'}
+
+  '@helpers4/string@3.1.9':
+    resolution: {integrity: sha512-Zr462HlMBOjHhx3jOOtVH6+TsTs9yltEDthHnAwiMh+WRVeSfNdHmuJoeBfm+eQUSDVhpvNGZCt4Jz1SFaMixg==}
+    engines: {node: '>=26.0.0'}
+
+  '@helpers4/structure@3.1.9':
+    resolution: {integrity: sha512-x3KvqBgtzoYap2O7bcBoRUPsE1TSCQBfdPODjbWtGjCeBMgDnVNpVY7GlhNGpJnXg43E5velG5KbWKx4g1BYIw==}
+    engines: {node: '>=26.0.0'}
+
+  '@helpers4/type@3.1.9':
+    resolution: {integrity: sha512-465Bx9Dj3ZYAdrDymgNTAl2Sb8zhSZPN8TdmRbRJiJekfS3sN31smRr00YuTt8zbxr9xyfYEViMTxed+/wrATw==}
+    engines: {node: '>=26.0.0'}
+
+  '@helpers4/url@3.1.9':
+    resolution: {integrity: sha512-f8KVo96/bFeuKu0+LW5dPI+ooCg85bH6uCC7LxN2mZCJMBhELeGJ0rV5yumwORYmBHV4kBZXtmDF+4a0EWGgNw==}
+    engines: {node: '>=26.0.0'}
+
+  '@helpers4/version@3.1.9':
+    resolution: {integrity: sha512-TyrJaHOQQIA8+sTMWeYdfWPJ9JuhKydwRsfn9guQTJWFTj3g7z4VYKTFhwSSfnOkO8H2p2pwoDvNphLbQInDEA==}
+    engines: {node: '>=26.0.0'}
 
   '@iconify-json/simple-icons@1.2.100':
     resolution: {integrity: sha512-536pN2RCEQyy5bYwzayrs4e9egr8cmtVcbdSHLaQl/ULUsihzn1eZ0+Hhn50zgz9cbEotiynKsKQSEjFJ7qKmw==}
@@ -1064,6 +1190,7 @@ packages:
 
   '@sketch-hq/sketch-file-format-ts@6.5.0':
     resolution: {integrity: sha512-shaGl4ttFDpHjYBoMaZpciOtsi/lKvJ3VfcBYk6+PjjbFs6H5GxPAyhbiSqy3Vmx30aos284pd88QzD3rE6iag==}
+    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
 
   '@speed-highlight/core@1.2.24':
     resolution: {integrity: sha512-qeW2e1l78afw8VhRPfPQ1Gjj+KU5XFQ/OFV5ti6eTa9bruO7mJyZtA4vw0ofqmA3tKCkROE9xLk3VZoeRc98nw==}
@@ -1681,6 +1808,10 @@ packages:
   hast-util-whitespace@3.0.0:
     resolution: {integrity: sha512-88JUN06ipLwsnv+dVn+OIYOvAuvBMy/Qoi6O7mQHxdPXpjy+Cd6xRkWwux7DKO+4sYILtLBRIKgsdpS2gQc7qw==}
 
+  helpers4@3.1.9:
+    resolution: {integrity: sha512-gLLcVu5R+9JdiK+ZfJyV0SFgHRU5rbgnkZBQCvfIDo6MND1NjZNtcNUru9RWtyxlCi3CI36qG/u2JIRg3VYXsw==}
+    engines: {node: '>=26.0.0'}
+
   hookable@5.5.3:
     resolution: {integrity: sha512-Yc+BQe8SvoXH1643Qez1zqLRmbA5rCL+sSmk6TVos0LWVfNIB7PGncdlId77WzLGSIB5KaWgTaNTs2lNVEI6VQ==}
 
@@ -1917,6 +2048,9 @@ packages:
 
   regex@6.1.0:
     resolution: {integrity: sha512-6VwtthbV4o/7+OaAF9I5L5V3llLEsoPyq9P1JVXkedTP33c7MfCG0/5NOPcSJn0TzXcG9YUrR0gQSWioew3LDg==}
+
+  rxjs@7.8.2:
+    resolution: {integrity: sha512-dhKf903U/PQZY6boNNtAGdWbG85WAbjT/1xYoZIC7FAY0yWapOBQVsVrDl58W86//e1VpMNBtRV4MaXfdMySFA==}
 
   semver@7.8.5:
     resolution: {integrity: sha512-Y7/KDsb8LjooZpwaqGyulO6DQlksgCncchHGk+sZIY4SBvUocMBEFH5Ur1fI4dV+Jvl0w6cjvucaIi40puRioA==}
@@ -2307,6 +2441,68 @@ snapshots:
 
   '@esbuild/win32-x64@0.28.2':
     optional: true
+
+  '@helpers4/animation@3.1.9': {}
+
+  '@helpers4/array@3.1.9': {}
+
+  '@helpers4/binary@3.1.9': {}
+
+  '@helpers4/browser@3.1.9': {}
+
+  '@helpers4/ci@3.1.9': {}
+
+  '@helpers4/color@3.1.9': {}
+
+  '@helpers4/commit@3.1.9': {}
+
+  '@helpers4/date@3.1.9': {}
+
+  '@helpers4/font@3.1.9': {}
+
+  '@helpers4/function@3.1.9': {}
+
+  '@helpers4/geography@3.1.9': {}
+
+  '@helpers4/geometry@3.1.9': {}
+
+  '@helpers4/guard@3.1.9': {}
+
+  '@helpers4/id@3.1.9': {}
+
+  '@helpers4/json@3.1.9': {}
+
+  '@helpers4/license@3.1.9': {}
+
+  '@helpers4/map@3.1.9': {}
+
+  '@helpers4/markdown@3.1.9': {}
+
+  '@helpers4/node@3.1.9(@types/node@24.19.2)':
+    dependencies:
+      '@types/node': 24.19.2
+
+  '@helpers4/number@3.1.9': {}
+
+  '@helpers4/object@3.1.9': {}
+
+  '@helpers4/observable@3.1.9(rxjs@7.8.2)':
+    dependencies:
+      rxjs: 7.8.2
+
+  '@helpers4/promise@3.1.9': {}
+
+  '@helpers4/set@3.1.9': {}
+
+  '@helpers4/string@3.1.9': {}
+
+  '@helpers4/structure@3.1.9': {}
+
+  '@helpers4/type@3.1.9': {}
+
+  '@helpers4/url@3.1.9': {}
+
+  '@helpers4/version@3.1.9': {}
 
   '@iconify-json/simple-icons@1.2.100':
     dependencies:
@@ -3115,6 +3311,41 @@ snapshots:
     dependencies:
       '@types/hast': 3.0.5
 
+  helpers4@3.1.9(@types/node@24.19.2)(rxjs@7.8.2):
+    dependencies:
+      '@helpers4/animation': 3.1.9
+      '@helpers4/array': 3.1.9
+      '@helpers4/binary': 3.1.9
+      '@helpers4/browser': 3.1.9
+      '@helpers4/ci': 3.1.9
+      '@helpers4/color': 3.1.9
+      '@helpers4/commit': 3.1.9
+      '@helpers4/date': 3.1.9
+      '@helpers4/font': 3.1.9
+      '@helpers4/function': 3.1.9
+      '@helpers4/geography': 3.1.9
+      '@helpers4/geometry': 3.1.9
+      '@helpers4/guard': 3.1.9
+      '@helpers4/id': 3.1.9
+      '@helpers4/json': 3.1.9
+      '@helpers4/license': 3.1.9
+      '@helpers4/map': 3.1.9
+      '@helpers4/markdown': 3.1.9
+      '@helpers4/node': 3.1.9(@types/node@24.19.2)
+      '@helpers4/number': 3.1.9
+      '@helpers4/object': 3.1.9
+      '@helpers4/observable': 3.1.9(rxjs@7.8.2)
+      '@helpers4/promise': 3.1.9
+      '@helpers4/set': 3.1.9
+      '@helpers4/string': 3.1.9
+      '@helpers4/structure': 3.1.9
+      '@helpers4/type': 3.1.9
+      '@helpers4/url': 3.1.9
+      '@helpers4/version': 3.1.9
+    transitivePeerDependencies:
+      - '@types/node'
+      - rxjs
+
   hookable@5.5.3: {}
 
   html-void-elements@3.0.0: {}
@@ -3352,6 +3583,10 @@ snapshots:
     dependencies:
       regex-utilities: 2.3.0
 
+  rxjs@7.8.2:
+    dependencies:
+      tslib: 2.8.1
+
   semver@7.8.5: {}
 
   sharp@0.35.5(@types/node@24.19.2):
@@ -3438,8 +3673,7 @@ snapshots:
 
   trim-lines@3.0.1: {}
 
-  tslib@2.8.1:
-    optional: true
+  tslib@2.8.1: {}
 
   typescript@7.0.2:
     optionalDependencies:
