@@ -157,6 +157,8 @@ export interface Transition {
   easing:
     | { type: "linear" | "easeIn" | "easeOut" | "easeInOut" }
     | { type: "cubicBezier"; points: [number, number, number, number] }
+    /** Lasts as long as the spring takes to settle, whatever `durationMs` says. */
+    | { type: "spring"; mass: number; stiffness: number; damping: number }
     | { type: "other"; name: string };
 }
 

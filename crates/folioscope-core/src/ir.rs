@@ -319,6 +319,12 @@ pub enum Easing {
     CubicBezier {
         points: [f32; 4],
     },
+    /// A damped spring: it lasts as long as it takes to settle, whatever the duration says.
+    Spring {
+        mass: f32,
+        stiffness: f32,
+        damping: f32,
+    },
     /// A spring or another named curve, by its source name.
     Other {
         name: String,

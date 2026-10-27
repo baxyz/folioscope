@@ -577,6 +577,31 @@ fn transition(action: &Value) -> Transition {
             },
             _ => Easing::EaseOut,
         },
+        // The "back" curves overshoot (CSS values of easings.net, as Figma draws them).
+        Some("IN_BACK_CUBIC") => Easing::CubicBezier {
+            points: [0.36, 0.0, 0.66, -0.56],
+        },
+        Some("OUT_BACK_CUBIC") => Easing::CubicBezier {
+            points: [0.34, 1.56, 0.64, 1.0],
+        },
+        Some("INOUT_BACK_CUBIC") => Easing::CubicBezier {
+            points: [0.68, -0.6, 0.32, 1.6],
+        },
+        // Figma's spring presets, in its menu's order: Gentle, Quick, Bouncy, Slow.
+        Some("GENTLE_SPRING") => spring(1.0, 100.0, 15.0),
+        Some("SPRING_PRESET_ONE") => spring(1.0, 300.0, 20.0),
+        Some("SPRING_PRESET_TWO") => spring(1.0, 600.0, 15.0),
+        Some("SPRING_PRESET_THREE") => spring(1.0, 80.0, 20.0),
+        // A custom spring stores its mass, stiffness and damping.
+        Some("SPRING" | "CUSTOM_SPRING") => match action.get("easingFunction").map(Value::as_array)
+        {
+            Some([mass, stiffness, damping, ..]) => spring(
+                mass.as_f32().unwrap_or(1.0),
+                stiffness.as_f32().unwrap_or(100.0),
+                damping.as_f32().unwrap_or(15.0),
+            ),
+            _ => spring(1.0, 100.0, 15.0),
+        },
         Some(other) => Easing::Other {
             name: other.to_owned(),
         },
@@ -585,6 +610,14 @@ fn transition(action: &Value) -> Transition {
         kind,
         duration_ms: seconds_to_ms(action.get("transitionDuration")),
         easing,
+    }
+}
+
+fn spring(mass: f32, stiffness: f32, damping: f32) -> Easing {
+    Easing::Spring {
+        mass,
+        stiffness,
+        damping,
     }
 }
 
