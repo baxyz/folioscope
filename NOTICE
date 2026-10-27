@@ -51,3 +51,11 @@ SIL Open Font License 1.1, by The Inter Project Authors.
 
 fixtures/fonts/ holds Inter cut down to Latin, with its license (OFL.txt), as
 the font the text layout tests use. It is not part of any published package.
+
+--------------------------------------------------------------------------------
+helpers4 — https://helpers4.dev
+GNU Lesser General Public License v3.0 or later, by baxyz.
+
+The player bundles a few helpers4 functions (helpers4/browser, helpers4/geometry);
+their sources are the published `helpers4` packages on npm. The Rust crates
+depend on the `helpers4` crate.

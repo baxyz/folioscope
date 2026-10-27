@@ -33,7 +33,8 @@ interface State {
  * The prototype's state machine, independent of the DOM: the current screen of a page, the
  * overlays over it, and the history `back` returns through.
  */
-// TODO(helpers4): rebuild on the helpers4 `fsm` module once it exists.
+// TODO(helpers4): rebuild on `createBackStack` (helpers4/structure) once it can replace the current
+// entry (docs/helpers4-requests.md).
 export class Runtime {
   readonly page: FolioPage;
   private readonly frames: Map<string, FolioFrame>;
