@@ -8,19 +8,16 @@ use std::collections::BTreeSet;
 use std::fmt::Write as _;
 use std::path::Path;
 
-use folioscope_core::figma::{
-    FigFile,
-    ir::to_ir,
-    tree::{NodeId, Tree},
-};
-use folioscope_core::ir::{self, Flow, Rect};
+use folioscope_core::figma::{FigFile, ir::to_ir, tree::Tree};
+use folioscope_core::ir::{self, Document, Flow, Rect};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
+use crate::draw::{Draw, FigmaDraw};
 use crate::fonts::FontLibrary;
 use crate::image::{ImageFormat, encode, encode_best};
 use crate::text::Typesetter;
-use crate::{RenderError, render_pixmap, svg};
+use crate::{RenderError, render_pixmap};
 
 /// Version of the `.folio` layout, independent of the IR's.
 pub const FOLIO_VERSION: u32 = 1;
@@ -136,60 +133,10 @@ struct Layer {
     scrolls: bool,
 }
 
-/// `(markup, bounds, scrolls)` of each layer of `frame`, bottom first: the whole frame, or the
-/// three parts of a scrolling one.
-fn frame_parts(
-    tree: &Tree<'_>,
-    id: NodeId,
-    frame: &ir::Frame,
-    whole_markup: &str,
-    hidden: &[NodeId],
-) -> Result<Vec<(String, Rect, bool)>, BakeError> {
-    let whole = Rect {
-        x: 0.0,
-        y: 0.0,
-        width: frame.bounds.width,
-        height: frame.bounds.height,
-    };
-    let Some(scroll) = &frame.scroll else {
-        let markup = if hidden.is_empty() {
-            whole_markup.to_owned()
-        } else {
-            svg::render_node_without(tree, id, hidden)
-                .ok_or_else(|| BakeError::MissingFrame(frame.id.clone()))?
-                .markup
-        };
-        return Ok(vec![(markup, whole, false)]);
-    };
-    let fixed: Vec<NodeId> = scroll.fixed.iter().filter_map(|f| f.parse().ok()).collect();
-    let part = |part| {
-        svg::render_part(tree, id, part, hidden)
-            .map(|svg| svg.markup)
-            .ok_or_else(|| BakeError::MissingFrame(frame.id.clone()))
-    };
-    let size = (scroll.content.width, scroll.content.height);
-    let mut parts = vec![
-        (part(svg::Part::Background)?, whole, false),
-        (
-            part(svg::Part::Content {
-                fixed: &fixed,
-                size,
-            })?,
-            scroll.content,
-            true,
-        ),
-    ];
-    if !fixed.is_empty() {
-        parts.push((part(svg::Part::Fixed { fixed: &fixed })?, whole, false));
-    }
-    Ok(parts)
-}
-
 /// Renders every state of the frame's interactive components, each as a layer.
 fn bake_components<'a>(
-    tree: &Tree<'_>,
+    draw: &mut dyn Draw,
     frame: &'a ir::Frame,
-    typesetter: &mut Typesetter,
     options: &BakeOptions,
     report: &mut BakeReport,
     sink: &mut Sink<'_>,
@@ -199,21 +146,11 @@ fn bake_components<'a>(
     for component in &frame.components {
         let mut states = Vec::new();
         for state in &component.states {
-            let missing = || BakeError::MissingFrame(state.variant.clone());
-            let variant = state.variant.parse().map_err(|_| missing())?;
-            let path: Vec<NodeId> = component
-                .id
-                .split(';')
-                .map(str::parse)
-                .collect::<Result<_, _>>()
-                .map_err(|_| missing())?;
-            let svg = svg::render_component_state(tree, &path, variant, Some(&mut *typesetter))
-                .ok_or_else(missing)?;
-            report
-                .missing_fonts
-                .extend(svg.missing_fonts.iter().cloned());
-            let (src, format) = encode_layer(&svg.markup, densities, options, report, sink)
-                .map_err(|e| match e {
+            let markup = draw
+                .state(component, state)
+                .ok_or_else(|| BakeError::MissingFrame(state.variant.clone()))?;
+            let (src, format) =
+                encode_layer(&markup, densities, options, report, sink).map_err(|e| match e {
                     LayerError::Render(source) => BakeError::Render {
                         frame: frame.id.clone(),
                         source,
@@ -312,13 +249,26 @@ pub fn bake_fig_into(
     options: &BakeOptions,
     sink: &mut Sink<'_>,
 ) -> Result<BakeReport, BakeError> {
-    let document = to_ir(file);
     let tree = Tree::new(file);
+    let mut draw = FigmaDraw::new(&tree, Typesetter::new(options.fonts.clone()));
+    bake_into(&to_ir(file), &mut draw, options, sink)
+}
+
+/// Bakes a document whose frames `draw` renders, whatever its format.
+///
+/// # Errors
+///
+/// Fails when a frame cannot be rendered or `sink` fails.
+pub fn bake_into(
+    document: &Document,
+    draw: &mut dyn Draw,
+    options: &BakeOptions,
+    sink: &mut Sink<'_>,
+) -> Result<BakeReport, BakeError> {
     let mut report = BakeReport::default();
     let mut poster: Option<Vec<u8>> = None;
     // The highest density is encoded first: it decides the layer's format for every density.
     let densities = sorted_densities(options);
-    let mut typesetter = Typesetter::new(options.fonts.clone());
     let first_start = document
         .pages
         .iter()
@@ -336,27 +286,16 @@ pub fn bake_fig_into(
     for page in &document.pages {
         let mut frames = Vec::new();
         for frame in &page.frames {
-            let id = frame
-                .id
-                .parse()
-                .map_err(|_| BakeError::MissingFrame(frame.id.clone()))?;
-            let rendered = svg::render_node(&tree, id)
+            let whole = draw
+                .frame(frame)
                 .ok_or_else(|| BakeError::MissingFrame(frame.id.clone()))?;
             let render_error = |source| BakeError::Render {
                 frame: frame.id.clone(),
                 source,
             };
-            let placeholder = crate::placeholder(&rendered.markup).map_err(render_error)?;
-            // Interactive components are left out of the frame's layers: they get their own.
-            let hidden: Vec<NodeId> = frame
-                .components
-                .iter()
-                .filter_map(|c| c.id.rsplit(';').next()?.parse().ok())
-                .collect();
+            let placeholder = crate::placeholder(&whole).map_err(render_error)?;
             let mut layers = Vec::new();
-            for (markup, bounds, scrolls) in
-                frame_parts(&tree, id, frame, &rendered.markup, &hidden)?
-            {
+            for (markup, bounds, scrolls) in draw.layers(frame, &whole)? {
                 let (src, format) = encode_layer(&markup, &densities, options, &mut report, sink)
                     .map_err(|e| match e {
                     LayerError::Render(source) => render_error(source),
@@ -371,12 +310,11 @@ pub fn bake_fig_into(
             }
             // The poster stands in for the starting frame until the player runs: 1x, lossless.
             if Some(frame.id.as_str()) == first_start {
-                let pixmap = render_pixmap(&rendered.markup, 1.0).map_err(render_error)?;
+                let pixmap = render_pixmap(&whole, 1.0).map_err(render_error)?;
                 poster = Some(encode(&pixmap, ImageFormat::Webp).map_err(render_error)?);
             }
             report.frames += 1;
-            let components =
-                bake_components(&tree, frame, &mut typesetter, options, &mut report, sink)?;
+            let components = bake_components(draw, frame, options, &mut report, sink)?;
             frames.push(FolioFrame {
                 frame: ir::Frame {
                     components: Vec::new(),
@@ -394,6 +332,7 @@ pub fn bake_fig_into(
             frames,
         });
     }
+    report.missing_fonts.extend(draw.missing_fonts());
 
     if let Some(webp) = poster {
         sink("poster.webp", &webp)?;
