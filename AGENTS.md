@@ -118,10 +118,13 @@ What this means when you work here:
 
 - **Never bump `version`, edit `CHANGELOG.md` or push a `v*` tag by hand.** `main` keeps the
   placeholder `0.0.0-development` in `packages/folioscope/package.json`; the real version exists in
-  the tag only (`git checkout v0.1.0`, or `npm view folioscope`). `main` has no `CHANGELOG.md`: the
+  the tag only (`git fetch --tags && git checkout v0.1.0`, or `npm view folioscope`). `main` has no `CHANGELOG.md`: the
   changelog is generated from the commits into the release commit and the GitHub release notes, so
   write Conventional Commits that read well there.
 - A release never writes to `main`, so branch protection does not apply and there is no release PR.
+  The release commit is on no branch, so a plain `git fetch` does not download its tag: use
+  `git fetch --tags` (or `git fetch origin tag vX.Y.Z`) before `git describe`, `git show` or
+  `git checkout vX.Y.Z`.
 - If a registry step fails after the tag exists, the release stays a draft: fix the cause and run
   **Release** again with `bump: resume`. Never delete the tag.
 - `release.yml` must keep its file name and the `npm` environment: the npm trusted publisher of the
