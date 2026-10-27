@@ -61,6 +61,7 @@ pub struct FontLibrary {
     faces: Vec<Face>,
 }
 
+// TODO(helpers4): CSS font matching and style names (docs/helpers4-requests.md § 3).
 impl FontLibrary {
     /// Adds every face of a font file; returns how many.
     ///

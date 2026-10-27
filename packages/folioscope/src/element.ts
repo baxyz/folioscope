@@ -29,6 +29,7 @@ export const TAG_NAME = "folioscope-player";
 /** A raw design file, played by the full player when no `.folio` sits next to it. */
 const RAW = /\.(fig|sketch|xd|penpot)$/i;
 
+// TODO(helpers4): media types by extension (docs/helpers4-requests.md § 5).
 const TYPES: Record<string, string> = {
   ".json": "application/json",
   ".webp": "image/webp",

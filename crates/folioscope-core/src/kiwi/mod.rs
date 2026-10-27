@@ -5,6 +5,8 @@
 //! A `.fig` file carries its own Kiwi schema, so the decoder is generic: it reads the binary schema,
 //! then decodes the message into a dynamic [`Value`] tree.
 
+// TODO(helpers4): a generic Kiwi decoder (docs/helpers4-requests.md § 2).
+
 use std::sync::Arc;
 
 use reader::Reader;

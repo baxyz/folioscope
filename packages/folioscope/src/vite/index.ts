@@ -53,6 +53,7 @@ const CACHE_VERSION = "3";
 
 const FONT_FILE = /\.(ttf|otf|ttc|woff2?)$/i;
 
+// TODO(helpers4): media types by extension (docs/helpers4-requests.md § 5).
 const TYPES: Record<string, string> = {
   ".json": "application/json",
   ".png": "image/png",
