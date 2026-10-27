@@ -1,0 +1,95 @@
+---
+source: crates/folioscope-core/tests/penpot.rs
+expression: "serde_json::to_string_pretty(&ir).unwrap()"
+---
+{
+  "source": "penpot",
+  "pages": [
+    {
+      "id": "00000000-0000-4000-8000-000000000002",
+      "name": "Prototype",
+      "flows": [
+        {
+          "name": "Main flow",
+          "start": "00000000-0000-4000-8000-000000000003"
+        }
+      ],
+      "frames": [
+        {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "name": "Home",
+          "bounds": {
+            "x": 0.0,
+            "y": 0.0,
+            "width": 375.0,
+            "height": 812.0
+          },
+          "hotspots": [
+            {
+              "node": "00000000-0000-4000-8000-000000000007",
+              "name": "Open details",
+              "bounds": {
+                "x": 88.0,
+                "y": 640.0,
+                "width": 200.0,
+                "height": 48.0
+              },
+              "interactions": [
+                {
+                  "trigger": {
+                    "type": "click"
+                  },
+                  "action": {
+                    "type": "navigate",
+                    "to": "00000000-0000-4000-8000-000000000004",
+                    "transition": {
+                      "kind": {
+                        "type": "dissolve"
+                      },
+                      "durationMs": 300,
+                      "easing": {
+                        "type": "easeOut"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000004",
+          "name": "Details",
+          "bounds": {
+            "x": 475.0,
+            "y": 0.0,
+            "width": 375.0,
+            "height": 812.0
+          },
+          "hotspots": [
+            {
+              "node": "00000000-0000-4000-8000-000000000008",
+              "name": "Back",
+              "bounds": {
+                "x": 16.0,
+                "y": 56.0,
+                "width": 80.0,
+                "height": 32.0
+              },
+              "interactions": [
+                {
+                  "trigger": {
+                    "type": "click"
+                  },
+                  "action": {
+                    "type": "back"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

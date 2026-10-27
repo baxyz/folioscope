@@ -4,6 +4,8 @@
 //! `files/<file>/pages/<page>.json` and one JSON per shape in `files/<file>/pages/<page>/`.
 //! Penpot documents it; see `docs/format-penpot.md`. The binary v1 format is not supported.
 
+pub mod ir;
+
 use std::collections::HashMap;
 use std::io::{Cursor, Read};
 
@@ -12,7 +14,7 @@ use serde_json::Value;
 use crate::summary::{Action, Flow, Frame, Interaction, Page, Summary, Transition};
 
 /// The root frame of every page, parent of its top-level shapes.
-const ROOT: &str = "00000000-0000-0000-0000-000000000000";
+pub(crate) const ROOT: &str = "00000000-0000-0000-0000-000000000000";
 
 #[derive(Debug, thiserror::Error)]
 pub enum PenpotError {
