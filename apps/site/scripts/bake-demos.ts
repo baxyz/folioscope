@@ -17,6 +17,7 @@ for (const name of [
   "overlay",
   "scroll",
   "components",
+  "smart-animate",
   "sketch/navigation.sketch",
   "penpot/navigation.penpot",
 ]) {

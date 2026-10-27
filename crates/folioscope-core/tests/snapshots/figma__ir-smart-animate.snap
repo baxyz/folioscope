@@ -1,0 +1,95 @@
+---
+source: crates/folioscope-core/tests/figma.rs
+expression: "serde_json::to_string_pretty(&ir).unwrap()"
+---
+{
+  "source": "fig",
+  "pages": [
+    {
+      "id": "0:1",
+      "name": "Prototype",
+      "flows": [
+        {
+          "name": "Smart animate flow",
+          "start": "1:1"
+        }
+      ],
+      "frames": [
+        {
+          "id": "1:1",
+          "name": "Home",
+          "bounds": {
+            "x": 0.0,
+            "y": 0.0,
+            "width": 375.0,
+            "height": 812.0
+          },
+          "hotspots": [
+            {
+              "node": "1:5",
+              "name": "Open",
+              "bounds": {
+                "x": 88.0,
+                "y": 640.0,
+                "width": 200.0,
+                "height": 48.0
+              },
+              "interactions": [
+                {
+                  "trigger": {
+                    "type": "click"
+                  },
+                  "action": {
+                    "type": "navigate",
+                    "to": "1:2",
+                    "transition": {
+                      "kind": {
+                        "type": "smartAnimate"
+                      },
+                      "durationMs": 400,
+                      "easing": {
+                        "type": "easeInOut"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "1:2",
+          "name": "Details",
+          "bounds": {
+            "x": 475.0,
+            "y": 0.0,
+            "width": 375.0,
+            "height": 812.0
+          },
+          "hotspots": [
+            {
+              "node": "1:9",
+              "name": "Back",
+              "bounds": {
+                "x": 16.0,
+                "y": 56.0,
+                "width": 80.0,
+                "height": 32.0
+              },
+              "interactions": [
+                {
+                  "trigger": {
+                    "type": "click"
+                  },
+                  "action": {
+                    "type": "back"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

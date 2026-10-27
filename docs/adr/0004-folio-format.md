@@ -30,6 +30,8 @@ app.folio/
   its content (every child but the fixed ones, at the content's full size, marked `scrolls`) and
   its fixed children on top. The player puts the content in a native scroller between the two.
   Any other frame is one layer. Overlays are frames of their own, drawn over the screen.
+- **A frame a smart animate leaves or reaches also has parts** (ADR 0003): its background, then
+  each direct child, each an image at its bounds with its name.
 - **An interactive component is one layer per state**, drawn through the overrides of the
   instances it sits in, and left out of its frame's layers. The player swaps its state in place;
   every state is fetched with the frame, so a change shows at once.

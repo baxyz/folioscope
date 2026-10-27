@@ -12,6 +12,7 @@ const site = bakeFixtures([
   "overlay",
   "scroll",
   "components",
+  "smart-animate",
   "sketch/navigation.sketch",
   "penpot/navigation.penpot",
 ]);
@@ -210,6 +211,28 @@ try {
   await zones.nth(toggleSwitch).locator("button").click();
   assert.equal(await stateOf(toggleSwitch), "On=false");
   console.log("✓ components: variants change while hovering, while pressing and on click");
+
+  // Smart animate: the parts of both frames, paired by name, move and fade; then the new frame.
+  await tab.goto(`${server.origin}/?folio=smart-animate`);
+  await settledOn("Home");
+  await tab.locator('folioscope-player .frame button[aria-label="Open"]').click();
+  const smart = tab.locator("folioscope-player .smart");
+  await smart.waitFor();
+  assert.equal(await smart.locator("img").count(), 8); // 4 parts on each side
+  // Mid-way, the card has left its place on Home (24, 128) for the header of Details (0, 0).
+  await tab.waitForTimeout(200);
+  const card = await smart
+    .locator("img")
+    .nth(2)
+    .evaluate((img) => getComputedStyle(img).transform);
+  assert.notEqual(card, "none");
+  await settledOn("Details");
+  await smart.waitFor({ state: "detached" });
+  await tab.locator('folioscope-player .frame button[aria-label="Back"]').click();
+  await smart.waitFor();
+  await settledOn("Home");
+  await smart.waitFor({ state: "detached" });
+  console.log("✓ smart animate: paired parts move from one frame to the other, both ways");
 
   // The same prototype from a .sketch file: a link with a slide, and back.
   await tab.goto(`${server.origin}/?folio=sketch-navigation`);
