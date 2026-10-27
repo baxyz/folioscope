@@ -4,7 +4,7 @@
 // (170 ms of latency, 9 Mb/s down) and a CPU four times slower than the runner's, as Lighthouse
 // does for mobile. Lighthouse's own "slow 4G" adds 560 ms to every request, which no page made of
 // four chained requests can meet; connection setup is not counted, the server is local.
-// Run with `pnpm --filter folioscope test:budget` after `vp pack` and `cargo build -p folioscope-cli`.
+// Run with `pnpm --filter folioscope test:budget` after `vp pack` and `cargo build -p folioscope`.
 import assert from "node:assert/strict";
 import { chromium } from "playwright";
 import { bakeFixtures, serve } from "./serve.ts";

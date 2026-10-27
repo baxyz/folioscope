@@ -49,7 +49,7 @@ playing whatever happens to the design tool that made them.
 | Registry  | Name                                                     | Contents                                                    |
 | --------- | -------------------------------------------------------- | ----------------------------------------------------------- |
 | npm       | [`folioscope`](https://www.npmjs.com/package/folioscope) | `<folioscope-player>`, `folioscope/full`, `folioscope/vite` |
-| crates.io | `folioscope-core`, `folioscope-cli`                      | Importers, IR, the `folioscope` CLI                         |
+| crates.io | `folioscope-core`, `folioscope-bake`, `folioscope`       | Importers and IR, rendering and bake, the `folioscope` CLI  |
 
 ## Documentation
 
