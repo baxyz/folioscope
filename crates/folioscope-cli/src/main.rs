@@ -11,7 +11,7 @@ use folioscope_core::figma::{self, tree::Tree};
 const USAGE: &str = "usage:
   folioscope inspect <file.fig|.sketch|.xd|.penpot>
   folioscope render <file.fig> <node-id> <out.png> [scale]   (also writes <out>.svg)
-  folioscope bake <file.fig> <out.folio> [--no-avif] [--fonts <file or folder>]...
+  folioscope bake <file.fig|.sketch> <out.folio> [--no-avif] [--fonts <file or folder>]...
   folioscope fonts <folder>   (writes <folder>/folioscope-fonts.json)";
 
 fn main() -> ExitCode {
@@ -116,14 +116,14 @@ struct BakeArgs<'a> {
 }
 
 fn bake(path: &str, out: &str, args: &BakeArgs<'_>) -> Result<(), String> {
-    let file = load(path)?;
+    let bytes = std::fs::read(path).map_err(|e| format!("cannot read {path}: {e}"))?;
     let mut fonts = FontLibrary::default();
     for source in &args.fonts {
         add_fonts(&mut fonts, Path::new(source), Path::new(source))?;
     }
     let started = std::time::Instant::now();
-    let report = folioscope_bake::folio::bake_fig(
-        &file,
+    let report = folioscope_bake::folio::bake_file(
+        &bytes,
         Path::new(out),
         &folioscope_bake::folio::BakeOptions {
             avif: args.avif,
@@ -140,7 +140,9 @@ fn bake(path: &str, out: &str, args: &BakeArgs<'_>) -> Result<(), String> {
         started.elapsed().as_millis()
     );
     for font in &report.missing_fonts {
-        eprintln!("warning: no font for {font}: its text keeps glyphs of another style (--fonts)");
+        eprintln!(
+            "warning: no font for {font}: its text is left out or keeps another style (--fonts)"
+        );
     }
     Ok(())
 }

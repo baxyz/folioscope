@@ -7,6 +7,7 @@ pub mod draw;
 pub mod folio;
 pub mod fonts;
 pub mod image;
+pub mod sketch;
 pub mod svg;
 pub mod text;
 

@@ -18,16 +18,20 @@ const TYPES: Record<string, string> = {
   ".webp": "image/webp",
 };
 
-/** Bakes `fixtures/figma/<name>.fig` for each name into a new folder, as `<name>.folio`. */
+/**
+ * Bakes fixtures into a new folder: `navigation` is `fixtures/figma/navigation.fig`, baked as
+ * `navigation.folio`; `sketch/navigation.sketch` is that file, baked as `sketch-navigation.folio`.
+ */
 export function bakeFixtures(names: string[]): string {
   const site = mkdtempSync(join(tmpdir(), "folioscope-e2e-"));
   const cli = process.env.FOLIOSCOPE_CLI ?? join(repo, "target/debug/folioscope");
   for (const name of names) {
-    execFileSync(
-      cli,
-      ["bake", join(repo, `fixtures/figma/${name}.fig`), join(site, `${name}.folio`)],
-      { stdio: "inherit" },
-    );
+    const [file, folio] = name.includes("/")
+      ? [name, name.replace("/", "-").replace(/\.\w+$/, "")]
+      : [`figma/${name}.fig`, name];
+    execFileSync(cli, ["bake", join(repo, "fixtures", file), join(site, `${folio}.folio`)], {
+      stdio: "inherit",
+    });
   }
   return site;
 }

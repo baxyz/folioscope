@@ -50,6 +50,38 @@ Much simpler than Figma's:
 Everything above maps onto the IR as a subset of Figma's model: a click trigger, `NAVIGATE` or
 `BACK`, and the `SLIDE_FROM_*` transitions.
 
+## Rendering
+
+`folioscope-bake`'s `sketch` module draws artboards from these layers:
+
+- `group` and nested `artboard`: their layers, at their `frame` position, rotated
+  counter-clockwise (`rotation`, in degrees) and flipped (`isFlippedHorizontal`, `isFlippedVertical`)
+  around their centre; `style.contextSettings.opacity`.
+- Shapes (`rectangle`, `oval`, `shapePath`, `triangle`, `star`, `polygon`): `points` are curve
+  points in 0–1 units of the frame, `point`, `curveFrom` and `curveTo` written `"{x, y}"`; a segment
+  is a curve when its start `hasCurveFrom` or its end `hasCurveTo`. A rectangle whose points share
+  one `cornerRadius` gets rounded corners. A `shapeGroup` is one path of its shapes, with its own
+  style.
+- `style.fills` (enabled ones, bottom first): `fillType` 0 colour, 1 gradient (`gradientType` 0
+  linear, 1 radial, from `from` to `to` in 0–1 units), 4 image (`image._ref`, an `images/` entry;
+  `patternFillType` 2 stretch, 3 fit, otherwise fill). `style.borders`: `thickness`, `color`.
+  `style.shadows`: the first enabled one, `offsetX`, `offsetY`, `blurRadius`. `windingRule` 1 is
+  even-odd.
+- **Masks**: in a group, a layer with `hasClippingMask` draws, then clips the layers after it to its
+  outline, until the end of the group or a layer with `shouldBreakMaskChain`.
+- `bitmap`: its `image._ref`, stretched to the frame.
+- `symbolInstance`: its master's layers (`symbolID`, among the pages' `symbolMaster`s and
+  `document.foreignSymbols`), scaled to the instance's frame. `overrideValues` are keyed
+  `<id>_<property>`, with the ids of the nested instances first (`<id>/<id>_stringValue`); text
+  (`stringValue`) and symbol swaps (`symbolID`) are applied.
+- `text`: `attributedString.string`, styled by its first run: `MSAttributedStringFontAttribute`
+  (a **PostScript** name and a size), `MSAttributedStringColorAttribute`, `paragraphStyle`
+  (`alignment` 0 left, 1 right, 2 centre, 3 justified; `maximumLineHeight`), `kerning`.
+  `textBehaviour` 0 grows with its content (no wrapping), otherwise lines break at the frame's
+  width; `style.textStyle.verticalAlignment` 0 top, 1 middle, 2 bottom. Laid out with the fonts
+  given and the fonts the file embeds (`fonts/` entries; `document.fontReferences` lists the fonts
+  used, embedded or not).
+
 ## What Lunacy plays
 
 Lunacy (the free Sketch-compatible editor we validate with) reads the JSON with a .NET parser that

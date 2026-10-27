@@ -32,6 +32,8 @@ pub struct SketchFile {
     pub meta: Value,
     pub document: Value,
     pub pages: Vec<Value>,
+    /// Bitmaps and embedded fonts, by entry name (`images/<hash>.png`, `fonts/…`).
+    pub files: HashMap<String, Vec<u8>>,
 }
 
 /// Decodes a `.sketch` archive.
@@ -58,10 +60,21 @@ pub fn decode(archive: &[u8]) -> Result<SketchFile, SketchError> {
         .filter_map(|page| page["_ref"].as_str())
         .map(|reference| json(&format!("{reference}.json")))
         .collect::<Result<_, _>>()?;
+    let mut files = HashMap::new();
+    for index in 0..zip.len() {
+        let mut entry = zip.by_index(index)?;
+        let name = entry.name()?.into_owned();
+        if entry.is_file() && (name.starts_with("images/") || name.starts_with("fonts/")) {
+            let mut bytes = Vec::new();
+            entry.read_to_end(&mut bytes)?;
+            files.insert(name, bytes);
+        }
+    }
     Ok(SketchFile {
         meta,
         document,
         pages,
+        files,
     })
 }
 

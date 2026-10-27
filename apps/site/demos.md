@@ -62,3 +62,12 @@ switch that toggles on each click. Each variant is a state of the component, cha
 <div class="demo">
   <folioscope-player src="/folio/components.folio" poster="/folio/components.folio/poster.webp" controls></folioscope-player>
 </div>
+
+## From a `.sketch` file
+
+The navigation demo again, made in Sketch's format and baked the same way: the button slides
+the details in from the right, the grey button comes back.
+
+<div class="demo">
+  <folioscope-player src="/folio/sketch-navigation.folio" poster="/folio/sketch-navigation.folio/poster.webp" controls></folioscope-player>
+</div>

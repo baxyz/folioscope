@@ -88,6 +88,12 @@ impl Typesetter {
     /// font of its family was given.
     #[must_use]
     pub fn path(&mut self, paragraph: &Paragraph<'_>) -> Option<String> {
+        self.set(paragraph).map(|text| text.path)
+    }
+
+    /// Like [`Typesetter::path`], with the size of the laid-out text.
+    #[must_use]
+    pub fn set(&mut self, paragraph: &Paragraph<'_>) -> Option<SetText> {
         let face = self
             .library
             .resolve(paragraph.family, paragraph.weight, paragraph.italic)?;
@@ -116,6 +122,7 @@ impl Typesetter {
         };
         layout.align(alignment, AlignmentOptions::default());
 
+        let (width, height) = (layout.width(), layout.height());
         let mut d = String::new();
         for line in layout.lines() {
             for item in line.items() {
@@ -149,8 +156,20 @@ impl Typesetter {
                 }
             }
         }
-        Some(d)
+        Some(SetText {
+            path: d,
+            width,
+            height,
+        })
     }
+}
+
+/// Text laid out: its glyphs as SVG path data, and the size they take.
+#[derive(Debug, Clone)]
+pub struct SetText {
+    pub path: String,
+    pub width: f32,
+    pub height: f32,
 }
 
 /// Writes outline commands as SVG path data, at a glyph's origin, y pointing down.

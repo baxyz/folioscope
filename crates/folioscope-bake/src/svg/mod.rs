@@ -20,6 +20,7 @@ use crate::fonts::weight_of_style;
 use crate::text::{Align, Paragraph, Typesetter};
 
 mod paint;
+pub(crate) use paint::mime;
 mod path;
 
 pub struct Svg {
