@@ -26,6 +26,15 @@ import { type OpenOverlay, Runtime, type Step } from "./runtime.ts";
 
 export const TAG_NAME = "folioscope-player";
 
+/** A raw design file, played by the full player when no `.folio` sits next to it. */
+const RAW = /\.(fig|sketch|xd|penpot)$/i;
+
+const TYPES: Record<string, string> = {
+  ".json": "application/json",
+  ".webp": "image/webp",
+  ".avif": "image/avif",
+};
+
 // Keeps the module importable during SSR (VitePress build, the Vite plugin), where HTMLElement is undefined.
 const BaseElement: typeof HTMLElement =
   globalThis.HTMLElement ?? (class {} as unknown as typeof HTMLElement);
@@ -71,6 +80,10 @@ export class FolioscopePlayer extends BaseElement {
   private runtime?: Runtime;
   private index?: FolioIndex;
   private base = "";
+  /** The `src` loaded or loading. */
+  private loadedSrc?: string;
+  /** Files baked in the browser, as `blob:` URLs by path, when `src` is a raw design file. */
+  private readonly blobs = new Map<string, string>();
   private density = 1;
   private shown?: HTMLElement;
   /** The frame `shown` draws, for smart animate. */
@@ -180,23 +193,15 @@ export class FolioscopePlayer extends BaseElement {
 
   private async load(): Promise<void> {
     const src = this.src;
-    if (!src) return;
+    // Upgrading an element already in the page calls both attributeChangedCallback and
+    // connectedCallback: one load per source.
+    if (!src || src === this.loadedSrc) return;
+    this.loadedSrc = src;
     const attempt = ++this.loading;
     this.showPoster();
     try {
-      if (/\.(fig|sketch|xd|penpot)$/i.test(src)) {
-        throw new Error(
-          `${src}: raw design files need the full player, not available yet; bake it with \`folioscope bake\``,
-        );
-      }
-      this.base = src.endsWith("index.json")
-        ? src.slice(0, -"index.json".length)
-        : src.endsWith("/")
-          ? src
-          : `${src}/`;
-      const response = await fetch(`${this.base}index.json`);
-      if (!response.ok) throw new Error(`${this.base}index.json: HTTP ${response.status}`);
-      const index = (await response.json()) as FolioIndex;
+      const index = RAW.test(src) ? await this.loadRaw(src, attempt) : await this.loadFolio(src);
+      if (!index) return;
       if (index.folio > SUPPORTED_FOLIO || index.irVersion > SUPPORTED_IR) {
         throw new Error(
           `${src} was baked by a newer folioscope (folio v${index.folio}, IR v${index.irVersion})`,
@@ -213,6 +218,58 @@ export class FolioscopePlayer extends BaseElement {
     } catch (error) {
       this.emit("folioscope:error", { error });
     }
+  }
+
+  /** A `.folio` folder (or its `index.json`). */
+  private async loadFolio(src: string): Promise<FolioIndex> {
+    this.forgetBlobs();
+    this.base = src.endsWith("index.json")
+      ? src.slice(0, -"index.json".length)
+      : src.endsWith("/")
+        ? src
+        : `${src}/`;
+    const response = await fetch(`${this.base}index.json`);
+    if (!response.ok) throw new Error(`${this.base}index.json: HTTP ${response.status}`);
+    return (await response.json()) as FolioIndex;
+  }
+
+  /**
+   * A raw design file: its baked `.folio` next to it when there is one (`app.fig` →
+   * `app.folio/`), else baked here by the full player, loaded on demand.
+   */
+  private async loadRaw(src: string, attempt: number): Promise<FolioIndex | undefined> {
+    const sibling = src.replace(RAW, ".folio/");
+    const found = await fetch(`${sibling}index.json`).catch(() => undefined);
+    if (found?.ok) {
+      this.forgetBlobs();
+      this.base = sibling;
+      return (await found.json()) as FolioIndex;
+    }
+    const { bakeInBrowser } = await import("./full/index.ts");
+    const baked = await bakeInBrowser(new URL(src, document.baseURI).href, {
+      density: (globalThis.devicePixelRatio ?? 1) > 1 ? 2 : 1,
+      onProgress: (stage) => this.emit("folioscope:progress", { stage }),
+    });
+    if (attempt !== this.loading) return undefined;
+    for (const font of baked.missingFonts) this.emit("folioscope:font-missing", { font });
+    this.forgetBlobs();
+    this.base = "";
+    for (const [path, bytes] of baked.files) {
+      const type = TYPES[path.slice(path.lastIndexOf("."))] ?? "application/octet-stream";
+      this.blobs.set(
+        path,
+        URL.createObjectURL(new Blob([bytes as Uint8Array<ArrayBuffer>], { type })),
+      );
+    }
+    const index = baked.files.get("index.json");
+    if (!index) throw new Error(`${src}: the bake made no index.json`);
+    return JSON.parse(new TextDecoder().decode(index)) as FolioIndex;
+  }
+
+  /** Releases the files of a previous in-browser bake. */
+  private forgetBlobs(): void {
+    for (const url of this.blobs.values()) URL.revokeObjectURL(url);
+    this.blobs.clear();
   }
 
   private startPage(): void {
@@ -479,7 +536,8 @@ export class FolioscopePlayer extends BaseElement {
   }
 
   private layerUrl(layer: Layer): string {
-    return `${this.base}layers/${layer.src}@${this.density}x.${layer.format}`;
+    const path = `layers/${layer.src}@${this.density}x.${layer.format}`;
+    return this.blobs.get(path) ?? `${this.base}${path}`;
   }
 
   private clearTimers(): void {

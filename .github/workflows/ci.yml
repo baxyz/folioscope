@@ -69,6 +69,11 @@ jobs:
           tool: wasm-bindgen@0.2.129
       - run: cargo build -p folioscope-cli
       - run: pnpm --filter folioscope build:wasm
+      - name: Full player budget (2.5 MB of WebAssembly, gzipped)
+        run: |
+          size=$(gzip -9 -c packages/folioscope/wasm/folioscope_wasm_bg.wasm | wc -c)
+          echo "full player WebAssembly: $size bytes gzipped" | tee -a "$GITHUB_STEP_SUMMARY"
+          test "$size" -le 2621440
       - run: pnpm exec vp run -r build
       - name: Vite plugin tests (need the WebAssembly bake)
         run: pnpm --filter folioscope test

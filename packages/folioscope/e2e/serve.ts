@@ -13,6 +13,8 @@ const repo = fileURLToPath(new URL("../../../", import.meta.url));
 const TYPES: Record<string, string> = {
   ".html": "text/html",
   ".avif": "image/avif",
+  ".js": "text/javascript",
+  ".wasm": "application/wasm",
   ".json": "application/json",
   ".mjs": "text/javascript",
   ".webp": "image/webp",
@@ -37,7 +39,8 @@ export function bakeFixtures(names: string[]): string {
 }
 
 /**
- * Serves `page(query)` at `/`, the built player at `/player.mjs`, and the files of `site`.
+ * Serves `page(query)` at `/`, the built player at `/player.mjs` (and its full player under
+ * `/full/` and `/wasm/`), and the files of `site`.
  * Text is gzipped, as any host would.
  */
 export async function serve(
@@ -54,7 +57,13 @@ export async function serve(
           ? Buffer.from(page(url.searchParams))
           : path === "/player.mjs"
             ? readFileSync(join(repo, "packages/folioscope/dist/index.mjs"))
-            : readFileSync(join(site, path));
+            : // The full player's module and worker load from next to the player, the
+              // WebAssembly bake from the package's wasm/.
+              path.startsWith("/full/")
+              ? readFileSync(join(repo, "packages/folioscope/dist", path))
+              : path.startsWith("/wasm/")
+                ? readFileSync(join(repo, "packages/folioscope", path))
+                : readFileSync(join(site, path));
     } catch {
       res.writeHead(404).end();
       return;

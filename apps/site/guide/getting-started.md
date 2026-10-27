@@ -57,6 +57,19 @@ CI checks this setup on every change: on a simulated 4G connection with a phone'
 shows at about 550 ms and the first playable screen at about 750 ms (900 ms without the poster and
 the preload).
 
+### Without a build step
+
+`src` can also point at the design file itself:
+
+```html
+<folioscope-player src="/designs/app.fig" controls></folioscope-player>
+```
+
+If `app.folio/` sits next to it, the player plays that. Otherwise it bakes the file in the
+browser, in a Web Worker, with the WebAssembly bake (about 2 MB, downloaded once and cached), then
+keeps the result in the browser's cache for the next visit. Baking ahead of time stays the fast
+path: a visitor waits a few seconds the first time.
+
 ## Attributes
 
 | Attribute  | Values                              | Role                                                                                               |
@@ -74,6 +87,7 @@ the preload).
 
 - `restart()`, `back()`, `goTo(frameId)`
 - `folioscope:load`, `folioscope:navigate` (`detail.frame`, `detail.name`), `folioscope:error` (`detail.error`)
+- `folioscope:progress` (`detail.stage`: `download`, `cache` or `bake`) and `folioscope:font-missing` (`detail.font`), when a raw design file is baked in the browser
 
 ## Keyboard
 

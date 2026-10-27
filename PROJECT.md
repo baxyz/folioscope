@@ -612,15 +612,10 @@ passing everywhere.
 
 The "works right away" path with no build step, and the fallback for dynamic layers.
 
-- [ ] WASM build of `folioscope-core`: one `.wasm` per format, loaded on demand.
-- [ ] WASM rendering engine (D1), loaded only when needed.
-- [ ] The component accepts a raw file in `src`, and automatically uses the sibling `.folio` if it
-      exists.
-- [ ] Decoding in a Web Worker, with progress; result caching (Cache API).
 - [ ] Fonts in the browser: `<folioscope-font>` (the five modes), `<folioscope-fonts>`,
-      `registerFont()`, resolution order, fallback, `folioscope:font-missing` event.
+      `registerFont()`, resolution order, fallback; the full player bakes with them (ADR 0012).
+      `folioscope:font-missing` is already sent.
 - [ ] Dynamic layers of a `.folio` (variables, conditions) rendered on the fly.
-- [ ] Full player budget: WASM weight measured and tracked in CI.
 - [ ] Publish `folioscope-cli` and `folioscope-core` to crates.io.
 
 ### v1.0

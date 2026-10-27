@@ -11,13 +11,19 @@ use wasm_bindgen::prelude::*;
 /// Bakes a `.fig`, `.sketch` or `.penpot` file; `avif` lets large, photo-like layers use AVIF; `fonts` maps font file
 /// names to their bytes, for text the file stores no glyphs for. Returns `{ files, missingFonts }`:
 /// a `Map` from paths inside the `.folio` folder (`index.json`, `poster.webp`, `layers/…`) to
-/// their bytes, and the fonts some text needed and was not given (`Family Style`).
+/// their bytes, and the fonts some text needed and was not given (`Family Style`). `densities`
+/// (1x and 2x when absent) lets the browser bake only the one its screen needs.
 ///
 /// # Errors
 ///
 /// Throws when the file cannot be decoded or a frame cannot be rendered.
 #[wasm_bindgen]
-pub fn bake(input: &[u8], avif: bool, fonts: &Map) -> Result<Object, JsError> {
+pub fn bake(
+    input: &[u8],
+    avif: bool,
+    fonts: &Map,
+    densities: Option<Vec<u8>>,
+) -> Result<Object, JsError> {
     let mut library = FontLibrary::default();
     let mut font_error = None;
     fonts.for_each(&mut |bytes, name| {
@@ -30,11 +36,14 @@ pub fn bake(input: &[u8], avif: bool, fonts: &Map) -> Result<Object, JsError> {
         return Err(e.into());
     }
     let files = Map::new();
-    let options = BakeOptions {
+    let mut options = BakeOptions {
         avif,
         fonts: library,
         ..BakeOptions::default()
     };
+    if let Some(densities) = densities.filter(|d| !d.is_empty()) {
+        options.densities = densities;
+    }
     let report = bake_file_into(input, &options, &mut |path, bytes| {
         files.set(&path.into(), &Uint8Array::from(bytes).into());
         Ok(())
