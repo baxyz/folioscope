@@ -13,6 +13,7 @@ const site = bakeFixtures([
   "scroll",
   "components",
   "sketch/navigation.sketch",
+  "penpot/navigation.penpot",
 ]);
 const server = await serve(
   site,
@@ -218,6 +219,15 @@ try {
   await tab.locator('folioscope-player .frame button[aria-label="Back"]').click();
   await settledOn("Home");
   console.log("✓ sketch: a .sketch prototype plays the same way");
+
+  // And from a .penpot file, with its dissolve.
+  await tab.goto(`${server.origin}/?folio=penpot-navigation`);
+  await settledOn("Home");
+  await tab.locator('folioscope-player .frame button[aria-label="Open details"]').click();
+  await settledOn("Details");
+  await tab.locator('folioscope-player .frame button[aria-label="Back"]').click();
+  await settledOn("Home");
+  console.log("✓ penpot: a .penpot prototype plays the same way");
 
   // Without a poster, the frame's baked placeholder shows while its layers load.
   const slow = await browser.newPage();

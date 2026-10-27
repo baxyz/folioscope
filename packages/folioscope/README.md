@@ -1,8 +1,8 @@
 # folioscope
 
 **Flip through your prototypes.** `<folioscope-player>` plays the interactive prototype of a
-`.fig` or `.sketch` file in the browser, with no account and no design tool: screens, clicks,
-hovers, overlays, scrolling, transitions. `.xd` and `.penpot` files follow. Not a viewer for the design file: a player
+`.fig`, `.sketch` or `.penpot` file in the browser, with no account and no design tool: screens,
+clicks, hovers, overlays, scrolling, transitions. `.xd` files follow. Not a viewer for the design file: a player
 for its clickable prototype.
 
 > Early development: see the [roadmap](https://github.com/baxyz/folioscope/blob/main/PROJECT.md#8-roadmap).

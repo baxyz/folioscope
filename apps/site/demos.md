@@ -71,3 +71,12 @@ the details in from the right, the grey button comes back.
 <div class="demo">
   <folioscope-player src="/folio/sketch-navigation.folio" poster="/folio/sketch-navigation.folio/poster.webp" controls></folioscope-player>
 </div>
+
+## From a `.penpot` file
+
+The same prototype once more, made in Penpot's format: a named flow, a dissolve to the details,
+and back.
+
+<div class="demo">
+  <folioscope-player src="/folio/penpot-navigation.folio" poster="/folio/penpot-navigation.folio/poster.webp" controls></folioscope-player>
+</div>
