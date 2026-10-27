@@ -1,6 +1,6 @@
 {
   "name": "folioscope",
-  "version": "0.0.0-development",
+  "version": "0.0.4-beta.1",
   "description": "Flip through your prototypes: a web component that plays interactive .fig, .sketch, .xd and .penpot prototypes",
   "keywords": [
     "custom-element",
