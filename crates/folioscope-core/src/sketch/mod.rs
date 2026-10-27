@@ -4,6 +4,8 @@
 //! `pages/<id>.json` per page), described by Sketch's open file format schema. See
 //! `docs/format-sketch.md`.
 
+pub mod ir;
+
 use std::collections::HashMap;
 use std::io::{Cursor, Read};
 

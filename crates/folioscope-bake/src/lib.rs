@@ -3,6 +3,7 @@
 //! Bakes prototypes into `.folio` folders (ADR 0004): renders nodes to SVG, rasterizes them with
 //! `resvg` (ADR 0001), and writes the layers and `index.json`.
 
+pub mod draw;
 pub mod folio;
 pub mod fonts;
 pub mod image;
