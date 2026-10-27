@@ -130,7 +130,7 @@ fn gradient_line(transform: Option<&Value>, w: f32, h: f32) -> Option<((f32, f32
     Some((point(0.0, 0.5), point(1.0, 0.5)))
 }
 
-fn mime(bytes: &[u8]) -> &'static str {
+pub(crate) fn mime(bytes: &[u8]) -> &'static str {
     match bytes {
         [0x89, b'P', b'N', b'G', ..] => "image/png",
         [0xff, 0xd8, ..] => "image/jpeg",

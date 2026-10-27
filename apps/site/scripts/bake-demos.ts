@@ -17,8 +17,13 @@ for (const name of [
   "overlay",
   "scroll",
   "components",
+  "sketch/navigation.sketch",
 ]) {
-  execFileSync(cli, ["bake", `${repo}fixtures/figma/${name}.fig`, `${demos}${name}.folio`], {
+  // `sketch/navigation.sketch` bakes as `sketch-navigation.folio`; the others are `.fig` files.
+  const [file, folio] = name.includes("/")
+    ? [name, name.replace("/", "-").replace(/\.\w+$/, "")]
+    : [`figma/${name}.fig`, name];
+  execFileSync(cli, ["bake", `${repo}fixtures/${file}`, `${demos}${folio}.folio`], {
     stdio: "inherit",
   });
 }

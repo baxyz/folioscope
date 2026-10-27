@@ -12,6 +12,7 @@ const site = bakeFixtures([
   "overlay",
   "scroll",
   "components",
+  "sketch/navigation.sketch",
 ]);
 const server = await serve(
   site,
@@ -208,6 +209,15 @@ try {
   await zones.nth(toggleSwitch).locator("button").click();
   assert.equal(await stateOf(toggleSwitch), "On=false");
   console.log("✓ components: variants change while hovering, while pressing and on click");
+
+  // The same prototype from a .sketch file: a link with a slide, and back.
+  await tab.goto(`${server.origin}/?folio=sketch-navigation`);
+  await settledOn("Home");
+  await tab.locator('folioscope-player .frame button[aria-label="Open details"]').click();
+  await settledOn("Details");
+  await tab.locator('folioscope-player .frame button[aria-label="Back"]').click();
+  await settledOn("Home");
+  console.log("✓ sketch: a .sketch prototype plays the same way");
 
   // Without a poster, the frame's baked placeholder shows while its layers load.
   const slow = await browser.newPage();

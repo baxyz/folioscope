@@ -20,9 +20,10 @@ It is **not a viewer** for design files: no canvas to pan, no layers to inspect,
 > _portfolio_, where it all started.
 
 > [!WARNING]
-> **Status: early development, not published yet.** `.fig` prototypes bake and play, with click and
-> timed, hover and press links, overlays and scrolling; the other formats follow. See the
-> [project plan](PROJECT.md) and its roadmap.
+> **Status: early development.** `.fig` prototypes bake and play, with click, timed, hover and
+> press links, overlays, scrolling and interactive components; `.sketch` prototypes too, with
+> their links and slides. `.xd` and `.penpot` follow. See the [project plan](PROJECT.md) and its
+> roadmap.
 
 ## Usage
 

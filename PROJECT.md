@@ -558,7 +558,10 @@ displayed almost instantly on a portfolio page.
 
 ### Phase 2 — Sketch, layer split and rich interactions (v0.2 to v0.4)
 
-- [ ] `.sketch` importer to the IR, with the same pre-rendering.
+- [ ] `.sketch`, what is left: masks by alpha, blurs, blend modes, inner shadows, inside and
+      outside borders (drawn centred), per-run text styles (a text takes its first run's style),
+      scrolling artboards (`prototypeViewport`), nested symbol overrides other than text and
+      symbol swaps, and a Sketch fixture checked in Lunacy for each feature.
 - [ ] Scrolling inside a frame (a nested frame that scrolls), sticky elements, hover and press
       inside scrolled content and inside overlays.
 - [ ] Interactive components, what is left: a variant other than the one in the file is drawn

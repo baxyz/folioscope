@@ -8,14 +8,17 @@ use std::collections::BTreeSet;
 use std::fmt::Write as _;
 use std::path::Path;
 
+use folioscope_core::Format;
 use folioscope_core::figma::{FigFile, ir::to_ir, tree::Tree};
 use folioscope_core::ir::{self, Document, Flow, Rect};
+use folioscope_core::sketch::{SketchFile, ir::to_ir as sketch_ir};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
 use crate::draw::{Draw, FigmaDraw};
 use crate::fonts::FontLibrary;
 use crate::image::{ImageFormat, encode, encode_best};
+use crate::sketch::SketchDraw;
 use crate::text::Typesetter;
 use crate::{RenderError, render_pixmap};
 
@@ -33,6 +36,8 @@ pub enum BakeError {
     Render { frame: String, source: RenderError },
     #[error("frame {0} is not a node of the file")]
     MissingFrame(String),
+    #[error("{0}")]
+    Decode(String),
 }
 
 #[derive(Debug, Clone)]
@@ -238,6 +243,18 @@ pub fn bake_fig(
     })
 }
 
+/// Bakes a design file of any format the bake draws into the folder `out`, created if needed.
+///
+/// # Errors
+///
+/// Fails when the file cannot be read or rendered, or a file cannot be written.
+pub fn bake_file(bytes: &[u8], out: &Path, options: &BakeOptions) -> Result<BakeReport, BakeError> {
+    create_dir(&out.join("layers"))?;
+    bake_file_into(bytes, options, &mut |path, bytes| {
+        write(&out.join(path), bytes)
+    })
+}
+
 /// Bakes a decoded `.fig`, handing each file to `sink` with its path inside the `.folio` folder
 /// (`index.json`, `poster.webp`, `layers/…`). The WASM build writes to memory this way.
 ///
@@ -252,6 +269,61 @@ pub fn bake_fig_into(
     let tree = Tree::new(file);
     let mut draw = FigmaDraw::new(&tree, Typesetter::new(options.fonts.clone()));
     bake_into(&to_ir(file), &mut draw, options, sink)
+}
+
+/// Bakes a decoded `.sketch` (see [`bake_fig_into`]); fonts embedded in the file (`fonts/…`)
+/// join the ones in `options`.
+///
+/// # Errors
+///
+/// Fails when a frame cannot be rendered or `sink` fails.
+pub fn bake_sketch_into(
+    file: &SketchFile,
+    options: &BakeOptions,
+    sink: &mut Sink<'_>,
+) -> Result<BakeReport, BakeError> {
+    let mut fonts = options.fonts.clone();
+    let mut embedded: Vec<_> = file
+        .files
+        .iter()
+        .filter(|(name, _)| name.starts_with("fonts/"))
+        .collect();
+    embedded.sort_by_key(|(name, _)| *name);
+    for (name, bytes) in embedded {
+        // A file that is not a font is left out; the text that needed it reports it missing.
+        let _ = fonts.add(name, bytes);
+    }
+    let mut draw = SketchDraw::new(file, Typesetter::new(fonts));
+    bake_into(&sketch_ir(file), &mut draw, options, sink)
+}
+
+/// Bakes a design file of any format the bake draws (`.fig`, `.sketch`).
+///
+/// # Errors
+///
+/// Fails when the file is not one of those, cannot be decoded, or a frame cannot be rendered.
+pub fn bake_file_into(
+    bytes: &[u8],
+    options: &BakeOptions,
+    sink: &mut Sink<'_>,
+) -> Result<BakeReport, BakeError> {
+    let error = |e: &dyn std::fmt::Display| BakeError::Decode(e.to_string());
+    match folioscope_core::detect(bytes) {
+        Some(Format::Fig) => {
+            let file = folioscope_core::figma::decode(bytes).map_err(|e| error(&e))?;
+            bake_fig_into(&file, options, sink)
+        }
+        Some(Format::Sketch) => {
+            let file = folioscope_core::sketch::decode(bytes).map_err(|e| error(&e))?;
+            bake_sketch_into(&file, options, sink)
+        }
+        Some(format) => Err(BakeError::Decode(format!(
+            "{format:?} files cannot be baked yet"
+        ))),
+        None => Err(BakeError::Decode(
+            "not a .fig, .sketch, .xd or .penpot file".to_owned(),
+        )),
+    }
 }
 
 /// Bakes a document whose frames `draw` renders, whatever its format.

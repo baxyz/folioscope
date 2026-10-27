@@ -21,6 +21,9 @@ pub enum FontError {
 pub struct Face {
     /// Typographic family (`name` ID 16), else the family (ID 1).
     pub family: String,
+    /// PostScript name (ID 6), as Sketch names fonts (`Inter-Bold`); empty when absent.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub postscript: String,
     /// Weights it covers: one, or the range of a variable font's `wght` axis.
     pub weight: [f32; 2],
     pub italic: bool,
@@ -87,8 +90,14 @@ impl FontLibrary {
                 .map_or([attributes.weight.value(); 2], |axis| {
                     [axis.min_value(), axis.max_value()]
                 });
+            let postscript = font
+                .localized_strings(StringId::POSTSCRIPT_NAME)
+                .english_or_first()
+                .map(|name| name.to_string())
+                .unwrap_or_default();
             self.faces.push(Face {
                 family,
+                postscript,
                 weight,
                 italic: !matches!(attributes.style, Style::Normal),
                 source: source.to_owned(),
@@ -120,6 +129,35 @@ impl FontLibrary {
             let (ka, kb) = (key(a), key(b));
             ka.0.cmp(&kb.0).then(ka.1.total_cmp(&kb.1))
         })
+    }
+}
+
+impl FontLibrary {
+    /// The face a PostScript name designates (`NeutrifPro-SemiBold`): the face of that name,
+    /// else the closest face of the family before the dash (spaces ignored), at the weight and
+    /// style its suffix says. A variable font's instances have no name of their own.
+    #[must_use]
+    pub fn resolve_postscript(&self, name: &str) -> Option<&Face> {
+        if let Some(face) = self
+            .faces
+            .iter()
+            .find(|f| f.postscript.eq_ignore_ascii_case(name))
+        {
+            return Some(face);
+        }
+        let (family, style) = name.split_once('-').unwrap_or((name, "Regular"));
+        let squeeze = |s: &str| s.replace(' ', "").to_ascii_lowercase();
+        let family = squeeze(family);
+        let italic = style.to_ascii_lowercase().contains("italic");
+        let weight = weight_of_style(style);
+        self.faces
+            .iter()
+            .filter(|f| squeeze(&f.family) == family)
+            .min_by(|a, b| {
+                let key = |f: &Face| (f.italic != italic, f.distance(weight));
+                let (ka, kb) = (key(a), key(b));
+                ka.0.cmp(&kb.0).then(ka.1.total_cmp(&kb.1))
+            })
     }
 }
 
@@ -187,6 +225,15 @@ mod tests {
         // No italic face: the upright one stands in, as in CSS.
         assert!(library.resolve("Inter", 400.0, true).is_some());
         assert!(library.resolve("Roboto", 400.0, false).is_none());
+    }
+
+    #[test]
+    fn finds_a_face_by_postscript_name() {
+        let mut library = FontLibrary::default();
+        library.add("Inter-Latin.ttf", &inter("ttf")).unwrap();
+        // The variable font is named for its default instance; a bold name falls back to it.
+        assert!(library.resolve_postscript("Inter-Bold").is_some());
+        assert!(library.resolve_postscript("Montserrat-Bold").is_none());
     }
 
     #[test]

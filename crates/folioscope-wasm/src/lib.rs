@@ -3,12 +3,12 @@
 //! WebAssembly bindings: the same decoding and baking as the CLI, for Node (the Vite plugin) and,
 //! later, the browser (the full player).
 
-use folioscope_bake::folio::{BakeOptions, bake_fig_into};
+use folioscope_bake::folio::{BakeOptions, bake_file_into};
 use folioscope_bake::fonts::FontLibrary;
 use js_sys::{Array, Map, Object, Reflect, Uint8Array};
 use wasm_bindgen::prelude::*;
 
-/// Bakes a `.fig` file; `avif` lets large, photo-like layers use AVIF; `fonts` maps font file
+/// Bakes a `.fig` or `.sketch` file; `avif` lets large, photo-like layers use AVIF; `fonts` maps font file
 /// names to their bytes, for text the file stores no glyphs for. Returns `{ files, missingFonts }`:
 /// a `Map` from paths inside the `.folio` folder (`index.json`, `poster.webp`, `layers/…`) to
 /// their bytes, and the fonts some text needed and was not given (`Family Style`).
@@ -18,7 +18,6 @@ use wasm_bindgen::prelude::*;
 /// Throws when the file cannot be decoded or a frame cannot be rendered.
 #[wasm_bindgen]
 pub fn bake(input: &[u8], avif: bool, fonts: &Map) -> Result<Object, JsError> {
-    let file = folioscope_core::figma::decode(input)?;
     let mut library = FontLibrary::default();
     let mut font_error = None;
     fonts.for_each(&mut |bytes, name| {
@@ -36,7 +35,7 @@ pub fn bake(input: &[u8], avif: bool, fonts: &Map) -> Result<Object, JsError> {
         fonts: library,
         ..BakeOptions::default()
     };
-    let report = bake_fig_into(&file, &options, &mut |path, bytes| {
+    let report = bake_file_into(input, &options, &mut |path, bytes| {
         files.set(&path.into(), &Uint8Array::from(bytes).into());
         Ok(())
     })?;
