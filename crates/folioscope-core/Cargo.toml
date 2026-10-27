@@ -13,7 +13,7 @@ homepage.workspace = true
 authors.workspace = true
 
 [dependencies]
-helpers4 = { workspace = true, features = ["bytes", "hex"] }
+helpers4 = { workspace = true, features = ["bytes", "geometry", "hex"] }
 flate2.workspace = true
 ruzstd.workspace = true
 serde.workspace = true
