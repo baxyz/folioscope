@@ -42,7 +42,7 @@ jobs:
       - run: rustup show active-toolchain || rustup toolchain install
       - uses: taiki-e/install-action@v2
         with: { tool: "wasm-bindgen@0.2.129" }
-      - uses: helpers4/action-release@v0
+      - uses: helpers4/action-release@v0.1.3
         with:
           mode: build
           bump: ${{ inputs.bump }}
@@ -63,7 +63,7 @@ jobs:
     steps:
       - uses: actions/setup-node@v6
         with: { node-version: lts/* }
-      - uses: helpers4/action-release@v0
+      - uses: helpers4/action-release@v0.1.3
         with:
           mode: publish
           bump: ${{ inputs.bump }}
