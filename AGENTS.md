@@ -113,7 +113,7 @@ Releases go through [`helpers4/action-release`](https://github.com/helpers4/acti
 - writes it in `packages/folioscope/package.json` and adds the section of the version to
   `CHANGELOG.md`;
 - builds the WebAssembly bake and the player, dry-runs `npm publish`, `jsr publish` and `cargo publish`
-  (the three crates together);
+  (the `folioscope` crate);
 - pushes a signed release commit `chore(release): 🔖 vX.Y.Z` to `main` (by `helpers4-bot`, the
   bypass actor of the ruleset), tags it, publishes to npm, JSR and crates.io with trusted publishing (OIDC) and
   publishes the GitHub release.
@@ -146,13 +146,13 @@ What this means when you work here:
   `folioscope` package checks both. Change them only together with the setting on npmjs.com.
 - Every preflight message links to
   [the action's troubleshooting page](https://github.com/helpers4/action-release/blob/main/docs/troubleshooting.md).
-- crates.io gets `folioscope-core`, `folioscope-bake` and `folioscope` (the CLI) with the version of
-  the release, in one `cargo publish`, in dependency order (`- crates: .` in `release.yml`);
+- crates.io gets **one crate**, `folioscope` (the CLI and the library, ADR 0013), with the version of
+  the release (`- crates: .` in `release.yml` publishes the one publishable crate of the workspace);
   `folioscope-wasm` (`publish = false`) ships in the npm package only. The release writes the version
-  in `[workspace.package]` and in the `version` of the path dependencies of `[workspace.dependencies]`,
+  in `[workspace.package]` and in the `version` of the path dependency of `[workspace.dependencies]`,
   and refreshes `Cargo.lock`. crates.io accepts a trusted publisher only for a crate that exists: the
-  first version (`0.0.0`) of each crate was published by hand, then each crate's trusted publisher
-  names this repository, `release.yml` and the `npm` environment.
+  first version (`0.0.0`) was published by hand, then the crate's trusted publisher names this
+  repository, `release.yml` and the `npm` environment.
 
 The pnpm version is pinned once, in the `packageManager` field of `package.json`. The workflows
 (`pnpm/action-setup` refuses a `version` that differs from it) and Cloudflare Workers Builds read
