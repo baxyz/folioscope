@@ -13,14 +13,8 @@
     "vite-plus": "catalog:",
     "wrangler": "4.151.3"
   },
-  "devEngines": {
-    "packageManager": {
-      "name": "pnpm",
-      "version": "11.8.0",
-      "onFail": "download"
-    }
-  },
   "engines": {
-    "node": ">=22.18.0"
+    "node": ">=22.18.0",
+    "pnpm": ">=11"
   }
 }
