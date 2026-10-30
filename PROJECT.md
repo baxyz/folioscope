@@ -617,7 +617,7 @@ The "works right away" path with no build step, and the fallback for dynamic lay
       `folioscope:font-missing` is already sent.
 - [ ] Dynamic layers of a `.folio` (variables, conditions) rendered on the fly.
 - [ ] Publish `folioscope-core`, `folioscope-bake` and `folioscope` (the CLI, `cargo install
-      folioscope`) to crates.io, with `helpers4/action-release` once it publishes crates (trusted
+      folioscope`) to crates.io, with `helpers4/action-release` (`crates: .`; trusted
       publishing, no token); `folioscope-wasm` ships in the npm package only.
 
 ### v1.0
