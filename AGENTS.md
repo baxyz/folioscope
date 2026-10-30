@@ -129,6 +129,8 @@ What this means when you work here:
 - JSR (`@baxyz/folioscope`) publishes the sources from `packages/folioscope/jsr.json` (its `exports`
   point at `src/player.ts`, not `src/index.ts`: JSR rejects the `declare global` of the tag typing,
   which only the npm entry carries). Its version is written by the release like `package.json`'s.
+  `player.ts` also defines the element, so it is listed in `sideEffects` in `package.json`: without
+  it the bundler drops the `customElements.define` and the player never registers.
 - `release.yml` must keep its file name and the `npm` environment: the npm trusted publisher of the
   `folioscope` package checks both. Change them only together with the setting on npmjs.com.
 - Every preflight message links to
