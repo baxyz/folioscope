@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.0.7] - 2026-10-30
+
+### Bug fixes
+
+- **build**: 🐛 keep the element's registration when player.ts holds it
+
 ## [0.0.6] - 2026-10-30
 
 _No notable change._
