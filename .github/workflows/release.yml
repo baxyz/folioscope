@@ -56,3 +56,4 @@ jobs:
             - npm: packages/folioscope
               build: pnpm --filter folioscope build:wasm && pnpm --filter folioscope build
             - jsr: packages/folioscope
+            - crates: .
