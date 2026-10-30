@@ -8,7 +8,7 @@ The project plan is [PROJECT.md](PROJECT.md), a temporary document. Work one roa
 session, using its § 8 as the task list, and delete from `PROJECT.md` whatever each PR completes or
 moves to a permanent home (see "The project plan" in [AGENTS.md](AGENTS.md)).
 
-Releases: never bump `version`, edit a changelog or push a `v*` tag by hand. The **Release**
-workflow (`helpers4/action-release`) computes the version, tags a release commit that is on no
-branch, and publishes; see "Releasing" in [AGENTS.md](AGENTS.md). Running it with `dry-run: false`
+Releases: never bump `version`, edit a released changelog section or push a `v*` tag by hand. The **Release**
+workflow (`helpers4/action-release`) computes the version, pushes the release commit to `main`,
+tags it, and publishes; see "Releasing" in [AGENTS.md](AGENTS.md). Running it with `dry-run: false`
 publishes to npm for real and a version can never be reused: do it only when the owner asks.
