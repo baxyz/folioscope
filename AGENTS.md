@@ -104,29 +104,28 @@ cargo run -p folioscope -- render <file.fig> <node-id> <out.png> [scale]
 
 Releases go through [`helpers4/action-release`](https://github.com/helpers4/action-release): run the
 **Release** workflow from the Actions tab (`bump`: `auto`, `patch`, `minor`, `major`, `alpha`,
-`beta`, `rc`, or `resume`; tick `dry-run` to stop before the tag). `release.yml` runs the checks of
-`ci.yml`, then the action:
+`beta`, `rc`, or `resume`; tick `dry-run` to build and dry-run without writing anything).
+`release.yml` runs the checks of `ci.yml`, then the action (its inputs list the package and its build):
 
 - computes the version from the last `v*` tag and the Conventional Commits (`auto`; before 1.0.0 a
   `feat` is a patch and a breaking change a minor);
-- builds the WebAssembly bake and the player, packs one tarball, dry-runs `npm publish`;
-- creates a signed release commit **on no branch** (parent: the tested `main` commit; it only
-  changes the package version and `CHANGELOG.md`), tags it `vX.Y.Z`, publishes the same tarball
-  through npm trusted publishing (OIDC, provenance) and creates the GitHub release.
+- writes it in `packages/folioscope/package.json` and adds the section of the version to
+  `CHANGELOG.md`;
+- builds the WebAssembly bake and the player, dry-runs `npm publish`;
+- pushes a signed release commit `chore(release): 🔖 vX.Y.Z` to `main` (by `helpers4-bot`, the
+  bypass actor of the ruleset), tags it, publishes through npm trusted publishing (OIDC) and
+  publishes the GitHub release.
 
 What this means when you work here:
 
-- **Never bump `version`, edit `CHANGELOG.md` or push a `v*` tag by hand.** `main` keeps the
-  placeholder `0.0.0-development` in `packages/folioscope/package.json`; the real version exists in
-  the tag only (`git fetch --tags && git checkout v0.1.0`, or `npm view folioscope`). `main` has no `CHANGELOG.md`: the
-  changelog is generated from the commits into the release commit and the GitHub release notes, so
-  write Conventional Commits that read well there.
-- A release never writes to `main`, so branch protection does not apply and there is no release PR.
-  The release commit is on no branch, so a plain `git fetch` does not download its tag: use
-  `git fetch --tags` (or `git fetch origin tag vX.Y.Z`) before `git describe`, `git show` or
-  `git checkout vX.Y.Z`.
-- If a registry step fails after the tag exists, the release stays a draft: fix the cause and run
-  **Release** again with `bump: resume`. Never delete the tag.
+- **Never bump `version` or push a `v*` tag by hand.** In `CHANGELOG.md`, write only under
+  `## [Unreleased]`: a human summary there becomes the top of the next version's section and of
+  its release notes, above the list generated from the commits. So write Conventional Commits that
+  read well there.
+- Tags v0.0.3 and v0.0.4 were made by the previous design, on release commits that are on no branch:
+  `git fetch --tags` to see them. Later tags are on `main`.
+- If a registry step fails after the tag exists, fix the cause and _Re-run failed jobs_ (or run
+  **Release** with `bump: resume`). Never delete the tag.
 - `release.yml` must keep its file name and the `npm` environment: the npm trusted publisher of the
   `folioscope` package checks both. Change them only together with the setting on npmjs.com.
 - Every preflight message links to
