@@ -126,11 +126,20 @@ What this means when you work here:
   `git fetch --tags` to see them. Later tags are on `main`.
 - If a registry step fails after the tag exists, fix the cause and _Re-run failed jobs_ (or run
   **Release** with `bump: resume`). Never delete the tag.
-- JSR (`@baxyz/folioscope`) publishes the sources from `packages/folioscope/jsr.json` (its `exports`
-  point at `src/player.ts`, not `src/index.ts`: JSR rejects the `declare global` of the tag typing,
-  which only the npm entry carries). Its version is written by the release like `package.json`'s.
-  `player.ts` also defines the element, so it is listed in `sideEffects` in `package.json`: without
-  it the bundler drops the `customElements.define` and the player never registers.
+- JSR (`@baxyz/folioscope`) publishes **the player's sources only**, from
+  `packages/folioscope/jsr.json`: the lite player (`.`, `src/player.ts`), to play a baked
+  `.folio`. Not the Vite plugin, the in-browser bake or the WebAssembly (`wasm/`, 6 MB): they stay
+  in the npm package. Two reasons: JSR's maximum file size is documented as 4 MB on one page and 20 MB
+  on another, and a JSR publish that fails after the tag cannot be fixed (a published version is
+  never replaced), so the release stays on what a dry run proves; and the full player's worker
+  (`worker.mjs`) only exists in `dist/`. To add an entry later, check the size limit first (a test
+  publish, or quotas@jsr.io), add the file to `exports`, and the `build:wasm` step to the `jsr`
+  target in `release.yml`.
+- `.` points at `src/player.ts`, not `src/index.ts`: JSR rejects the `declare global` of the tag
+  typing, which only the npm entry carries. `player.ts` also defines the element, so it is listed in
+  `sideEffects` in `package.json`: without it the bundler drops the `customElements.define` and the
+  player never registers. The version is written by the release like `package.json`'s; CI runs
+  `jsr publish --dry-run` on every change.
 - `release.yml` must keep its file name and the `npm` environment: the npm trusted publisher of the
   `folioscope` package checks both. Change them only together with the setting on npmjs.com.
 - Every preflight message links to

@@ -3,18 +3,14 @@
   "version": "0.0.6",
   "license": "AGPL-3.0-or-later",
   "exports": {
-    ".": "./src/player.ts",
-    "./full": "./src/full/index.ts",
-    "./full/worker": "./src/full/worker.ts",
-    "./vite": "./src/vite/index.ts"
+    ".": "./src/player.ts"
   },
   "imports": {
     "helpers4/": "npm:/helpers4@^3.1.9/",
-    "thumbhash": "npm:thumbhash@0.1.1",
-    "vite": "npm:vite@>=6"
+    "thumbhash": "npm:thumbhash@0.1.1"
   },
   "publish": {
-    "include": ["src", "wasm", "README.md"],
-    "exclude": ["!wasm", "src/index.ts"]
+    "include": ["src", "README.md"],
+    "exclude": ["src/index.ts", "src/vite", "src/full/worker.ts"]
   }
 }
