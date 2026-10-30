@@ -27,6 +27,11 @@ jobs:
       - run: pnpm exec vp check
       - run: pnpm exec vp run -r test
       - run: pnpm exec vp run -r build
+      # The JSR package is the player's sources: a release publishes them, and a rejected one cannot
+      # be fixed afterwards (a published version is never replaced).
+      - name: JSR package publishes (dry run)
+        working-directory: packages/folioscope
+        run: pnpm dlx jsr@0.14.3 publish --dry-run --allow-dirty
       - name: Lite player budget (15 KB of JS, gzipped)
         run: |
           size=$(gzip -9 -c packages/folioscope/dist/index.mjs | wc -c)

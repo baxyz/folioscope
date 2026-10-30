@@ -41,6 +41,14 @@ Attributes: `src`, `poster`, `preload`, `flow`, `page`, `fit`, `hotspots`, `cont
 `back()`, `goTo(frameId)`. Events: `folioscope:load`, `folioscope:navigate`, `folioscope:error`.
 Details on [folioscope.baxyz.dev](https://folioscope.baxyz.dev).
 
+## On JSR
+
+`@baxyz/folioscope` on [JSR](https://jsr.io) is the player only: it plays a baked `.folio` folder
+(`<folioscope-player src="/app.folio">`). The Vite plugin (`folioscope/vite`) and the full player,
+which bakes a raw `.fig`, `.sketch` or `.penpot` file in the browser, are in the npm package, with
+the WebAssembly they need. JSR packages cannot augment global types, so the tag has no
+`HTMLElementTagNameMap` typing there.
+
 ## License
 
 [AGPL-3.0-or-later](https://github.com/baxyz/folioscope/blob/main/LICENSE). The design files you
