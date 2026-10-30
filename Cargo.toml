@@ -13,8 +13,7 @@ authors = ["baxyz <berenger@arnaud.work>"]
 
 [workspace.dependencies]
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
-folioscope-bake = { path = "crates/folioscope-bake", version = "0.0.0" }
-folioscope-core = { path = "crates/folioscope-core", version = "0.0.0" }
+folioscope = { path = "crates/folioscope", version = "0.0.0" }
 folioscope-wasm = { path = "crates/folioscope-wasm", version = "0.0.0" }
 helpers4 = { version = "0.0.9", default-features = false }
 image-webp = "0.2"

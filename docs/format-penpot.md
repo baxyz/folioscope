@@ -49,7 +49,7 @@ overlays, back, URL, and dissolve, slide and push transitions.
 
 ## Rendering
 
-`folioscope-bake`'s `penpot` module draws a board from its shapes, in page coordinates, moved to
+`folioscope::bake::penpot` draws a board from its shapes, in page coordinates, moved to
 the board's top-left corner:
 
 - `transform` (`{ a, b, c, d, e, f }`, rotation and flips) applies around the shape's centre

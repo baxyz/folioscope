@@ -12,14 +12,14 @@
 use std::collections::{BTreeSet, HashMap};
 use std::fmt::Write as _;
 
-use folioscope_core::ir::{self, Rect};
-use folioscope_core::penpot::{PenpotFile, PenpotPage};
+use crate::ir::{self, Rect};
+use crate::penpot::{PenpotFile, PenpotPage};
 use serde_json::Value;
 
-use crate::draw::Draw;
-use crate::folio::BakeError;
-use crate::svg::mime;
-use crate::text::{Align, Paragraph, Typesetter};
+use crate::bake::draw::Draw;
+use crate::bake::folio::BakeError;
+use crate::bake::svg::mime;
+use crate::bake::text::{Align, Paragraph, Typesetter};
 
 /// Draws the boards of a decoded `.penpot`.
 pub struct PenpotDraw<'f> {

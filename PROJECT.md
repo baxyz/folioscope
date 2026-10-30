@@ -92,7 +92,7 @@ building blocks above provides it.
 
 ```
                       PRE-RENDER (CLI or Vite plugin, once, no time limit)
- .fig / .sketch / .xd / .penpot ──► folioscope-core ──► IR ──► layer split ──► render ──► app.folio/
+ .fig / .sketch / .xd / .penpot ──► folioscope ──► IR ──► layer split ──► render ──► app.folio/
                                      (native Rust)          + component states   (Skia)    index.json + layers
 
                       BROWSER
@@ -111,7 +111,7 @@ Full player in detail:
  .fig  ───► │  FIG importer      ─┐                         │
             │  (Kiwi + zstd)      │                         │
  .sketch ─► │  SKETCH importer   ─┤                         │
-            │  (ZIP + JSON)       ├─► Intermediate model    │  folioscope-core
+            │  (ZIP + JSON)       ├─► Intermediate model    │  folioscope
  .xd   ───► │  XD importer       ─┤   ("prototype" IR)      │  (Rust → WASM)
             │  (ZIP + AGC JSON)   │                         │
  .penpot ─► │  PENPOT importer   ─┘                         │
@@ -498,10 +498,9 @@ Suggested order: `geometry` and `binary` first (phase 0), then `fsm` and `dom` (
 ```
 folioscope/
 ├─ crates/
-│  ├─ folioscope-core/        # IR, importers (figma, sketch, xd, penpot), instance resolution (Rust lib)
-│  ├─ folioscope-bake/        # layer split, state enumeration, native rendering, .folio writer
-│  ├─ folioscope-wasm/        # wasm-bindgen bindings to folioscope-core (full player)
-│  └─ folioscope-cli/         # crate `folioscope`: `folioscope bake`, `inspect`, `fonts`
+│  ├─ folioscope/             # the published crate, lib and CLI (ADR 0013): IR, importers (figma, sketch,
+│  │                          #   xd, penpot); `bake/` (feature `bake`): rendering, .folio writer; `main.rs`
+│  └─ folioscope-wasm/        # wasm-bindgen bindings to folioscope, for JavaScript; not published
 ├─ packages/
 │  └─ folioscope/             # npm: folioscope
 │     ├─ src/
@@ -616,9 +615,9 @@ The "works right away" path with no build step, and the fallback for dynamic lay
       `registerFont()`, resolution order, fallback; the full player bakes with them (ADR 0012).
       `folioscope:font-missing` is already sent.
 - [ ] Dynamic layers of a `.folio` (variables, conditions) rendered on the fly.
-- [ ] Publish `folioscope-core`, `folioscope-bake` and `folioscope` (the CLI, `cargo install
-      folioscope`) to crates.io, with `helpers4/action-release` (`crates: .`; trusted
-      publishing, no token); `folioscope-wasm` ships in the npm package only.
+- [ ] Publish the `folioscope` crate (the CLI and the library, `cargo install folioscope`, ADR 0013)
+      to crates.io, with `helpers4/action-release` (`crates: .`; trusted publishing, no token);
+      `folioscope-wasm` ships in the npm package only.
 
 ### v1.0
 
@@ -662,7 +661,7 @@ The "works right away" path with no build step, and the fallback for dynamic lay
 | **npm**             | `folioscope` (ESM, `.d.ts`, `.wasm` included) with three entry points: `folioscope` (lite player, which loads the full one only when needed), `folioscope/full` (full player loaded up front), `folioscope/vite` (plugin) | Published from CI with OIDC and `--provenance`, as for helpers4 |
 | **JSR**             | `@baxyz/folioscope`                                                                                                                                                                                                       | Optional, from the same sources                                 |
 | **CDN**             | jsDelivr and unpkg, automatic from npm                                                                                                                                                                                    | The `dist/folioscope.js` bundle is self-contained               |
-| **crates.io**       | `folioscope-core`, `folioscope-bake`, `folioscope` (CLI)                                                                                                                                                                  | From phase 4                                                    |
+| **crates.io**       | `folioscope` (the CLI and the library)                                                                                                                                                                                    | From phase 4                                                    |
 | **GitHub Releases** | CLI binaries (Linux, macOS, Windows)                                                                                                                                                                                      | Built with cargo-dist or equivalent                             |
 
 - SemVer versioning; version and changelog are generated at release time from the Conventional

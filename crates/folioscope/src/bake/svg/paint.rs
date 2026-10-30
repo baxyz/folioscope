@@ -4,7 +4,7 @@
 
 use std::fmt::Write;
 
-use folioscope_core::kiwi::Value;
+use crate::kiwi::Value;
 use helpers4::geometry::{Matrix, Point};
 
 use super::Ctx;

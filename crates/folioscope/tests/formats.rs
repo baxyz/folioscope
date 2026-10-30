@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use folioscope_core::{Format, detect, summarize};
+use folioscope::{Format, detect, summarize};
 
 fn fixtures() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures")
@@ -48,8 +48,7 @@ fn external_files_decode() {
         let summary = summarize(&bytes).unwrap_or_else(|e| panic!("{}: {e}", path.display()));
         assert!(!summary.pages.is_empty(), "{}", path.display());
         if detect(&bytes) == Some(Format::Fig) {
-            let ir =
-                folioscope_core::figma::ir::to_ir(&folioscope_core::figma::decode(&bytes).unwrap());
+            let ir = folioscope::figma::ir::to_ir(&folioscope::figma::decode(&bytes).unwrap());
             assert!(!ir.pages.is_empty(), "{}", path.display());
         }
     }

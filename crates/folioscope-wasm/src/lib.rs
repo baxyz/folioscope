@@ -3,8 +3,8 @@
 //! WebAssembly bindings: the same decoding and baking as the CLI, for Node (the Vite plugin) and,
 //! later, the browser (the full player).
 
-use folioscope_bake::folio::{BakeOptions, bake_file_into};
-use folioscope_bake::fonts::FontLibrary;
+use folioscope::bake::folio::{BakeOptions, bake_file_into};
+use folioscope::bake::fonts::FontLibrary;
 use js_sys::{Array, Map, Object, Reflect, Uint8Array};
 use wasm_bindgen::prelude::*;
 
@@ -62,5 +62,5 @@ pub fn bake(
 /// Throws on an unknown format or a file that cannot be decoded.
 #[wasm_bindgen]
 pub fn inspect(input: &[u8]) -> Result<String, JsError> {
-    Ok(folioscope_core::summarize(input)?.to_string())
+    Ok(folioscope::summarize(input)?.to_string())
 }

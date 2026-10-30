@@ -38,7 +38,7 @@ With both, `runtime.ts` can drop its own history array.
 A decoder for [Kiwi](https://github.com/evanw/kiwi), Evan Wallace's schema-based binary format
 (used by `.fig` files, but generic): read a binary schema, then decode a message against it into a
 dynamic value (objects, arrays, enums by name, the usual scalars), with precise errors on truncated
-or invalid data. Folioscope's is in `crates/folioscope-core/src/kiwi/` (about 400 lines, on
+or invalid data. Folioscope's is in `crates/folioscope/src/kiwi/` (about 400 lines, on
 `bytes::ByteReader`), with Kiwi's own 64-bit varints and floats. The `kiwi-schema` crate exists;
 check whether it decodes dynamically before taking ours.
 
@@ -50,7 +50,7 @@ let value = schema.decode(message_bytes, "Message")?; // kiwi::Value, with get(n
 ## 3. `font` — Rust, P2 (TS delivered: `pickClosest`, `browser.loadFont`)
 
 The Rust counterpart of `helpers4/font`, for the bake (Folioscope's
-`crates/folioscope-bake/src/fonts.rs`):
+`crates/folioscope/src/bake/fonts.rs`):
 
 - `pick_closest(faces, request)`: CSS font matching, the style first, then the closest weight, a
   variable face covering a weight range;

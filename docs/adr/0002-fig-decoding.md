@@ -6,12 +6,12 @@
 
 ## Context
 
-`.fig` files can be decoded in Rust (`folioscope-core`, shared by the CLI and the WASM full player)
+`.fig` files can be decoded in Rust (the `folioscope` crate, shared by the CLI and the WASM full player)
 or in JS with `openfig-core` (MIT), which already parses them.
 
 ## Decision
 
-Decode `.fig` **in Rust**, in `folioscope-core`:
+Decode `.fig` **in Rust**, in the `folioscope` crate:
 
 - `kiwi`: a generic Kiwi decoder driven by the schema embedded in each file, so new Figma fields
   never require a code change;

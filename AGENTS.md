@@ -41,28 +41,29 @@ Credit reference projects and Apache-2.0 dependencies in `NOTICE` when they are 
 
 Defined in `scopes.json`:
 
-| Scope                                       | Covers                                                                    |
-| ------------------------------------------- | ------------------------------------------------------------------------- |
-| `core`                                      | `crates/folioscope-core`: IR, importers, instance resolution              |
-| `bake`                                      | `crates/folioscope-bake`: layer split, state enumeration, `.folio` writer |
-| `wasm`                                      | `crates/folioscope-wasm`: wasm-bindgen bindings                           |
-| `cli`                                       | `crates/folioscope-cli` (crate `folioscope`): `bake`, `inspect`, `fonts`  |
-| `player`                                    | `packages/folioscope`: custom elements, runtime, lite and full players    |
-| `vite`                                      | `folioscope/vite` plugin                                                  |
-| `site`                                      | `apps/site`: VitePress site on folioscope.baxyz.dev                       |
-| `playground`                                | `apps/playground`                                                         |
-| `fixtures`                                  | `fixtures/`                                                               |
-| `build`, `test`, `docs`, `deps`, `ci`, `ai` | As usual                                                                  |
+| Scope                                       | Covers                                                                   |
+| ------------------------------------------- | ------------------------------------------------------------------------ |
+| `core`                                      | `crates/folioscope/src`, but `bake/`: IR, importers, instance resolution |
+| `bake`                                      | `crates/folioscope/src/bake`: rendering, fonts, the `.folio` writer      |
+| `wasm`                                      | `crates/folioscope-wasm`: wasm-bindgen bindings                          |
+| `cli`                                       | `crates/folioscope/src/main.rs`: `bake`, `inspect`, `fonts`, `render`    |
+| `player`                                    | `packages/folioscope`: custom elements, runtime, lite and full players   |
+| `vite`                                      | `folioscope/vite` plugin                                                 |
+| `site`                                      | `apps/site`: VitePress site on folioscope.baxyz.dev                      |
+| `playground`                                | `apps/playground`                                                        |
+| `fixtures`                                  | `fixtures/`                                                              |
+| `build`, `test`, `docs`, `deps`, `ci`, `ai` | As usual                                                                 |
 
 ## Structure
 
 ```text
 folioscope/
   crates/
-    folioscope-core/   ← importers (figma, sketch, xd, penpot), format detection, IR v1, summary
-    folioscope-bake/   ← rendering (SVG, then PNG with resvg) and the .folio writer
-    folioscope-wasm/   ← the bake for JavaScript (folioscope/vite, later the full player)
-    folioscope-cli/    ← crate and binary `folioscope`: inspect, render, bake, fonts
+    folioscope/        ← the one published crate (ADR 0013), library and binary `folioscope`:
+                         importers (figma, sketch, xd, penpot), format detection, IR v1, summary;
+                         `bake/` (feature `bake`, on by default): rendering and the .folio writer;
+                         `main.rs`: inspect, render, bake, fonts
+    folioscope-wasm/   ← the bake for JavaScript (folioscope/vite, the full player); not published
   packages/
     folioscope/        ← npm package: <folioscope-player> (src/), folioscope/vite (src/vite/),
                          wasm/ built by `build:wasm`, git-ignored, published
