@@ -147,9 +147,13 @@ What this means when you work here:
 - The Rust crates are not published by this workflow; only the npm package is released, and the
   workspace crates keep version `0.0.0`.
 
-The pnpm version is pinned in three places, to change together: `devEngines` in `package.json`,
-the `pnpm/action-setup` steps of `ci.yml`, and the `PNPM_VERSION` build variable of the
-Cloudflare Worker (production and preview triggers).
+The pnpm version is pinned once, in the `packageManager` field of `package.json`. The workflows
+(`pnpm/action-setup` refuses a `version` that differs from it) and Cloudflare Workers Builds read
+it: that build starts with pnpm 10, which cannot read this repository's lockfile, and `packageManager`
+makes it switch to the pinned version by itself, so the Worker needs no `PNPM_VERSION` build
+variable. `engines.pnpm` only says what the repository needs. Do not use `devEngines` instead: npm
+refuses to run in a repository whose `devEngines` names another package manager, and the release
+runs `npx`.
 
 ## Rules
 
