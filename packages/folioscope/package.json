@@ -28,7 +28,8 @@
   ],
   "type": "module",
   "sideEffects": [
-    "./dist/index.mjs"
+    "./dist/index.mjs",
+    "./src/player.ts"
   ],
   "exports": {
     ".": "./dist/index.mjs",
