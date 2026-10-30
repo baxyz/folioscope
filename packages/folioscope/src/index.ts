@@ -1,13 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { FolioscopePlayer, TAG_NAME } from "./element.ts";
+// The entry of the npm package: the player, plus the typing of its tag. JSR does not accept global
+// augmentations, so jsr.json points at player.ts instead.
+import type { FolioscopePlayer } from "./player.ts";
 
-export { FolioscopePlayer, TAG_NAME };
-export { Runtime, type Step } from "./runtime.ts";
-export type * from "./folio.ts";
-
-if (typeof customElements !== "undefined" && !customElements.get(TAG_NAME)) {
-  customElements.define(TAG_NAME, FolioscopePlayer);
-}
+export * from "./player.ts";
 
 declare global {
   interface HTMLElementTagNameMap {

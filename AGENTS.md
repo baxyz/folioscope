@@ -111,9 +111,9 @@ Releases go through [`helpers4/action-release`](https://github.com/helpers4/acti
   `feat` is a patch and a breaking change a minor);
 - writes it in `packages/folioscope/package.json` and adds the section of the version to
   `CHANGELOG.md`;
-- builds the WebAssembly bake and the player, dry-runs `npm publish`;
+- builds the WebAssembly bake and the player, dry-runs `npm publish` and `jsr publish`;
 - pushes a signed release commit `chore(release): 🔖 vX.Y.Z` to `main` (by `helpers4-bot`, the
-  bypass actor of the ruleset), tags it, publishes through npm trusted publishing (OIDC) and
+  bypass actor of the ruleset), tags it, publishes to npm and JSR with trusted publishing (OIDC) and
   publishes the GitHub release.
 
 What this means when you work here:
@@ -126,6 +126,9 @@ What this means when you work here:
   `git fetch --tags` to see them. Later tags are on `main`.
 - If a registry step fails after the tag exists, fix the cause and _Re-run failed jobs_ (or run
   **Release** with `bump: resume`). Never delete the tag.
+- JSR (`@baxyz/folioscope`) publishes the sources from `packages/folioscope/jsr.json` (its `exports`
+  point at `src/player.ts`, not `src/index.ts`: JSR rejects the `declare global` of the tag typing,
+  which only the npm entry carries). Its version is written by the release like `package.json`'s.
 - `release.yml` must keep its file name and the `npm` environment: the npm trusted publisher of the
   `folioscope` package checks both. Change them only together with the setting on npmjs.com.
 - Every preflight message links to
