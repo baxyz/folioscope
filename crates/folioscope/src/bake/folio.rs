@@ -8,21 +8,21 @@ use std::collections::{BTreeSet, HashSet};
 use std::fmt::Write as _;
 use std::path::Path;
 
-use folioscope_core::Format;
-use folioscope_core::figma::{FigFile, ir::to_ir, tree::Tree};
-use folioscope_core::ir::{self, Document, Flow, Rect};
-use folioscope_core::penpot::{PenpotFile, ir::to_ir as penpot_ir};
-use folioscope_core::sketch::{SketchFile, ir::to_ir as sketch_ir};
+use crate::Format;
+use crate::figma::{FigFile, ir::to_ir, tree::Tree};
+use crate::ir::{self, Document, Flow, Rect};
+use crate::penpot::{PenpotFile, ir::to_ir as penpot_ir};
+use crate::sketch::{SketchFile, ir::to_ir as sketch_ir};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
-use crate::draw::{Draw, FigmaDraw};
-use crate::fonts::FontLibrary;
-use crate::image::{ImageFormat, encode, encode_best};
-use crate::penpot::PenpotDraw;
-use crate::sketch::SketchDraw;
-use crate::text::Typesetter;
-use crate::{RenderError, render_pixmap};
+use crate::bake::draw::{Draw, FigmaDraw};
+use crate::bake::fonts::FontLibrary;
+use crate::bake::image::{ImageFormat, encode, encode_best};
+use crate::bake::penpot::PenpotDraw;
+use crate::bake::sketch::SketchDraw;
+use crate::bake::text::Typesetter;
+use crate::bake::{RenderError, render_pixmap};
 
 /// Version of the `.folio` layout, independent of the IR's.
 pub const FOLIO_VERSION: u32 = 1;
@@ -383,17 +383,17 @@ pub fn bake_file_into(
     sink: &mut Sink<'_>,
 ) -> Result<BakeReport, BakeError> {
     let error = |e: &dyn std::fmt::Display| BakeError::Decode(e.to_string());
-    match folioscope_core::detect(bytes) {
+    match crate::detect(bytes) {
         Some(Format::Fig) => {
-            let file = folioscope_core::figma::decode(bytes).map_err(|e| error(&e))?;
+            let file = crate::figma::decode(bytes).map_err(|e| error(&e))?;
             bake_fig_into(&file, options, sink)
         }
         Some(Format::Sketch) => {
-            let file = folioscope_core::sketch::decode(bytes).map_err(|e| error(&e))?;
+            let file = crate::sketch::decode(bytes).map_err(|e| error(&e))?;
             bake_sketch_into(&file, options, sink)
         }
         Some(Format::Penpot) => {
-            let file = folioscope_core::penpot::decode(bytes).map_err(|e| error(&e))?;
+            let file = crate::penpot::decode(bytes).map_err(|e| error(&e))?;
             bake_penpot_into(&file, options, sink)
         }
         Some(format) => Err(BakeError::Decode(format!(
@@ -445,7 +445,7 @@ pub fn bake_into(
                 frame: frame.id.clone(),
                 source,
             };
-            let placeholder = crate::placeholder(&whole).map_err(render_error)?;
+            let placeholder = crate::bake::placeholder(&whole).map_err(render_error)?;
             let mut layers = Vec::new();
             for (markup, bounds, scrolls) in draw.layers(frame, &whole)? {
                 let (src, format) = encode_layer(&markup, &densities, options, &mut report, sink)
@@ -498,7 +498,7 @@ pub fn bake_into(
 
     let index = Index {
         folio: FOLIO_VERSION,
-        ir_version: folioscope_core::IR_VERSION,
+        ir_version: crate::IR_VERSION,
         densities: &options.densities,
         source: document.source,
         pages,

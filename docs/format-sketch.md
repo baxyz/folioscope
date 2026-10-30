@@ -52,7 +52,7 @@ Everything above maps onto the IR as a subset of Figma's model: a click trigger,
 
 ## Rendering
 
-`folioscope-bake`'s `sketch` module draws artboards from these layers:
+`folioscope::bake::sketch` draws artboards from these layers:
 
 - `group` and nested `artboard`: their layers, at their `frame` position, rotated
   counter-clockwise (`rotation`, in degrees) and flipped (`isFlippedHorizontal`, `isFlippedVertical`)

@@ -10,15 +10,15 @@
 use std::collections::{BTreeSet, HashMap};
 use std::fmt::Write as _;
 
-use folioscope_core::ir::{self, Rect};
-use folioscope_core::sketch::SketchFile;
+use crate::ir::{self, Rect};
+use crate::sketch::SketchFile;
 use serde_json::Value;
 
-use crate::draw::Draw;
-use crate::folio::BakeError;
-use crate::fonts::weight_of_style;
-use crate::svg::mime;
-use crate::text::{Align, Paragraph, Typesetter};
+use crate::bake::draw::Draw;
+use crate::bake::folio::BakeError;
+use crate::bake::fonts::weight_of_style;
+use crate::bake::svg::mime;
+use crate::bake::text::{Align, Paragraph, Typesetter};
 
 /// Draws the artboards of a decoded `.sketch`.
 pub struct SketchDraw<'f> {

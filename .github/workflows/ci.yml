@@ -49,6 +49,8 @@ jobs:
           tool: cargo-nextest,cargo-deny
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
+      # Without the renderer: the crate that only reads files (ADR 0013).
+      - run: cargo clippy -p folioscope --no-default-features --all-targets -- -D warnings
       - run: cargo nextest run --workspace --no-tests=pass
       - run: cargo deny check
 

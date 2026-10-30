@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-use folioscope_bake::folio::{BakeOptions, bake_fig};
-use folioscope_core::figma::decode;
+use folioscope::bake::folio::{BakeOptions, bake_fig};
+use folioscope::figma::decode;
 
 #[test]
 fn navigation_bakes_to_a_folio_folder() {
@@ -18,7 +18,7 @@ fn navigation_bakes_to_a_folio_folder() {
     let index: serde_json::Value =
         serde_json::from_slice(&std::fs::read(out.join("index.json")).unwrap()).unwrap();
     assert_eq!(index["folio"], 1);
-    assert_eq!(index["irVersion"], folioscope_core::IR_VERSION);
+    assert_eq!(index["irVersion"], folioscope::IR_VERSION);
     let home = &index["pages"][0]["frames"][0];
     assert_eq!(home["name"], "Home");
     let layer = home["layers"][0]["src"].as_str().unwrap();

@@ -1,0 +1,68 @@
+[package]
+name = "folioscope"
+description = "Reads interactive .fig, .sketch and .penpot prototypes and bakes them into .folio folders for the Folioscope player; the folioscope command-line tool"
+keywords = ["prototype", "design", "mockup", "player", "cli"]
+categories = ["command-line-utilities", "parser-implementations", "multimedia::images"]
+readme = "README.md"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+
+[features]
+default = ["bake"]
+# Rendering and the .folio writer, with the command-line tool: SVG, rasterizing, WebP and AVIF,
+# text layout. Without it, the crate only reads files and converts them to the IR.
+bake = [
+  "dep:image-webp",
+  "dep:parley",
+  "dep:ravif",
+  "dep:resvg",
+  "dep:sha2",
+  "dep:skrifa",
+  "dep:thumbhash",
+  "dep:wuff",
+]
+
+[[bin]]
+name = "folioscope"
+path = "src/main.rs"
+required-features = ["bake"]
+
+[[test]]
+name = "bake"
+required-features = ["bake"]
+
+[[test]]
+name = "render"
+required-features = ["bake"]
+
+[dependencies]
+helpers4 = { workspace = true, features = ["bytes", "geometry", "hex"] }
+flate2.workspace = true
+ruzstd.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+zip.workspace = true
+# Behind the `bake` feature.
+image-webp = { workspace = true, optional = true }
+parley = { workspace = true, optional = true }
+ravif = { workspace = true, optional = true }
+resvg = { workspace = true, optional = true }
+sha2 = { workspace = true, optional = true }
+skrifa = { workspace = true, optional = true }
+thumbhash = { workspace = true, optional = true }
+wuff = { workspace = true, optional = true }
+
+[dev-dependencies]
+insta.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+
+[lints]
+workspace = true

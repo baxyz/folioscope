@@ -49,7 +49,7 @@ Alternatives looked at (not spiked yet):
 
 ## Spike C results
 
-`folioscope render <file.fig> <node-id> <out.png>` (crate `folioscope-bake`), on our fixture and on
+`folioscope render <file.fig> <node-id> <out.png>` (crate `folioscope`), on our fixture and on
 a real community file, compared with refig:
 
 - **Shapes need no geometry code**: Figma stores each node's outline (`fillGeometry`,

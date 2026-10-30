@@ -5,7 +5,7 @@
 use resvg::tiny_skia::Pixmap;
 use serde::Serialize;
 
-use crate::RenderError;
+use crate::bake::RenderError;
 
 /// Below this size, lossless WebP is kept without trying AVIF: flat UI screens compress well
 /// losslessly, and AVIF costs about a second per large layer.

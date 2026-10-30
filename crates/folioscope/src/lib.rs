@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Importers and intermediate model (IR) for interactive `.fig`, `.sketch`, `.xd` and `.penpot`
-//! prototypes. See `PROJECT.md` at the repository root.
+#![doc = include_str!("../README.md")]
 
+#[cfg(feature = "bake")]
+pub mod bake;
 pub mod figma;
 pub mod ir;
 pub mod kiwi;

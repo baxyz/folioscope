@@ -4,9 +4,9 @@ use std::io::Write;
 use std::path::Path;
 use std::process::ExitCode;
 
-use folioscope_bake::fonts::FontLibrary;
+use folioscope::bake::fonts::FontLibrary;
 
-use folioscope_core::figma::{self, tree::Tree};
+use folioscope::figma::{self, tree::Tree};
 
 const USAGE: &str = "usage:
   folioscope inspect <file.fig|.sketch|.xd|.penpot>
@@ -37,7 +37,7 @@ fn main() -> ExitCode {
             println!(
                 "folioscope {} (IR v{})",
                 env!("CARGO_PKG_VERSION"),
-                folioscope_core::IR_VERSION
+                folioscope::IR_VERSION
             );
             Ok(())
         }
@@ -62,7 +62,7 @@ fn load(path: &str) -> Result<figma::FigFile, String> {
 
 fn inspect(path: &str) -> Result<(), String> {
     let bytes = std::fs::read(path).map_err(|e| format!("cannot read {path}: {e}"))?;
-    let summary = folioscope_core::summarize(&bytes).map_err(|e| format!("{path}: {e}"))?;
+    let summary = folioscope::summarize(&bytes).map_err(|e| format!("{path}: {e}"))?;
     // A closed pipe (`| head`) is not an error worth reporting.
     let _ = write!(std::io::stdout(), "{summary}");
     Ok(())
@@ -73,8 +73,8 @@ fn render(path: &str, node: &str, out: &str, scale: &str) -> Result<(), String> 
     let tree = Tree::new(&file);
     let id = node.parse()?;
     let scale: f32 = scale.parse().map_err(|e| format!("scale {scale:?}: {e}"))?;
-    let svg = folioscope_bake::svg::render_node(&tree, id).ok_or(format!("no node {node}"))?;
-    let png = folioscope_bake::rasterize(&svg.markup, scale).map_err(|e| e.to_string())?;
+    let svg = folioscope::bake::svg::render_node(&tree, id).ok_or(format!("no node {node}"))?;
+    let png = folioscope::bake::rasterize(&svg.markup, scale).map_err(|e| e.to_string())?;
     let svg_path = Path::new(out).with_extension("svg");
     std::fs::write(&svg_path, &svg.markup).map_err(|e| format!("{}: {e}", svg_path.display()))?;
     std::fs::write(out, png).map_err(|e| format!("{out}: {e}"))?;
@@ -122,10 +122,10 @@ fn bake(path: &str, out: &str, args: &BakeArgs<'_>) -> Result<(), String> {
         add_fonts(&mut fonts, Path::new(source), Path::new(source))?;
     }
     let started = std::time::Instant::now();
-    let report = folioscope_bake::folio::bake_file(
+    let report = folioscope::bake::folio::bake_file(
         &bytes,
         Path::new(out),
-        &folioscope_bake::folio::BakeOptions {
+        &folioscope::bake::folio::BakeOptions {
             avif: args.avif,
             fonts,
             ..Default::default()

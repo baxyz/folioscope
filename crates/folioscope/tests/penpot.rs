@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-use folioscope_core::penpot::{decode, summarize};
+use folioscope::penpot::{decode, summarize};
 
 fn fixture() -> Vec<u8> {
     let path = format!(
@@ -20,6 +20,6 @@ fn navigation_lists_boards_flows_and_links() {
 #[test]
 fn generated_fixture_converts_to_ir() {
     let file = decode(&fixture()).unwrap();
-    let ir = folioscope_core::penpot::ir::to_ir(&file);
+    let ir = folioscope::penpot::ir::to_ir(&file);
     insta::assert_snapshot!("ir-navigation", serde_json::to_string_pretty(&ir).unwrap());
 }

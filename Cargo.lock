@@ -434,22 +434,14 @@ checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 name = "folioscope"
 version = "0.0.0"
 dependencies = [
- "folioscope-bake",
- "folioscope-core",
- "serde_json",
-]
-
-[[package]]
-name = "folioscope-bake"
-version = "0.0.0"
-dependencies = [
- "folioscope-core",
+ "flate2",
  "helpers4",
  "image-webp",
  "insta",
  "parley",
  "ravif",
  "resvg",
+ "ruzstd",
  "serde",
  "serde_json",
  "sha2",
@@ -457,19 +449,6 @@ dependencies = [
  "thiserror",
  "thumbhash",
  "wuff",
-]
-
-[[package]]
-name = "folioscope-core"
-version = "0.0.0"
-dependencies = [
- "flate2",
- "helpers4",
- "insta",
- "ruzstd",
- "serde",
- "serde_json",
- "thiserror",
  "zip",
 ]
 
@@ -477,8 +456,7 @@ dependencies = [
 name = "folioscope-wasm"
 version = "0.0.0"
 dependencies = [
- "folioscope-bake",
- "folioscope-core",
+ "folioscope",
  "js-sys",
  "wasm-bindgen",
 ]

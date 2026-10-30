@@ -5,13 +5,13 @@
 
 use std::collections::BTreeSet;
 
-use folioscope_core::figma::tree::{NodeId, Tree};
-use folioscope_core::ir::{self, Rect};
-use folioscope_core::kiwi::Value;
+use crate::figma::tree::{NodeId, Tree};
+use crate::ir::{self, Rect};
+use crate::kiwi::Value;
 
-use crate::folio::BakeError;
-use crate::svg;
-use crate::text::Typesetter;
+use crate::bake::folio::BakeError;
+use crate::bake::svg;
+use crate::bake::text::Typesetter;
 
 /// Draws the frames of one design file as SVG.
 pub trait Draw {

@@ -18,7 +18,7 @@ use skrifa::outline::{DrawSettings, OutlinePen};
 use skrifa::raw::types::F2Dot14;
 use skrifa::{FontRef, GlyphId, MetadataProvider};
 
-use crate::fonts::FontLibrary;
+use crate::bake::fonts::FontLibrary;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Align {

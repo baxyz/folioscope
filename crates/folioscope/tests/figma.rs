@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-use folioscope_core::figma::{decode, prototype::summarize};
+use folioscope::figma::{decode, prototype::summarize};
 
 fn fixture(name: &str) -> Vec<u8> {
     let path = format!("{}/../../fixtures/figma/{name}", env!("CARGO_MANIFEST_DIR"));
@@ -42,7 +42,7 @@ fn generated_fixtures_convert_to_ir() {
         "smart-animate",
     ] {
         let file = decode(&fixture(&format!("{name}.fig"))).unwrap();
-        let ir = folioscope_core::figma::ir::to_ir(&file);
+        let ir = folioscope::figma::ir::to_ir(&file);
         insta::assert_snapshot!(
             format!("ir-{name}"),
             serde_json::to_string_pretty(&ir).unwrap()

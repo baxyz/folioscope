@@ -6,7 +6,7 @@
 ## Context
 
 `folioscope/vite` bakes design files while a site builds, inside Node. The bake is Rust
-(`folioscope-bake`). The plugin must work after a plain `npm install`, on Linux, macOS and Windows,
+(`folioscope::bake`). The plugin must work after a plain `npm install`, on Linux, macOS and Windows,
 with no Rust toolchain.
 
 ## Options

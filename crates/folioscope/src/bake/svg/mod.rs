@@ -10,14 +10,14 @@
 use std::collections::BTreeSet;
 use std::fmt::Write;
 
-use folioscope_core::figma::instance::Overrides;
-use folioscope_core::figma::tree::{Node, NodeId, Tree, node_id};
-use folioscope_core::kiwi::Value;
+use crate::figma::instance::Overrides;
+use crate::figma::tree::{Node, NodeId, Tree, node_id};
+use crate::kiwi::Value;
 
 use path::path_commands;
 
-use crate::fonts::weight_of_style;
-use crate::text::{Align, Paragraph, Typesetter};
+use crate::bake::fonts::weight_of_style;
+use crate::bake::text::{Align, Paragraph, Typesetter};
 
 mod paint;
 pub(crate) use paint::mime;
