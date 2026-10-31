@@ -20,6 +20,7 @@ const site = bakeFixtures([
   "smart-animate",
   "sketch/navigation.sketch",
   "penpot/navigation.penpot",
+  "xd/navigation.xd",
 ]);
 // Raw design files for the full player: one alone, one next to its baked .folio.
 mkdirSync(join(site, "raw"));
@@ -265,6 +266,15 @@ try {
   await tab.locator('folioscope-player .frame button[aria-label="Back"]').click();
   await settledOn("Home");
   console.log("✓ penpot: a .penpot prototype plays the same way");
+
+  // And from an .xd file: a slide to the details, a dissolve back.
+  await tab.goto(`${server.origin}/?folio=xd-navigation`);
+  await settledOn("Home");
+  await tab.locator('folioscope-player .frame button[aria-label="Open details"]').click();
+  await settledOn("Details");
+  await tab.locator('folioscope-player .frame button[aria-label="Back"]').click();
+  await settledOn("Home");
+  console.log("✓ xd: an .xd prototype plays the same way");
 
   // A raw .fig next to its .folio plays the .folio; alone, the full player bakes it in a worker.
   const layerSrc = () =>

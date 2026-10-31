@@ -11,7 +11,7 @@ use folioscope::figma::{self, tree::Tree};
 const USAGE: &str = "usage:
   folioscope inspect <file.fig|.sketch|.xd|.penpot>
   folioscope render <file.fig> <node-id> <out.png> [scale]   (also writes <out>.svg)
-  folioscope bake <file.fig|.sketch|.penpot> <out.folio> [--no-avif] [--fonts <file or folder>]...
+  folioscope bake <file.fig|.sketch|.xd|.penpot> <out.folio> [--no-avif] [--fonts <file or folder>]...
   folioscope fonts <folder>   (writes <folder>/folioscope-fonts.json)";
 
 fn main() -> ExitCode {

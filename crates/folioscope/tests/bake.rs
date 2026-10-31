@@ -98,3 +98,39 @@ fn sketch_text_needs_its_fonts() {
         assert_ne!(both, with_inter, "the second text is drawn too");
     }
 }
+
+/// An `.xd` stores no glyphs either: its text is laid out where XD put it, with the fonts given.
+#[test]
+fn xd_text_needs_its_fonts() {
+    use folioscope::bake::folio::bake_file_into;
+    use folioscope::bake::fonts::FontLibrary;
+
+    let root = env!("CARGO_MANIFEST_DIR");
+    let xd = std::fs::read(format!("{root}/../../fixtures/xd/text.xd")).unwrap();
+    let inter = std::fs::read(format!("{root}/../../fixtures/fonts/Inter-Latin.ttf")).unwrap();
+
+    let bake = |fonts: FontLibrary| {
+        let options = BakeOptions {
+            fonts,
+            ..BakeOptions::default()
+        };
+        let mut layer = Vec::new();
+        let report = bake_file_into(&xd, &options, &mut |path, bytes| {
+            if path.ends_with("@1x.webp") {
+                layer = bytes.to_vec();
+            }
+            Ok(())
+        })
+        .unwrap();
+        (report.missing_fonts.into_iter().collect::<Vec<_>>(), layer)
+    };
+
+    let (missing, blank) = bake(FontLibrary::default());
+    assert_eq!(missing, ["Inter Regular"]);
+
+    let mut fonts = FontLibrary::default();
+    fonts.add("Inter-Latin.ttf", &inter).unwrap();
+    let (missing, drawn) = bake(fonts);
+    assert!(missing.is_empty(), "{missing:?}");
+    assert_ne!(drawn, blank, "the text is drawn");
+}

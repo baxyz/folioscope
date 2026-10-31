@@ -18,7 +18,7 @@ struct DeclaredFont {
     hints: FontHints,
 }
 
-/// Bakes a `.fig`, `.sketch` or `.penpot` file; `avif` lets large, photo-like layers use AVIF.
+/// Bakes a `.fig`, `.sketch`, `.xd` or `.penpot` file; `avif` lets large, photo-like layers use AVIF.
 /// `fonts` maps font file names to their bytes, for text the file stores no glyphs for; `hints`
 /// is a JSON array of `{ name, family?, match?, weight?, italic? }` describing some of them.
 /// Returns `{ files, missingFonts }`: a `Map` from paths inside the `.folio` folder (`index.json`,

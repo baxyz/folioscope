@@ -11,6 +11,7 @@ pub mod penpot;
 pub mod sketch;
 pub mod svg;
 pub mod text;
+pub mod xd;
 
 use resvg::{tiny_skia, usvg};
 

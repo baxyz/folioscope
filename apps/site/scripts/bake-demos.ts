@@ -20,6 +20,7 @@ for (const name of [
   "smart-animate",
   "sketch/navigation.sketch",
   "penpot/navigation.penpot",
+  "xd/navigation.xd",
 ]) {
   // `sketch/navigation.sketch` bakes as `sketch-navigation.folio`; bare names are `.fig` files.
   const [file, folio] = name.includes("/")

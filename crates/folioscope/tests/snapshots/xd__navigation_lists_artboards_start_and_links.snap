@@ -1,0 +1,10 @@
+---
+source: crates/folioscope/tests/xd.rs
+expression: summarize(&file).to_string()
+---
+xd interactions v0.24 (manifest v6)
+page "Navigation" (00000000-0000-4000-8000-000000000009)
+  artboard "Home" (00000000-0000-4000-8000-000000000001) 375x812 at 0,0, starts flow ""
+    "Open details" (00000000-0000-4000-8000-000000000004) ON_CLICK -> navigate "Details" (00000000-0000-4000-8000-000000000002) with SLIDE_LEFT 300ms ease-out
+  artboard "Details" (00000000-0000-4000-8000-000000000002) 375x812 at 475,0
+    "Back" (00000000-0000-4000-8000-000000000006) ON_CLICK -> navigate "Home" (00000000-0000-4000-8000-000000000001) with DISSOLVE 300ms ease-out

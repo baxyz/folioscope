@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { FigmaBuilder } from "./figma.ts";
 import { PenpotBuilder } from "./penpot.ts";
 import { SketchBuilder } from "./sketch.ts";
+import { XdBuilder } from "./xd.ts";
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), "../../../fixtures");
 
@@ -339,6 +340,37 @@ function penpotNavigation(): PenpotBuilder {
   return penpot;
 }
 
+/** The `.xd` twin of `navigation`: a slide, and a timed auto-animate back. */
+function xdNavigation(): XdBuilder {
+  const xd = new XdBuilder("Navigation");
+  const home = xd.artboard("Home", { x: 0, y: 0, ...PHONE });
+  const details = xd.artboard("Details", { x: 475, y: 0, ...PHONE }, "#F9FAFB");
+  xd.start(home);
+
+  xd.rect(home, "Header", { x: 0, y: 0, width: 375, height: 96 }, GREY);
+  const open = xd.rect(home, "Open details", { x: 88, y: 640, width: 200, height: 48 }, BLUE, 24);
+  xd.link(open, details, { transition: "slide-left", easing: "ease-out" });
+
+  const back = xd.rect(details, "Back", { x: 16, y: 56, width: 80, height: 32 }, GREY, 8);
+  xd.link(back, home, { transition: "dissolve" });
+  xd.circle(details, "Dot", { x: 150, y: 300, width: 75, height: 75 }, BLUE);
+
+  return xd;
+}
+
+/** Text in Inter, which an `.xd` does not carry: a bake draws nothing without the font. */
+function xdText(): XdBuilder {
+  const xd = new XdBuilder("Text");
+  const home = xd.artboard("Home", { x: 0, y: 0, ...PHONE });
+  xd.start(home);
+  xd.text(home, "Title", { x: 24, y: 96 }, "Hello Inter", {
+    family: "Inter",
+    style: "Regular",
+    size: 32,
+  });
+  return xd;
+}
+
 const fixtures: Record<string, () => { toBytes(): Uint8Array }> = {
   "figma/navigation.fig": navigation,
   "figma/components.fig": components,
@@ -350,6 +382,8 @@ const fixtures: Record<string, () => { toBytes(): Uint8Array }> = {
   "sketch/navigation.sketch": sketchNavigation,
   "sketch/text.sketch": sketchText,
   "penpot/navigation.penpot": penpotNavigation,
+  "xd/navigation.xd": xdNavigation,
+  "xd/text.xd": xdText,
 };
 
 for (const [path, build] of Object.entries(fixtures)) {

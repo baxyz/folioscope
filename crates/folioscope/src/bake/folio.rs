@@ -22,7 +22,9 @@ use crate::bake::image::{ImageFormat, encode, encode_best};
 use crate::bake::penpot::PenpotDraw;
 use crate::bake::sketch::SketchDraw;
 use crate::bake::text::Typesetter;
+use crate::bake::xd::XdDraw;
 use crate::bake::{RenderError, render_pixmap};
+use crate::xd::{XdFile, ir::to_ir as xd_ir};
 
 /// Version of the `.folio` layout, independent of the IR's.
 pub const FOLIO_VERSION: u32 = 1;
@@ -372,7 +374,21 @@ pub fn bake_sketch_into(
     bake_into(&sketch_ir(file), &mut draw, options, sink)
 }
 
-/// Bakes a design file of any format the bake draws (`.fig`, `.sketch`, `.penpot`).
+/// Bakes a decoded `.xd` (see [`bake_fig_into`]).
+///
+/// # Errors
+///
+/// Fails when a frame cannot be rendered or `sink` fails.
+pub fn bake_xd_into(
+    file: &XdFile,
+    options: &BakeOptions,
+    sink: &mut Sink<'_>,
+) -> Result<BakeReport, BakeError> {
+    let mut draw = XdDraw::new(file, Typesetter::new(options.fonts.clone()));
+    bake_into(&xd_ir(file), &mut draw, options, sink)
+}
+
+/// Bakes a design file of any format the bake draws (`.fig`, `.sketch`, `.xd`, `.penpot`).
 ///
 /// # Errors
 ///
@@ -396,9 +412,10 @@ pub fn bake_file_into(
             let file = crate::penpot::decode(bytes).map_err(|e| error(&e))?;
             bake_penpot_into(&file, options, sink)
         }
-        Some(format) => Err(BakeError::Decode(format!(
-            "{format:?} files cannot be baked yet"
-        ))),
+        Some(Format::Xd) => {
+            let file = crate::xd::decode(bytes).map_err(|e| error(&e))?;
+            bake_xd_into(&file, options, sink)
+        }
         None => Err(BakeError::Decode(
             "not a .fig, .sketch, .xd or .penpot file".to_owned(),
         )),
