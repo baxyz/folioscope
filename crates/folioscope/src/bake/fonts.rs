@@ -5,6 +5,8 @@
 
 use std::sync::Arc;
 
+use helpers4::font::{FontFace, FontRequest, FontStyle, is_italic, pick_closest, split_postscript};
+use helpers4::string::match_glob_ignore_case;
 use serde::{Deserialize, Serialize};
 use skrifa::raw::FileRef;
 use skrifa::{FontRef, MetadataProvider, Tag, attribute::Style, string::StringId};
@@ -72,14 +74,32 @@ impl Face {
     /// Whether the face is the one for `family`: its own family, or one of its aliases.
     fn answers(&self, family: &str) -> bool {
         self.family.eq_ignore_ascii_case(family)
-            || self.aliases.iter().any(|alias| glob_match(alias, family))
+            || self
+                .aliases
+                .iter()
+                .any(|alias| match_glob_ignore_case(alias, family))
     }
 
-    /// How far `weight` is from what the face covers; 0 inside the range.
-    fn distance(&self, weight: f32) -> f32 {
-        let [low, high] = self.weight;
-        (low - weight).max(weight - high).max(0.0)
+    /// The face as helpers4 matches it.
+    fn css(&self) -> FontFace {
+        let style = if self.italic {
+            FontStyle::Italic
+        } else {
+            FontStyle::Normal
+        };
+        FontFace::variable(self.weight[0].into(), self.weight[1].into(), style)
     }
+}
+
+/// The face among `faces` that CSS font matching picks for a weight and a style.
+fn closest<'a>(faces: &[&'a Face], weight: f32, italic: bool) -> Option<&'a Face> {
+    let css: Vec<FontFace> = faces.iter().map(|face| face.css()).collect();
+    let style = if italic {
+        FontStyle::Italic
+    } else {
+        FontStyle::Normal
+    };
+    pick_closest(&css, FontRequest::new(weight.into(), style)).map(|index| faces[index])
 }
 
 /// The fonts a bake may use.
@@ -88,7 +108,6 @@ pub struct FontLibrary {
     faces: Vec<Face>,
 }
 
-// TODO(helpers4): CSS font matching and style names (docs/helpers4-requests.md § 3).
 impl FontLibrary {
     /// Adds every face of a font file; returns how many.
     ///
@@ -166,12 +185,8 @@ impl FontLibrary {
     /// matching picks it: the style first, then the weight.
     #[must_use]
     pub fn resolve(&self, family: &str, weight: f32, italic: bool) -> Option<&Face> {
-        let candidates = self.faces.iter().filter(|f| f.answers(family));
-        candidates.min_by(|a, b| {
-            let key = |f: &Face| (f.italic != italic, f.distance(weight));
-            let (ka, kb) = (key(a), key(b));
-            ka.0.cmp(&kb.0).then(ka.1.total_cmp(&kb.1))
-        })
+        let candidates: Vec<&Face> = self.faces.iter().filter(|f| f.answers(family)).collect();
+        closest(&candidates, weight, italic)
     }
 }
 
@@ -188,25 +203,21 @@ impl FontLibrary {
         {
             return Some(face);
         }
-        let (family_name, style) = name.split_once('-').unwrap_or((name, "Regular"));
+        let (family_name, style) = split_postscript(name);
         let squeeze = |s: &str| s.replace(' ', "").to_ascii_lowercase();
         let family = squeeze(family_name);
-        let italic = style.to_ascii_lowercase().contains("italic");
-        let weight = weight_of_style(style);
-        self.faces
+        let candidates: Vec<&Face> = self
+            .faces
             .iter()
             .filter(|f| {
                 // PostScript names have no spaces: compare the aliases without theirs too.
                 squeeze(&f.family) == family
                     || f.aliases
                         .iter()
-                        .any(|alias| glob_match(&squeeze(alias), &family))
+                        .any(|alias| match_glob_ignore_case(&squeeze(alias), &family))
             })
-            .min_by(|a, b| {
-                let key = |f: &Face| (f.italic != italic, f.distance(weight));
-                let (ka, kb) = (key(a), key(b));
-                ka.0.cmp(&kb.0).then(ka.1.total_cmp(&kb.1))
-            })
+            .collect();
+        closest(&candidates, weight_of_style(style), is_italic(style))
     }
 }
 
@@ -217,55 +228,11 @@ fn family(font: &FontRef<'_>) -> Option<String> {
         .map(|name| name.to_string())
 }
 
-// TODO(helpers4): glob matching, case-insensitive (docs/helpers4-requests.md § 8).
-/// Whether `text` matches `pattern`, ignoring case: `*` stands for any run of characters, `?` for
-/// one; anything else is itself.
-fn glob_match(pattern: &str, text: &str) -> bool {
-    let pattern: Vec<char> = pattern.to_lowercase().chars().collect();
-    let text: Vec<char> = text.to_lowercase().chars().collect();
-    // Positions in the pattern and the text, and where the last `*` was and what it swallowed.
-    let (mut p, mut t, mut star, mut swallowed) = (0, 0, None, 0);
-    while t < text.len() {
-        if p < pattern.len() && (pattern[p] == '?' || pattern[p] == text[t]) {
-            p += 1;
-            t += 1;
-        } else if p < pattern.len() && pattern[p] == '*' {
-            star = Some(p);
-            swallowed = t;
-            p += 1;
-        } else if let Some(at) = star {
-            p = at + 1;
-            swallowed += 1;
-            t = swallowed;
-        } else {
-            return false;
-        }
-    }
-    pattern[p..].iter().all(|&c| c == '*')
-}
-
 /// Weight of a style name as design tools write it ("Semi Bold Italic" → 600).
 #[must_use]
+#[allow(clippy::cast_possible_truncation)] // 100 to 950
 pub fn weight_of_style(style: &str) -> f32 {
-    let style = style.to_ascii_lowercase().replace(['-', '_', ' '], "");
-    [
-        ("thin", 100.0),
-        ("hairline", 100.0),
-        ("extralight", 200.0),
-        ("ultralight", 200.0),
-        ("semibold", 600.0),
-        ("demibold", 600.0),
-        ("extrabold", 800.0),
-        ("ultrabold", 800.0),
-        ("light", 300.0),
-        ("medium", 500.0),
-        ("bold", 700.0),
-        ("black", 900.0),
-        ("heavy", 900.0),
-    ]
-    .into_iter()
-    .find(|(name, _)| style.contains(name))
-    .map_or(400.0, |(_, weight)| weight)
+    helpers4::font::weight_of_style(style) as f32
 }
 
 #[cfg(test)]
@@ -310,17 +277,6 @@ mod tests {
         // The variable font is named for its default instance; a bold name falls back to it.
         assert!(library.resolve_postscript("Inter-Bold").is_some());
         assert!(library.resolve_postscript("Montserrat-Bold").is_none());
-    }
-
-    #[test]
-    fn globs_match_names_ignoring_case() {
-        assert!(glob_match("SF Pro*", "sf pro display"));
-        assert!(glob_match("*pro*", "SF Pro Text"));
-        assert!(glob_match("Inter?", "Inter4"));
-        assert!(glob_match("Brand", "BRAND"));
-        assert!(!glob_match("SF Pro*", "Helvetica"));
-        assert!(!glob_match("Inter?", "Inter"));
-        assert!(glob_match("*", ""));
     }
 
     #[test]

@@ -137,27 +137,6 @@ fn gradient_line(
     Some((in_node(0.0, 0.5), in_node(1.0, 0.5)))
 }
 
-// TODO(helpers4): media type sniffing (docs/helpers4-requests.md § 5).
 pub(crate) fn mime(bytes: &[u8]) -> &'static str {
-    match bytes {
-        [0x89, b'P', b'N', b'G', ..] => "image/png",
-        [0xff, 0xd8, ..] => "image/jpeg",
-        [b'G', b'I', b'F', ..] => "image/gif",
-        [
-            b'R',
-            b'I',
-            b'F',
-            b'F',
-            _,
-            _,
-            _,
-            _,
-            b'W',
-            b'E',
-            b'B',
-            b'P',
-            ..,
-        ] => "image/webp",
-        _ => "application/octet-stream",
-    }
+    helpers4::bytes::media_type_of(bytes).unwrap_or("application/octet-stream")
 }

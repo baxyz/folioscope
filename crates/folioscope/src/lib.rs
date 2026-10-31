@@ -6,7 +6,8 @@
 pub mod bake;
 pub mod figma;
 pub mod ir;
-pub mod kiwi;
+/// The Kiwi decoder `.fig` files are read with, from helpers4.
+pub use helpers4::kiwi;
 pub mod penpot;
 pub mod sketch;
 pub mod summary;
