@@ -3,7 +3,7 @@ resolver = "3"
 members = ["crates/*"]
 
 [workspace.package]
-version = "0.0.0"
+version = "0.0.8"
 edition = "2024"
 rust-version = "1.99"
 license = "AGPL-3.0-or-later"
@@ -13,7 +13,7 @@ authors = ["baxyz <berenger@arnaud.work>"]
 
 [workspace.dependencies]
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
-folioscope = { path = "crates/folioscope", version = "0.0.0" }
+folioscope = { path = "crates/folioscope", version = "0.0.8" }
 folioscope-wasm = { path = "crates/folioscope-wasm", version = "0.0.0" }
 helpers4 = { version = "0.0.9", default-features = false }
 image-webp = "0.2"
