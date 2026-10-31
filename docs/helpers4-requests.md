@@ -9,8 +9,7 @@ Generic helpers Folioscope needs from helpers4 (npm `helpers4`, sub-path imports
   `Value`), re-exported as `folioscope::kiwi`. It replaced Folioscope's own, which was built on
   `bytes::ByteReader`.
 - Rust `font`: `pick_closest` (CSS font matching), `weight_of_style`, `is_italic` and
-  `split_postscript`, in the bake's font library. Reading font files stays in Folioscope (it uses
-  `skrifa` and `wuff`, which the library needs for text layout anyway).
+  `split_postscript`, in the bake's font library.
 - Rust `string::match_glob_ignore_case`: the family patterns of `<folioscope-font match="…">`.
 - Rust `bytes::media_type_of`: the image type of a `data:` URI in the SVG the bake renders.
 - Rust `geometry`: `rounded_rect_path` and `ellipse_path` (Penpot shapes), `transform_path` (moving
@@ -37,6 +36,10 @@ Generic helpers Folioscope needs from helpers4 (npm `helpers4`, sub-path imports
 
 ## Still open
 
+- Rust `font::read_font` is delivered but not adopted: it has no WOFF2 (no Brotli decoder), reads
+  only the first font of a `.ttc` collection and does not hand back the decoded font. The bake
+  needs all three (`<folioscope-font>` takes WOFF2, and `skrifa` shapes the text from the decoded
+  file), so it keeps reading faces with `skrifa` and `wuff`.
 - A `/regex/` pattern for font substitution rules (`match="/^SF Pro/i"`) in the Rust bake: the TS
   `parsePatternOrRegExp` exists, the Rust `string::parse_pattern` has to be checked against it
   when the rule lands (PROJECT.md, fonts).
