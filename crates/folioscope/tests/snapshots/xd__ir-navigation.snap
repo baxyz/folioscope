@@ -1,0 +1,106 @@
+---
+source: crates/folioscope/tests/xd.rs
+expression: "serde_json::to_string_pretty(&ir).unwrap()"
+---
+{
+  "source": "xd",
+  "pages": [
+    {
+      "id": "00000000-0000-4000-8000-000000000009",
+      "name": "Navigation",
+      "flows": [
+        {
+          "name": "Home",
+          "start": "00000000-0000-4000-8000-000000000001"
+        }
+      ],
+      "frames": [
+        {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "name": "Home",
+          "bounds": {
+            "x": 0.0,
+            "y": 0.0,
+            "width": 375.0,
+            "height": 812.0
+          },
+          "hotspots": [
+            {
+              "node": "00000000-0000-4000-8000-000000000004",
+              "name": "Open details",
+              "bounds": {
+                "x": 88.0,
+                "y": 640.0,
+                "width": 200.0,
+                "height": 48.0
+              },
+              "interactions": [
+                {
+                  "trigger": {
+                    "type": "click"
+                  },
+                  "action": {
+                    "type": "navigate",
+                    "to": "00000000-0000-4000-8000-000000000002",
+                    "transition": {
+                      "kind": {
+                        "type": "slideIn",
+                        "from": "right"
+                      },
+                      "durationMs": 300,
+                      "easing": {
+                        "type": "easeOut"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000002",
+          "name": "Details",
+          "bounds": {
+            "x": 475.0,
+            "y": 0.0,
+            "width": 375.0,
+            "height": 812.0
+          },
+          "hotspots": [
+            {
+              "node": "00000000-0000-4000-8000-000000000006",
+              "name": "Back",
+              "bounds": {
+                "x": 16.0,
+                "y": 56.0,
+                "width": 80.0,
+                "height": 32.0
+              },
+              "interactions": [
+                {
+                  "trigger": {
+                    "type": "click"
+                  },
+                  "action": {
+                    "type": "navigate",
+                    "to": "00000000-0000-4000-8000-000000000001",
+                    "transition": {
+                      "kind": {
+                        "type": "dissolve"
+                      },
+                      "durationMs": 300,
+                      "easing": {
+                        "type": "easeOut"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

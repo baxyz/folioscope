@@ -123,6 +123,10 @@ impl Typesetter {
         layout.align(alignment, AlignmentOptions::default());
 
         let (width, height) = (layout.width(), layout.height());
+        let baseline = layout
+            .lines()
+            .next()
+            .map_or(0.0, |line| line.metrics().baseline);
         let mut d = String::new();
         for line in layout.lines() {
             for item in line.items() {
@@ -160,6 +164,7 @@ impl Typesetter {
             path: d,
             width,
             height,
+            baseline,
         })
     }
 }
@@ -170,6 +175,8 @@ pub struct SetText {
     pub path: String,
     pub width: f32,
     pub height: f32,
+    /// Distance from the top of the text to the baseline of its first line.
+    pub baseline: f32,
 }
 
 /// Writes outline commands as SVG path data, at a glyph's origin, y pointing down.

@@ -18,7 +18,7 @@ import { basename, dirname, extname, join, relative, resolve } from "node:path";
 export interface FolioscopeOptions {
   /**
    * Design files to bake, as globs relative to the Vite root. Each one is served as
-   * `/<base>/<file name>.folio/`. Defaults to `**\/*.{fig,sketch,penpot}` outside `node_modules`.
+   * `/<base>/<file name>.folio/`. Defaults to `**\/*.{fig,sketch,xd,penpot}` outside `node_modules`.
    */
   include?: string | string[];
   /** URL folder the baked prototypes are served from. Defaults to `folio`. */
@@ -66,7 +66,7 @@ const FONT_FILE = /\.(ttf|otf|ttc|woff2?)$/i;
  */
 export function folioscope(options: FolioscopeOptions = {}): Plugin {
   const base = (options.base ?? "folio").replace(/^\/+|\/+$/g, "");
-  const include = [options.include ?? "**/*.{fig,sketch,penpot}"].flat();
+  const include = [options.include ?? "**/*.{fig,sketch,xd,penpot}"].flat();
   let config: ResolvedConfig;
   let cacheDir: string;
   const baked = new Map<string, Promise<Folio>>();

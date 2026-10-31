@@ -5,6 +5,9 @@
 //! `interactions/interactions.json` holds the prototype. Adobe does not document it; see
 //! `docs/format-xd.md`.
 
+pub mod geometry;
+pub mod ir;
+
 use std::collections::HashMap;
 use std::io::{Cursor, Read};
 
@@ -33,6 +36,11 @@ pub struct XdFile {
     pub interactions: Value,
     /// Graphics tree of each artboard, by artboard id.
     pub artboards: HashMap<String, Value>,
+    /// `resources/graphics/graphicContent.agc`: the clip paths and gradients the artboards refer
+    /// to; `Null` when the file has none.
+    pub resources: Value,
+    /// Bitmaps, by their entry name under `resources/` (a hash of the content).
+    pub images: HashMap<String, Vec<u8>>,
 }
 
 /// Decodes an `.xd` archive.
@@ -69,10 +77,29 @@ pub fn decode(archive: &[u8]) -> Result<XdFile, XdError> {
         );
         artboards.insert(id, json(&path)?);
     }
+    let resources = match json("resources/graphics/graphicContent.agc") {
+        Err(XdError::Zip(zip::result::ZipError::FileNotFound)) => Value::Null,
+        other => other?["resources"].clone(),
+    };
+    let mut images = HashMap::new();
+    for index in 0..zip.len() {
+        let mut entry = zip.by_index(index)?;
+        let name = entry.name()?.into_owned();
+        if let Some(hash) = name.strip_prefix("resources/")
+            && entry.is_file()
+            && !hash.contains('/')
+        {
+            let mut bytes = Vec::new();
+            entry.read_to_end(&mut bytes)?;
+            images.insert(hash.to_owned(), bytes);
+        }
+    }
     Ok(XdFile {
         manifest,
         interactions,
         artboards,
+        resources,
+        images,
     })
 }
 
