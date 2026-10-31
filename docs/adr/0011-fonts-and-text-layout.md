@@ -36,6 +36,11 @@ fonts embedded in the file and fonts the user gives it.
 - **Font files: TTF, OTF and collections, and WOFF or WOFF2**, decoded first with `wuff` (pure
   Rust). Each face is read for its family (typographic family first), weight, style and, for a
   variable font, its weight range.
+- **A font may stand in for other names.** A font file answers to its own family, and to the
+  names and patterns (`*`, `?`) it is told to (`family`, `match`), case-insensitively; its weight
+  and style can be given when the file says otherwise. This is how one font replaces a font you may
+  not serve (`SF Pro*`). In the browser, the page says it with `<folioscope-font>`,
+  `<folioscope-fonts>` and `registerFont()`; they reach the bake as the same hints.
 - **Where fonts come from**: the design file's embedded fonts first, then the user's, given as
   files or folders (`folioscope bake --fonts <path>`, the `fonts` option of `folioscope/vite`).
   `folioscope fonts <folder>` writes `folioscope-fonts.json`, the manifest the player's `base`

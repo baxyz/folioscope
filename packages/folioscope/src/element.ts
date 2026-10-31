@@ -22,9 +22,25 @@ import {
   renderFrame,
   scrollFrame,
 } from "./lite.ts";
+import type { FontDeclaration } from "./full/index.ts";
 import { type OpenOverlay, Runtime, type Step } from "./runtime.ts";
 
 export const TAG_NAME = "folioscope-player";
+
+/** What `registerFont()` takes; the same as the attributes of `<folioscope-font>`. */
+export interface FontRegistration {
+  /** URL of the font file. */
+  src?: string;
+  /** The font file, when its bytes are already loaded. */
+  data?: ArrayBuffer | Uint8Array;
+  /** A family name the font also answers to, besides its own. */
+  family?: string;
+  /** Family names or patterns (`SF Pro*`, `*` and `?`) it also answers to: it stands in for them. */
+  match?: string | string[];
+  weight?: number | string;
+  /** `italic` or `oblique`; anything else is upright. */
+  style?: string;
+}
 
 /** A raw design file, played by the full player when no `.folio` sits next to it. */
 const RAW = /\.(fig|sketch|xd|penpot)$/i;
@@ -71,7 +87,13 @@ const STYLE = `
  * player, which comes later.
  */
 export class FolioscopePlayer extends BaseElement {
-  static readonly observedAttributes: readonly string[] = ["src", "flow", "page", "controls"];
+  static readonly observedAttributes: readonly string[] = [
+    "src",
+    "flow",
+    "page",
+    "controls",
+    "fonts",
+  ];
   // `poster`, `fit`, `preload` and `hotspots` are read when needed, so changing them needs no
   // callback.
 
@@ -83,6 +105,12 @@ export class FolioscopePlayer extends BaseElement {
   private base = "";
   /** The `src` loaded or loading. */
   private loadedSrc?: string;
+  /** Fonts given with `registerFont()`, after those declared in the page. */
+  private readonly registered: FontDeclaration[] = [];
+  /** Watches the `<folioscope-font>` children, to bake again when fonts come or go. */
+  private fontObserver?: MutationObserver;
+  /** Set once the raw file's bake starts: before, a font declared in the page is just on time. */
+  private baking = false;
   /** Files baked in the browser, as `blob:` URLs by path, when `src` is a raw design file. */
   private readonly blobs = new Map<string, string>();
   private density = 1;
@@ -157,6 +185,8 @@ export class FolioscopePlayer extends BaseElement {
   }
 
   connectedCallback(): void {
+    this.fontObserver ??= new MutationObserver(() => this.fontsChanged());
+    this.fontObserver.observe(this, { childList: true, attributes: true, subtree: true });
     // A press ends wherever the button is released, even outside the player.
     globalThis.addEventListener("pointerup", this.releasePress);
     globalThis.addEventListener("pointercancel", this.releasePress);
@@ -166,6 +196,7 @@ export class FolioscopePlayer extends BaseElement {
   }
 
   disconnectedCallback(): void {
+    this.fontObserver?.disconnect();
     globalThis.removeEventListener("pointerup", this.releasePress);
     globalThis.removeEventListener("pointercancel", this.releasePress);
     this.resize?.disconnect();
@@ -176,6 +207,7 @@ export class FolioscopePlayer extends BaseElement {
     if (previous === value || !this.isConnected) return;
     if (name === "controls") this.controls.element.hidden = value === null;
     else if (name === "src") void this.load();
+    else if (name === "fonts") this.fontsChanged();
     else if (this.index) this.startPage();
   }
 
@@ -246,9 +278,18 @@ export class FolioscopePlayer extends BaseElement {
       this.base = sibling;
       return (await found.json()) as FolioIndex;
     }
+    // The fonts are children of the element: the parser may not have reached them yet.
+    if (document.readyState === "loading") {
+      await new Promise((resolve) =>
+        document.addEventListener("DOMContentLoaded", resolve, { once: true }),
+      );
+    }
+    if (attempt !== this.loading) return undefined;
+    this.baking = true;
     const { bakeInBrowser } = await import("./full/index.ts");
     const baked = await bakeInBrowser(new URL(src, document.baseURI).href, {
       density: (globalThis.devicePixelRatio ?? 1) > 1 ? 2 : 1,
+      fonts: this.fontDeclarations(),
       onProgress: (stage) => this.emit("folioscope:progress", { stage }),
     });
     if (attempt !== this.loading) return undefined;
@@ -265,6 +306,63 @@ export class FolioscopePlayer extends BaseElement {
     const index = baked.files.get("index.json");
     if (!index) throw new Error(`${src}: the bake made no index.json`);
     return JSON.parse(new TextDecoder().decode(index)) as FolioIndex;
+  }
+
+  /**
+   * Gives the font for a raw design file's text: `registerFont({ src, family, match, weight,
+   * style })`, `registerFont({ data, … })` for bytes already loaded, or `registerFont("Roboto",
+   * "/fonts/Roboto.woff2")`. Same as a `<folioscope-font>` child. A raw file already baked is
+   * baked again with it.
+   */
+  registerFont(font: FontRegistration | string, src?: string): void {
+    const given = typeof font === "string" ? { family: font, src } : font;
+    this.registered.push({
+      url: given.src && new URL(given.src, document.baseURI).href,
+      data: given.data && new Uint8Array(given.data),
+      family: given.family,
+      match: given.match === undefined ? undefined : [given.match].flat(),
+      weight: given.weight === undefined ? undefined : Number(given.weight),
+      italic: given.style === undefined ? undefined : /^(italic|oblique)/.test(given.style),
+    });
+    this.fontsChanged();
+  }
+
+  /** The fonts declared in the page (the `fonts` set, then the element's own), then registered. */
+  private fontDeclarations(): FontDeclaration[] {
+    const set = this.getAttribute("fonts");
+    const shared = set ? document.getElementById(set) : null;
+    const tags = [
+      ...(shared?.querySelectorAll(":scope > folioscope-font") ?? []),
+      ...this.querySelectorAll(":scope > folioscope-font"),
+    ];
+    const declared = tags.flatMap((tag): FontDeclaration[] => {
+      const src = tag.getAttribute("src");
+      if (!src) return [];
+      const weight = tag.getAttribute("weight");
+      const style = tag.getAttribute("style");
+      const match = tag.getAttribute("match");
+      return [
+        {
+          url: new URL(src, document.baseURI).href,
+          family: tag.getAttribute("family") ?? undefined,
+          match: match
+            ?.split(",")
+            .map((pattern) => pattern.trim())
+            .filter(Boolean),
+          weight: weight === null ? undefined : Number(weight),
+          italic: style === null ? undefined : /^(italic|oblique)/.test(style),
+        },
+      ];
+    });
+    return [...declared, ...this.registered];
+  }
+
+  /** Fonts came or went: a raw file already baked, or being baked, is baked again. */
+  private fontsChanged(): void {
+    if (!this.baking || !this.isConnected || !RAW.test(this.src)) return;
+    this.baking = false;
+    this.loadedSrc = undefined;
+    void this.load();
   }
 
   /** Releases the files of a previous in-browser bake. */

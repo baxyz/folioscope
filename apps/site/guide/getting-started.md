@@ -70,6 +70,32 @@ browser, in a Web Worker, with the WebAssembly bake (about 2 MB, downloaded once
 keeps the result in the browser's cache for the next visit. Baking ahead of time stays the fast
 path: a visitor waits a few seconds the first time.
 
+### Fonts for raw `.sketch` and `.penpot` files
+
+A `.fig` file stores the outline of every glyph, but `.sketch` and `.penpot` files only name their
+fonts: given nothing, their text is left out. Give the player the font files:
+
+```html
+<folioscope-player src="/designs/app.sketch">
+  <!-- The file says its own family: Inter -->
+  <folioscope-font src="/fonts/Inter.woff2"></folioscope-font>
+  <!-- A family it also answers to -->
+  <folioscope-font src="/fonts/Roboto.woff2" family="Brand"></folioscope-font>
+  <!-- A stand-in for a font you may not serve (patterns: * and ?) -->
+  <folioscope-font src="/fonts/Inter.woff2" match="SF Pro*"></folioscope-font>
+</folioscope-player>
+```
+
+- `src` is a TrueType, OpenType, WOFF or WOFF2 file. `weight` and `style="italic"` say what the file
+  does not, if need be.
+- Several players can share fonts: put the `<folioscope-font>` elements in a
+  `<folioscope-fonts id="portfolio">` and give each player `fonts="portfolio"`.
+- From JavaScript: `player.registerFont({ src, family, match, weight, style })`, or
+  `registerFont("Brand", "/fonts/Brand.woff2")`. A file already baked is baked again with it.
+- A font the file needs and you did not give is announced by `folioscope:font-missing`.
+- Baking ahead of time takes the same fonts: `folioscope bake --fonts ./fonts`, or the `fonts`
+  option of the Vite plugin.
+
 ## Attributes
 
 | Attribute  | Values                              | Role                                                                                               |
@@ -87,7 +113,7 @@ path: a visitor waits a few seconds the first time.
 
 - `restart()`, `back()`, `goTo(frameId)`
 - `folioscope:load`, `folioscope:navigate` (`detail.frame`, `detail.name`), `folioscope:error` (`detail.error`)
-- `folioscope:progress` (`detail.stage`: `download`, `cache` or `bake`) and `folioscope:font-missing` (`detail.font`), when a raw design file is baked in the browser
+- `folioscope:progress` (`detail.stage`: `download`, `fonts`, `cache` or `bake`) and `folioscope:font-missing` (`detail.font`), when a raw design file is baked in the browser
 
 ## Keyboard
 

@@ -25,11 +25,16 @@ const site = bakeFixtures([
 mkdirSync(join(site, "raw"));
 copyFileSync(join(fixtures, "figma/navigation.fig"), join(site, "raw/navigation.fig"));
 copyFileSync(join(fixtures, "figma/navigation.fig"), join(site, "navigation.fig"));
+// A .sketch with text in two fonts it does not carry, and the font that can stand in for both.
+copyFileSync(join(fixtures, "sketch/text.sketch"), join(site, "raw/text.sketch"));
+mkdirSync(join(site, "fonts"));
+copyFileSync(join(fixtures, "fonts/Inter-Latin.ttf"), join(site, "fonts/Inter-Latin.ttf"));
 const server = await serve(
   site,
   (query) => `<!doctype html><meta charset="utf-8">
 <script type="module" src="/player.mjs"></script>
-<folioscope-player src="${query.get("src") ?? `/${query.get("folio")}.folio`}" ${query.has("controls") ? "controls" : ""} hotspots="${query.get("hotspots") ?? "on-miss"}" style="width: 375px"></folioscope-player>`,
+${query.get("before") ?? ""}
+<folioscope-player src="${query.get("src") ?? `/${query.get("folio")}.folio`}" ${query.has("controls") ? "controls" : ""} ${query.get("attributes") ?? ""} hotspots="${query.get("hotspots") ?? "on-miss"}" style="width: 375px">${query.get("children") ?? ""}</folioscope-player>`,
 );
 
 const browser = await firefox.launch();
@@ -287,6 +292,67 @@ try {
   await settledOn("Home");
   assert.deepEqual(stages.slice(2), ["download", "cache"]);
   console.log("✓ full player: a raw .fig plays, baked in the browser, then from the cache");
+
+  // Fonts for a raw .sketch, which stores no glyphs: given as children, by a shared set, or by
+  // registerFont(). Which fonts the bake lacks is told by folioscope:font-missing.
+  await tab.addInitScript(() => {
+    const seen = ((window as unknown as { seen: object }).seen = {
+      loads: 0,
+      missing: [] as string[],
+    });
+    document.addEventListener("folioscope:load", () => seen.loads++);
+    document.addEventListener("folioscope:font-missing", (event) =>
+      seen.missing.push((event as CustomEvent<{ font: string }>).detail.font),
+    );
+  });
+  const inter = '<folioscope-font src="/fonts/Inter-Latin.ttf"';
+  const open = (query: Record<string, string>) =>
+    tab.goto(`${server.origin}/?src=/raw/text.sketch&${new URLSearchParams(query)}`);
+  const seen = () =>
+    tab.evaluate(() => (window as unknown as { seen: { loads: number; missing: string[] } }).seen);
+  const loaded = (loads: number) =>
+    tab.waitForFunction(
+      (n) => (window as unknown as { seen: { loads: number } }).seen.loads >= n,
+      loads,
+    );
+
+  await open({});
+  await loaded(1);
+  assert.deepEqual((await seen()).missing.toSorted(), ["Brand-Bold", "Inter-Regular"]);
+
+  await open({ children: `${inter}></folioscope-font>` });
+  await loaded(1);
+  assert.deepEqual((await seen()).missing, ["Brand-Bold"]);
+
+  // A family name it also answers to, then a pattern.
+  await open({ children: `${inter} family="Brand"></folioscope-font>` });
+  await loaded(1);
+  assert.deepEqual((await seen()).missing, []);
+  await open({ children: `${inter} match="Br?nd*"></folioscope-font>` });
+  await loaded(1);
+  assert.deepEqual((await seen()).missing, []);
+
+  // A set shared by several players, named by the fonts attribute.
+  await open({
+    before: `<folioscope-fonts id="brand">${inter} family="Brand"></folioscope-fonts>`,
+    attributes: 'fonts="brand"',
+  });
+  await loaded(1);
+  assert.deepEqual((await seen()).missing, []);
+
+  // registerFont() after the first bake: the file is baked again with the font.
+  await open({});
+  await loaded(1);
+  await tab.evaluate(() =>
+    (
+      document.querySelector("folioscope-player") as HTMLElement & {
+        registerFont(font: object): void;
+      }
+    ).registerFont({ src: "/fonts/Inter-Latin.ttf", match: "Br?nd*" }),
+  );
+  await loaded(2);
+  assert.equal((await seen()).missing.length, 2, "nothing more is missing after the second bake");
+  console.log("✓ fonts: <folioscope-font>, a family or a pattern, a shared set and registerFont()");
 
   // Without a poster, the frame's baked placeholder shows while its layers load.
   const slow = await browser.newPage();

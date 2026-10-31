@@ -121,6 +121,64 @@ export class SketchBuilder {
     return rect;
   }
 
+  /**
+   * A text layer in one font, named by its PostScript name as Sketch does (`Inter-Regular`). The
+   * glyphs are not stored: whoever draws it needs the font.
+   */
+  text(
+    artboard: FileFormat.Artboard,
+    name: string,
+    box: Box,
+    string: string,
+    font: { name: string; size: number },
+    fill = "#111827",
+  ): FileFormat.Text {
+    const descriptor: FileFormat.FontDescriptor = {
+      _class: "fontDescriptor",
+      attributes: { name: font.name, size: font.size },
+    };
+    const text: FileFormat.Text = {
+      ...this.base(name, box),
+      _class: "text",
+      style: {
+        ...this.style(),
+        textStyle: {
+          _class: "textStyle",
+          verticalAlignment: 0 as FileFormat.TextVerticalAlignment, // top,
+          encodedAttributes: {
+            MSAttributedStringFontAttribute: descriptor,
+            MSAttributedStringColorAttribute: color(fill),
+          },
+        },
+      },
+      attributedString: {
+        _class: "attributedString",
+        string,
+        attributes: [
+          {
+            _class: "stringAttribute",
+            location: 0,
+            length: string.length,
+            attributes: {
+              MSAttributedStringFontAttribute: descriptor,
+              MSAttributedStringColorAttribute: color(fill),
+              paragraphStyle: { _class: "paragraphStyle", alignment: 0 },
+              kerning: 0,
+            },
+          },
+        ],
+      },
+      automaticallyDrawOnUnderlyingPath: false,
+      dontSynchroniseWithSymbol: false,
+      lineSpacingBehaviour: 1 as FileFormat.LineSpacingBehaviour, // legacy
+      // Grows with its content: no wrapping.
+      textBehaviour: 0 as FileFormat.TextBehaviour, // flexible
+      glyphBounds: "{{0, 0}, {0, 0}}",
+    };
+    artboard.layers.push(text);
+    return text;
+  }
+
   /** An invisible clickable area, Sketch's way to add a link without a visible layer. */
   hotspot(artboard: FileFormat.Artboard, name: string, box: Box): FileFormat.Hotspot {
     const hotspot: FileFormat.Hotspot = {

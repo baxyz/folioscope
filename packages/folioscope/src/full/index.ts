@@ -5,20 +5,39 @@
  * file with no `.folio` next to it.
  */
 
-export type Stage = "download" | "cache" | "bake";
+export type Stage = "download" | "fonts" | "cache" | "bake";
+
+/**
+ * A font the page gives (`<folioscope-font>`, `registerFont()`): its file, by `url` or `data`, and
+ * what to say about it instead of what the file says.
+ */
+export interface FontDeclaration {
+  /** Where to fetch the font file: an absolute URL. */
+  url?: string;
+  /** The font file, when the page already has its bytes. */
+  data?: Uint8Array;
+  /** A family name the font also answers to, besides its own. */
+  family?: string;
+  /** Family names or patterns (`SF Pro*`) it also answers to: it stands in for them. */
+  match?: string[];
+  /** The weight it is, when the file says otherwise. */
+  weight?: number;
+  /** Whether it is italic, when the file says otherwise. */
+  italic?: boolean;
+}
 
 export interface BakeInBrowserOptions {
   /** The pixel density to bake, 1 or 2: one is enough for the screen at hand. */
   density: number;
-  /** Fonts for text the file stores no glyphs for, by name. */
-  fonts?: Map<string, Uint8Array>;
+  /** Fonts for text the file stores no glyphs for. */
+  fonts?: FontDeclaration[];
   onProgress?: (stage: Stage) => void;
 }
 
 export interface BakedInBrowser {
   /** The `.folio` folder's files by path: `index.json`, `layers/…`. */
   files: Map<string, Uint8Array>;
-  /** Fonts some text needed and was not given. */
+  /** Fonts some text needed and was not given, and fonts that could not be loaded. */
   missingFonts: string[];
 }
 
@@ -26,7 +45,7 @@ export interface BakedInBrowser {
 export interface BakeRequest {
   url: string;
   density: number;
-  fonts: [string, Uint8Array][];
+  fonts: FontDeclaration[];
 }
 
 /** Messages from the worker to the page. */
@@ -53,7 +72,7 @@ export function bakeInBrowser(url: string, options: BakeInBrowserOptions): Promi
     const request: BakeRequest = {
       url,
       density: options.density,
-      fonts: [...(options.fonts ?? [])],
+      fonts: options.fonts ?? [],
     };
     worker.postMessage(request);
   });
