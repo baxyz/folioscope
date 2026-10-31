@@ -33,7 +33,7 @@ accepted. Checked by importing generated files into Figma (October 2026).
   ones. Detect by the magic bytes.
 - **Chunk 2+**: opaque; ignored.
 
-The schema travels with each file, so the decoder (`folioscope::kiwi`) is generic: it decodes
+The schema travels with each file, so the decoder (`helpers4::kiwi`, re-exported as `folioscope::kiwi`) is generic: it decodes
 the schema, then the root definition `Message`.
 
 ## Nodes

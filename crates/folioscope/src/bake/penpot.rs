@@ -458,40 +458,30 @@ fn outline(shape: &Value) -> Option<String> {
 }
 
 fn ellipse_path(shape: &Value) -> String {
-    let (x, y, w, h) = boxed(shape);
-    let (rx, ry) = (w / 2.0, h / 2.0);
-    format!(
-        "M{x} {}a{rx} {ry} 0 1 0 {w} 0a{rx} {ry} 0 1 0 {} 0Z",
-        y + ry,
-        -w
-    )
+    helpers4::geometry::ellipse_path(bounds(shape))
 }
 
-// TODO(helpers4): rounded rectangles and ellipses (docs/helpers4-requests.md § 4).
 /// A rectangle's or board's outline, with its corner radii (`r1` top-left, then clockwise; `rx`
 /// for older files).
 fn rect_path(shape: &Value) -> String {
-    let (x, y, w, h) = boxed(shape);
     let fallback = n(shape, "rx");
     let radius = |k: &str| {
-        let value = shape[k].as_f64().map_or(fallback, |_| n(shape, k));
-        value.min(w / 2.0).min(h / 2.0).max(0.0)
+        if shape[k].as_f64().is_some() {
+            f64::from(n(shape, k))
+        } else {
+            f64::from(fallback)
+        }
     };
-    let (tl, tr, br, bl) = (radius("r1"), radius("r2"), radius("r3"), radius("r4"));
-    format!(
-        "M{} {y}H{}A{tr} {tr} 0 0 1 {} {}V{}A{br} {br} 0 0 1 {} {}H{}A{bl} {bl} 0 0 1 {x} {}V{}A{tl} {tl} 0 0 1 {} {y}Z",
-        x + tl,
-        x + w - tr,
-        x + w,
-        y + tr,
-        y + h - br,
-        x + w - br,
-        y + h,
-        x + bl,
-        y + h - bl,
-        y + tl,
-        x + tl
+    helpers4::geometry::rounded_rect_path(
+        bounds(shape),
+        [radius("r1"), radius("r2"), radius("r3"), radius("r4")],
     )
+}
+
+/// A shape's box, in page coordinates, before its transform.
+fn bounds(shape: &Value) -> helpers4::geometry::Rect {
+    let (x, y, w, h) = boxed(shape);
+    helpers4::geometry::Rect::new(x.into(), y.into(), w.into(), h.into())
 }
 
 /// A path's `content` as SVG path data: `move-to`, `line-to`, `curve-to` and `close-path`
@@ -538,7 +528,7 @@ mod tests {
         let rect = serde_json::json!({ "x": 0, "y": 0, "width": 10, "height": 10, "r1": 2, "r2": 0, "r3": 0, "r4": 0 });
         assert_eq!(
             rect_path(&rect),
-            "M2 0H10A0 0 0 0 1 10 0V10A0 0 0 0 1 10 10H0A0 0 0 0 1 0 10V2A2 2 0 0 1 2 0Z"
+            "M2 0 L10 0 L10 10 L0 10 L0 2 A2 2 0 0 1 2 0 Z"
         );
     }
 }

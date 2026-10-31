@@ -101,8 +101,8 @@ pub fn decode_canvas(canvas: &[u8]) -> Result<FigFile, FigError> {
         return Err(FigError::MissingChunks(chunks.len()));
     }
 
-    let schema = Schema::decode(&decompress(0, chunks[0])?)?;
-    let message = schema.decode_root("Message", &decompress(1, chunks[1])?)?;
+    let schema = Schema::parse(&decompress(0, chunks[0])?)?;
+    let message = schema.decode(&decompress(1, chunks[1])?, "Message")?;
     Ok(FigFile {
         prelude,
         version,

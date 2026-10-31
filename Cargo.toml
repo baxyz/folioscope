@@ -15,7 +15,7 @@ authors = ["baxyz <berenger@arnaud.work>"]
 flate2 = { version = "1", default-features = false, features = ["rust_backend"] }
 folioscope = { path = "crates/folioscope", version = "0.0.8" }
 folioscope-wasm = { path = "crates/folioscope-wasm", version = "0.0.0" }
-helpers4 = { version = "0.0.9", default-features = false }
+helpers4 = { version = "0.0.10", default-features = false }
 image-webp = "0.2"
 insta = "1.49"
 # Text layout for the formats that store no glyph outlines (ADR 0011): pure Rust, no system font.

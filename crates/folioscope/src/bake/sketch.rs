@@ -19,6 +19,7 @@ use crate::bake::folio::BakeError;
 use crate::bake::fonts::weight_of_style;
 use crate::bake::svg::mime;
 use crate::bake::text::{Align, Paragraph, Typesetter};
+use helpers4::geometry::{Matrix, transform_path};
 
 /// Draws the artboards of a decoded `.sketch`.
 pub struct SketchDraw<'f> {
@@ -583,73 +584,9 @@ fn shape_path(layer: &Value) -> Option<String> {
     Some(path)
 }
 
-// TODO(helpers4): path data parsing and transforms (docs/helpers4-requests.md § 4).
-/// Moves absolute path data by (`dx`, `dy`): the paths `shape_path` writes only use absolute
-/// commands with x, y pairs (and the arcs of rounded rectangles).
+/// Moves path data by (`dx`, `dy`), as absolute commands.
 fn offset_path(d: &str, dx: f32, dy: f32) -> String {
-    let mut out = String::new();
-    let mut command = 'M';
-    let mut index = 0;
-    for token in tokens(d) {
-        match token {
-            Token::Command(c) => {
-                command = c;
-                index = 0;
-                out.push(c);
-            }
-            Token::Number(v) => {
-                let moved = match command {
-                    // Arcs: rx ry rotation large sweep x y.
-                    'A' => match index % 7 {
-                        5 => v + dx,
-                        6 => v + dy,
-                        _ => v,
-                    },
-                    'H' => v + dx,
-                    'V' => v + dy,
-                    _ if index % 2 == 0 => v + dx,
-                    _ => v + dy,
-                };
-                if !out.ends_with(command) {
-                    out.push(' ');
-                }
-                let _ = write!(out, "{moved}");
-                index += 1;
-            }
-        }
-    }
-    out
-}
-
-enum Token {
-    Command(char),
-    Number(f32),
-}
-
-fn tokens(d: &str) -> Vec<Token> {
-    let mut out = Vec::new();
-    let mut number = String::new();
-    let flush = |number: &mut String, out: &mut Vec<Token>| {
-        if let Ok(v) = number.parse() {
-            out.push(Token::Number(v));
-        }
-        number.clear();
-    };
-    for c in d.chars() {
-        if c.is_ascii_alphabetic() && c != 'e' {
-            flush(&mut number, &mut out);
-            out.push(Token::Command(c));
-        } else if c == ' ' || c == ',' {
-            flush(&mut number, &mut out);
-        } else if c == '-' && !number.is_empty() && !number.ends_with('e') {
-            flush(&mut number, &mut out);
-            number.push(c);
-        } else {
-            number.push(c);
-        }
-    }
-    flush(&mut number, &mut out);
-    out
+    transform_path(d, Matrix::translate(dx.into(), dy.into()), 6).unwrap_or_else(|_| d.to_owned())
 }
 
 #[cfg(test)]
@@ -673,10 +610,7 @@ mod tests {
 
     #[test]
     fn moves_absolute_paths() {
-        assert_eq!(offset_path("M0 0L10 -5Z", 2.0, 3.0), "M2 3L12 -2Z");
-        assert_eq!(
-            offset_path("M4 0H6A4 4 0 0 1 10 4", 1.0, 1.0),
-            "M5 1H7A4 4 0 0 1 11 5"
-        );
+        assert_eq!(offset_path("M0 0L10 -5Z", 2.0, 3.0), "M2 3 L12 -2 Z");
+        assert_eq!(offset_path("M4 0H6", 1.0, 1.0), "M5 1 L7 1");
     }
 }

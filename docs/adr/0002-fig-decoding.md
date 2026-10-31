@@ -14,7 +14,7 @@ or in JS with `openfig-core` (MIT), which already parses them.
 Decode `.fig` **in Rust**, in the `folioscope` crate:
 
 - `kiwi`: a generic Kiwi decoder driven by the schema embedded in each file, so new Figma fields
-  never require a code change;
+  never require a code change (it lives in helpers4, `helpers4::kiwi`, since its 0.0.10);
 - `fig`: ZIP, `canvas.fig` chunks, zstd (`ruzstd`) or raw deflate (`flate2`, Rust backend).
 
 `openfig-core` is the **test oracle** and the **fixture writer**: `tools/fixtures` builds `.fig`
