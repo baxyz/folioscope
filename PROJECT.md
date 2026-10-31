@@ -611,9 +611,11 @@ passing everywhere.
 
 The "works right away" path with no build step, and the fallback for dynamic layers.
 
-- [ ] Fonts in the browser: `<folioscope-font>` (the five modes), `<folioscope-fonts>`,
-      `registerFont()`, resolution order, fallback; the full player bakes with them (ADR 0012).
-      `folioscope:font-missing` is already sent.
+- [ ] Fonts in the browser, what is left: the `base` (manifest) and `css` modes, `/regex/` in
+      `match`, loading a font only when the file uses its family (all declared fonts are fetched
+      now), a `FolioscopeFontSet` in JavaScript. Done: `<folioscope-font>` with `src`, `family`,
+      `match` (`*` and `?`), `weight` and `style`; `<folioscope-fonts>` and the `fonts` attribute;
+      `registerFont()`; the in-browser bake uses them, and the cache keys on them.
 - [ ] Dynamic layers of a `.folio` (variables, conditions) rendered on the fly.
 - [ ] Publish the `folioscope` crate (the CLI and the library, `cargo install folioscope`, ADR 0013)
       to crates.io, with `helpers4/action-release` (`crates: .`; trusted publishing, no token);

@@ -287,6 +287,26 @@ function sketchNavigation(): SketchBuilder {
   return sketch;
 }
 
+/**
+ * Text in two fonts, neither stored in the file: Inter, and a brand font that only a rule can
+ * stand in for. Sketch stores no glyphs, so a bake draws nothing without the fonts.
+ */
+function sketchText(): SketchBuilder {
+  const sketch = new SketchBuilder();
+  const page = sketch.page("Prototype");
+  const home = sketch.artboard(page, "Home", { x: 0, y: 0, ...PHONE });
+  sketch.flowHome(home);
+  sketch.text(home, "Title", { x: 24, y: 64, width: 240, height: 40 }, "Hello Inter", {
+    name: "Inter-Regular",
+    size: 32,
+  });
+  sketch.text(home, "Tagline", { x: 24, y: 128, width: 240, height: 24 }, "Hello Brand", {
+    name: "Brand-Bold",
+    size: 20,
+  });
+  return sketch;
+}
+
 /** The `.penpot` twin of `navigation`. */
 function penpotNavigation(): PenpotBuilder {
   const penpot = new PenpotBuilder("Navigation");
@@ -328,6 +348,7 @@ const fixtures: Record<string, () => { toBytes(): Uint8Array }> = {
   "figma/triggers.fig": triggers,
   "figma/flows-and-pages.fig": flowsAndPages,
   "sketch/navigation.sketch": sketchNavigation,
+  "sketch/text.sketch": sketchText,
   "penpot/navigation.penpot": penpotNavigation,
 };
 

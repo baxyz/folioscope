@@ -4,37 +4,61 @@
 //! later, the browser (the full player).
 
 use folioscope::bake::folio::{BakeOptions, bake_file_into};
-use folioscope::bake::fonts::FontLibrary;
+use folioscope::bake::fonts::{FontHints, FontLibrary};
 use js_sys::{Array, Map, Object, Reflect, Uint8Array};
+use serde::Deserialize;
 use wasm_bindgen::prelude::*;
 
-/// Bakes a `.fig`, `.sketch` or `.penpot` file; `avif` lets large, photo-like layers use AVIF; `fonts` maps font file
-/// names to their bytes, for text the file stores no glyphs for. Returns `{ files, missingFonts }`:
-/// a `Map` from paths inside the `.folio` folder (`index.json`, `poster.webp`, `layers/…`) to
-/// their bytes, and the fonts some text needed and was not given (`Family Style`). `densities`
-/// (1x and 2x when absent) lets the browser bake only the one its screen needs.
+/// What a page says about one of the fonts it gives: the name of its entry in `fonts`, and the
+/// family names, weight and style to use instead of what the file says.
+#[derive(Deserialize)]
+struct DeclaredFont {
+    name: String,
+    #[serde(flatten)]
+    hints: FontHints,
+}
+
+/// Bakes a `.fig`, `.sketch` or `.penpot` file; `avif` lets large, photo-like layers use AVIF.
+/// `fonts` maps font file names to their bytes, for text the file stores no glyphs for; `hints`
+/// is a JSON array of `{ name, family?, match?, weight?, italic? }` describing some of them.
+/// Returns `{ files, missingFonts }`: a `Map` from paths inside the `.folio` folder (`index.json`,
+/// `poster.webp`, `layers/…`) to their bytes, and the fonts some text needed and was not given
+/// (`Family Style`), plus the given files that are not fonts. `densities` (1x and 2x when absent)
+/// lets the browser bake only the one its screen needs.
 ///
 /// # Errors
 ///
-/// Throws when the file cannot be decoded or a frame cannot be rendered.
+/// Throws when the file cannot be decoded or a frame cannot be rendered, or `hints` is not valid.
 #[wasm_bindgen]
+#[allow(clippy::needless_pass_by_value)] // wasm-bindgen passes an optional string by value
 pub fn bake(
     input: &[u8],
     avif: bool,
     fonts: &Map,
     densities: Option<Vec<u8>>,
+    hints: Option<String>,
 ) -> Result<Object, JsError> {
+    let declared: Vec<DeclaredFont> = match hints.as_deref().filter(|h| !h.is_empty()) {
+        Some(json) => {
+            serde_json::from_str(json).map_err(|e| JsError::new(&format!("hints: {e}")))?
+        }
+        None => Vec::new(),
+    };
     let mut library = FontLibrary::default();
-    let mut font_error = None;
+    let mut unreadable = Vec::new();
     fonts.for_each(&mut |bytes, name| {
         let name = name.as_string().unwrap_or_default();
-        if let Err(e) = library.add(&name, &Uint8Array::new(&bytes).to_vec()) {
-            font_error.get_or_insert(e);
+        let hints = declared
+            .iter()
+            .find(|d| d.name == name)
+            .map(|d| d.hints.clone())
+            .unwrap_or_default();
+        let bytes = Uint8Array::new(&bytes).to_vec();
+        // A file that is not a font must not stop the bake: its text is reported missing.
+        if library.add_with(&name, &bytes, &hints).is_err() {
+            unreadable.push(format!("{name} (not a font)"));
         }
     });
-    if let Some(e) = font_error {
-        return Err(e.into());
-    }
     let files = Map::new();
     let mut options = BakeOptions {
         avif,
@@ -48,7 +72,11 @@ pub fn bake(
         files.set(&path.into(), &Uint8Array::from(bytes).into());
         Ok(())
     })?;
-    let missing: Array = report.missing_fonts.iter().map(JsValue::from).collect();
+    let missing: Array = unreadable
+        .iter()
+        .chain(&report.missing_fonts)
+        .map(|font| JsValue::from(font.as_str()))
+        .collect();
     let result = Object::new();
     Reflect::set(&result, &"files".into(), &files).map_err(|_| JsError::new("result"))?;
     Reflect::set(&result, &"missingFonts".into(), &missing).map_err(|_| JsError::new("result"))?;

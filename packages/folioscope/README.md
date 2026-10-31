@@ -37,8 +37,8 @@ WebAssembly, loaded only then), and caches the result.
 Or `import "folioscope";` from a bundled app. The player is a vanilla custom element, under 15 KB
 of JS gzipped, with no WebAssembly and no fonts.
 
-Attributes: `src`, `poster`, `preload`, `flow`, `page`, `fit`, `hotspots`, `controls`. Methods: `restart()`,
-`back()`, `goTo(frameId)`. Events: `folioscope:load`, `folioscope:navigate`, `folioscope:error`.
+Attributes: `src`, `poster`, `preload`, `flow`, `page`, `fit`, `hotspots`, `controls`, `fonts`. Methods: `restart()`,
+`back()`, `goTo(frameId)`, `registerFont()`. Events: `folioscope:load`, `folioscope:navigate`, `folioscope:error`.
 Details on [folioscope.baxyz.dev](https://folioscope.baxyz.dev).
 
 ## On JSR

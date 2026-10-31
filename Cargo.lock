@@ -458,6 +458,8 @@ version = "0.0.8"
 dependencies = [
  "folioscope",
  "js-sys",
+ "serde",
+ "serde_json",
  "wasm-bindgen",
 ]
 

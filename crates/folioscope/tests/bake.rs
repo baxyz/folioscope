@@ -41,3 +41,60 @@ fn navigation_bakes_to_a_folio_folder() {
     );
     std::fs::remove_dir_all(&out).unwrap();
 }
+
+/// A `.sketch` stores no glyphs: its text is drawn with the fonts given, matched by name.
+#[test]
+fn sketch_text_needs_its_fonts() {
+    use folioscope::bake::folio::bake_file_into;
+    use folioscope::bake::fonts::{FontHints, FontLibrary};
+
+    let root = env!("CARGO_MANIFEST_DIR");
+    let sketch = std::fs::read(format!("{root}/../../fixtures/sketch/text.sketch")).unwrap();
+    let inter = std::fs::read(format!("{root}/../../fixtures/fonts/Inter-Latin.ttf")).unwrap();
+
+    // Bakes with `hints` for the one font, and returns the missing fonts and the first layer.
+    let bake = |hints: Option<FontHints>| {
+        let mut fonts = FontLibrary::default();
+        if let Some(hints) = hints {
+            fonts.add_with("Inter-Latin.ttf", &inter, &hints).unwrap();
+        }
+        let options = BakeOptions {
+            fonts,
+            ..BakeOptions::default()
+        };
+        let mut layer = Vec::new();
+        let report = bake_file_into(&sketch, &options, &mut |path, bytes| {
+            if path.ends_with("@1x.webp") {
+                layer = bytes.to_vec();
+            }
+            Ok(())
+        })
+        .unwrap();
+        (report.missing_fonts.into_iter().collect::<Vec<_>>(), layer)
+    };
+
+    let (nothing, blank) = bake(None);
+    assert_eq!(nothing, ["Brand-Bold", "Inter-Regular"]);
+
+    // Inter alone gives the first text; the brand font stays missing.
+    let (brand_missing, with_inter) = bake(Some(FontHints::default()));
+    assert_eq!(brand_missing, ["Brand-Bold"]);
+    assert_ne!(with_inter, blank, "the text is drawn");
+
+    // Inter standing in for the brand font, by name, or by pattern: nothing is missing, and
+    // there is more text to draw.
+    for hints in [
+        FontHints {
+            family: Some("Brand".into()),
+            ..FontHints::default()
+        },
+        FontHints {
+            matches: vec!["Br?nd*".into()],
+            ..FontHints::default()
+        },
+    ] {
+        let (none, both) = bake(Some(hints));
+        assert!(none.is_empty(), "{none:?}");
+        assert_ne!(both, with_inter, "the second text is drawn too");
+    }
+}

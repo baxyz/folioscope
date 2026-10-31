@@ -5,7 +5,7 @@
 
 use std::sync::Arc;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use skrifa::raw::FileRef;
 use skrifa::{FontRef, MetadataProvider, Tag, attribute::Style, string::StringId};
 
@@ -32,9 +32,30 @@ pub struct Face {
     /// Index in a collection, 0 otherwise.
     #[serde(skip_serializing_if = "is_zero")]
     pub index: u32,
+    /// Other family names this face answers to, case-insensitively: a name, or a pattern with `*`
+    /// (any run of characters) and `?` (one character), as `SF Pro*`.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub aliases: Vec<String>,
     /// The font as TrueType or OpenType (WOFF and WOFF2 decoded).
     #[serde(skip)]
     pub data: Arc<Vec<u8>>,
+}
+
+/// What to say about a font file instead of what it says itself (`<folioscope-font family="…">`).
+#[derive(Debug, Default, Clone, PartialEq, Deserialize)]
+pub struct FontHints {
+    /// A family name the font also answers to, besides its own.
+    #[serde(default)]
+    pub family: Option<String>,
+    /// Family names or patterns it also answers to: it substitutes for them.
+    #[serde(default, rename = "match")]
+    pub matches: Vec<String>,
+    /// The weight it is, instead of the one in the file.
+    #[serde(default)]
+    pub weight: Option<f32>,
+    /// Whether it is italic, instead of what the file says.
+    #[serde(default)]
+    pub italic: Option<bool>,
 }
 
 #[allow(clippy::trivially_copy_pass_by_ref)] // serde's signature
@@ -46,6 +67,12 @@ impl Face {
     #[must_use]
     pub fn font(&self) -> Option<FontRef<'_>> {
         FontRef::from_index(&self.data, self.index).ok()
+    }
+
+    /// Whether the face is the one for `family`: its own family, or one of its aliases.
+    fn answers(&self, family: &str) -> bool {
+        self.family.eq_ignore_ascii_case(family)
+            || self.aliases.iter().any(|alias| glob_match(alias, family))
     }
 
     /// How far `weight` is from what the face covers; 0 inside the range.
@@ -69,6 +96,21 @@ impl FontLibrary {
     ///
     /// Fails when `bytes` are not a font this library reads.
     pub fn add(&mut self, source: &str, bytes: &[u8]) -> Result<usize, FontError> {
+        self.add_with(source, bytes, &FontHints::default())
+    }
+
+    /// Like [`FontLibrary::add`], with what the caller says about the font: the family names it
+    /// answers to, and its weight and style when the file says otherwise or nothing.
+    ///
+    /// # Errors
+    ///
+    /// Fails when `bytes` are not a font this library reads.
+    pub fn add_with(
+        &mut self,
+        source: &str,
+        bytes: &[u8],
+        hints: &FontHints,
+    ) -> Result<usize, FontError> {
         let error = || FontError::Format(source.to_owned());
         let data = Arc::new(match bytes.get(..4) {
             Some(b"wOFF") => wuff::decompress_woff1(bytes).map_err(|_| error())?,
@@ -99,10 +141,13 @@ impl FontLibrary {
             self.faces.push(Face {
                 family,
                 postscript,
-                weight,
-                italic: !matches!(attributes.style, Style::Normal),
+                weight: hints.weight.map_or(weight, |w| [w, w]),
+                italic: hints
+                    .italic
+                    .unwrap_or(!matches!(attributes.style, Style::Normal)),
                 source: source.to_owned(),
                 index,
+                aliases: hints.family.iter().chain(&hints.matches).cloned().collect(),
                 data: Arc::clone(&data),
             });
         }
@@ -121,10 +166,7 @@ impl FontLibrary {
     /// matching picks it: the style first, then the weight.
     #[must_use]
     pub fn resolve(&self, family: &str, weight: f32, italic: bool) -> Option<&Face> {
-        let candidates = self
-            .faces
-            .iter()
-            .filter(|f| f.family.eq_ignore_ascii_case(family));
+        let candidates = self.faces.iter().filter(|f| f.answers(family));
         candidates.min_by(|a, b| {
             let key = |f: &Face| (f.italic != italic, f.distance(weight));
             let (ka, kb) = (key(a), key(b));
@@ -146,14 +188,20 @@ impl FontLibrary {
         {
             return Some(face);
         }
-        let (family, style) = name.split_once('-').unwrap_or((name, "Regular"));
+        let (family_name, style) = name.split_once('-').unwrap_or((name, "Regular"));
         let squeeze = |s: &str| s.replace(' ', "").to_ascii_lowercase();
-        let family = squeeze(family);
+        let family = squeeze(family_name);
         let italic = style.to_ascii_lowercase().contains("italic");
         let weight = weight_of_style(style);
         self.faces
             .iter()
-            .filter(|f| squeeze(&f.family) == family)
+            .filter(|f| {
+                // PostScript names have no spaces: compare the aliases without theirs too.
+                squeeze(&f.family) == family
+                    || f.aliases
+                        .iter()
+                        .any(|alias| glob_match(&squeeze(alias), &family))
+            })
             .min_by(|a, b| {
                 let key = |f: &Face| (f.italic != italic, f.distance(weight));
                 let (ka, kb) = (key(a), key(b));
@@ -167,6 +215,33 @@ fn family(font: &FontRef<'_>) -> Option<String> {
         .into_iter()
         .find_map(|id| font.localized_strings(id).english_or_first())
         .map(|name| name.to_string())
+}
+
+// TODO(helpers4): glob matching, case-insensitive (docs/helpers4-requests.md § 8).
+/// Whether `text` matches `pattern`, ignoring case: `*` stands for any run of characters, `?` for
+/// one; anything else is itself.
+fn glob_match(pattern: &str, text: &str) -> bool {
+    let pattern: Vec<char> = pattern.to_lowercase().chars().collect();
+    let text: Vec<char> = text.to_lowercase().chars().collect();
+    // Positions in the pattern and the text, and where the last `*` was and what it swallowed.
+    let (mut p, mut t, mut star, mut swallowed) = (0, 0, None, 0);
+    while t < text.len() {
+        if p < pattern.len() && (pattern[p] == '?' || pattern[p] == text[t]) {
+            p += 1;
+            t += 1;
+        } else if p < pattern.len() && pattern[p] == '*' {
+            star = Some(p);
+            swallowed = t;
+            p += 1;
+        } else if let Some(at) = star {
+            p = at + 1;
+            swallowed += 1;
+            t = swallowed;
+        } else {
+            return false;
+        }
+    }
+    pattern[p..].iter().all(|&c| c == '*')
 }
 
 /// Weight of a style name as design tools write it ("Semi Bold Italic" → 600).
@@ -235,6 +310,41 @@ mod tests {
         // The variable font is named for its default instance; a bold name falls back to it.
         assert!(library.resolve_postscript("Inter-Bold").is_some());
         assert!(library.resolve_postscript("Montserrat-Bold").is_none());
+    }
+
+    #[test]
+    fn globs_match_names_ignoring_case() {
+        assert!(glob_match("SF Pro*", "sf pro display"));
+        assert!(glob_match("*pro*", "SF Pro Text"));
+        assert!(glob_match("Inter?", "Inter4"));
+        assert!(glob_match("Brand", "BRAND"));
+        assert!(!glob_match("SF Pro*", "Helvetica"));
+        assert!(!glob_match("Inter?", "Inter"));
+        assert!(glob_match("*", ""));
+    }
+
+    #[test]
+    fn a_font_answers_to_the_names_it_is_given() {
+        let mut library = FontLibrary::default();
+        let hints = FontHints {
+            family: Some("Brand".into()),
+            matches: vec!["SF Pro*".into()],
+            weight: Some(500.0),
+            italic: Some(true),
+        };
+        library
+            .add_with("Inter-Latin.ttf", &inter("ttf"), &hints)
+            .unwrap();
+        for name in ["Inter", "brand", "SF Pro Display"] {
+            assert!(library.resolve(name, 400.0, false).is_some(), "{name}");
+        }
+        assert!(library.resolve("Helvetica", 400.0, false).is_none());
+        // Substitutes by name, for Sketch's PostScript names too.
+        assert!(library.resolve_postscript("Brand-Bold").is_some());
+        assert!(library.resolve_postscript("SFProText-Regular").is_some());
+        assert!(library.resolve_postscript("Helvetica-Bold").is_none());
+        let face = &library.faces()[0];
+        assert_eq!((face.weight, face.italic), ([500.0, 500.0], true));
     }
 
     #[test]
