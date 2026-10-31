@@ -32,7 +32,8 @@ jobs:
         run: pnpm dlx jsr@0.14.3 publish --dry-run --allow-dirty
       - name: Lite player budget (15 KB of JS, gzipped)
         run: |
-          size=$(gzip -9 -c packages/folioscope/dist/index.mjs | wc -c)
+          # index.mjs and the chunks it shares with the full player and the Vite plugin.
+          size=$(cat packages/folioscope/dist/index.mjs packages/folioscope/dist/lib-*.mjs | gzip -9 -c | wc -c)
           echo "lite player: $size bytes gzipped"
           test "$size" -le 15360
 

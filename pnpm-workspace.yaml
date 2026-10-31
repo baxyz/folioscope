@@ -9,7 +9,7 @@ catalog:
   "@sketch-hq/sketch-file-format-ts": 6.5.0
   "@types/node": ^24
   fflate: 0.8.3
-  helpers4: 3.1.9
+  helpers4: 3.1.10
   openfig-core: 0.4.1
   playwright: 1.64.1
   typescript: ^7.0.2
@@ -26,3 +26,36 @@ peerDependencyRules:
 allowBuilds:
   esbuild: true
   workerd: true
+minimumReleaseAgeExclude:
+  - "@helpers4/animation@3.1.10"
+  - "@helpers4/array@3.1.10"
+  - "@helpers4/binary@3.1.10"
+  - "@helpers4/browser@3.1.10"
+  - "@helpers4/ci@3.1.10"
+  - "@helpers4/color@3.1.10"
+  - "@helpers4/commit@3.1.10"
+  - "@helpers4/date@3.1.10"
+  - "@helpers4/font@3.1.10"
+  - "@helpers4/function@3.1.10"
+  - "@helpers4/geography@3.1.10"
+  - "@helpers4/geometry@3.1.10"
+  - "@helpers4/guard@3.1.10"
+  - "@helpers4/id@3.1.10"
+  - "@helpers4/json@3.1.10"
+  - "@helpers4/license@3.1.10"
+  - "@helpers4/map@3.1.10"
+  - "@helpers4/markdown@3.1.10"
+  - "@helpers4/node@3.1.10"
+  - "@helpers4/number@3.1.10"
+  - "@helpers4/object@3.1.10"
+  - "@helpers4/observable@3.1.10"
+  - "@helpers4/package@3.1.10"
+  - "@helpers4/presets@3.1.10"
+  - "@helpers4/promise@3.1.10"
+  - "@helpers4/set@3.1.10"
+  - "@helpers4/string@3.1.10"
+  - "@helpers4/structure@3.1.10"
+  - "@helpers4/type@3.1.10"
+  - "@helpers4/url@3.1.10"
+  - "@helpers4/version@3.1.10"
+  - helpers4@3.1.10

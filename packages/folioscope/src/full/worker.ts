@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // The bake worker: fetches a design file, bakes it with the WebAssembly bake, and caches the result
 // by the file's hash (Cache API), so a second visit skips the bake.
+import { createFileStore, sha256Hex } from "helpers4/browser";
 import type { BakeMessage, BakeRequest, FontDeclaration } from "./index.ts";
 
 interface Glue {
@@ -14,19 +15,14 @@ interface Glue {
   ): { files: Map<string, Uint8Array>; missingFonts: string[] };
 }
 
-// TODO(helpers4): worker requests and a Cache API file store (docs/helpers4-requests.md § 7).
 /** Bumped when the bake's output changes, so stale entries are not reused. */
-const CACHE_VERSION = "2";
-const CACHE = "folioscope";
+const CACHE_VERSION = "3";
+const store = createFileStore("folioscope");
+/** Where the cache keeps the fonts the bake lacked, with the files. */
+const MISSING_FONTS = "missing-fonts.json";
 
 const post = (message: BakeMessage, transfer: Transferable[] = []) =>
   (globalThis as unknown as Worker).postMessage(message, transfer);
-
-const hex = (digest: ArrayBuffer, bytes = 16) =>
-  Array.from(new Uint8Array(digest).slice(0, bytes), (b) => b.toString(16).padStart(2, "0")).join(
-    "",
-  );
-const sha256 = (bytes: Uint8Array<ArrayBuffer>) => crypto.subtle.digest("SHA-256", bytes);
 
 globalThis.addEventListener("message", (event) => {
   bake((event as MessageEvent<BakeRequest>).data).catch((error: unknown) =>
@@ -73,70 +69,58 @@ async function loadFonts(declared: FontDeclaration[]) {
 }
 
 async function bake({ url, density, fonts: declared }: BakeRequest): Promise<void> {
-  post({ type: "progress", stage: "download" });
+  post({ type: "progress", value: "download" });
   const [response, loaded] = await Promise.all([fetch(url), loadFonts(declared)]);
-  if (declared.length) post({ type: "progress", stage: "fonts" });
+  if (declared.length) post({ type: "progress", value: "fonts" });
   if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
   const source = new Uint8Array(await response.arrayBuffer());
   // What decides the bake: the file, and the fonts with what is said about them.
-  const hash = hex(await sha256(source));
   const hintsJson = JSON.stringify(loaded.hints);
   let fontKey = "";
   for (const [name, bytes] of loaded.fonts) {
-    fontKey += `${name}:${hex(await sha256(bytes as Uint8Array<ArrayBuffer>), 8)},`;
+    fontKey += `${name}:${await sha256Hex(bytes as Uint8Array<ArrayBuffer>, 16)},`;
   }
-  const fontHash = hex(await sha256(new TextEncoder().encode(fontKey + hintsJson)), 8);
-  // Keys are made-up URLs: the Cache API wants URLs, these are never fetched.
-  const key = (path: string) =>
-    `https://folioscope.invalid/${CACHE_VERSION}/${hash}/${density}/${fontHash}/${encodeURIComponent(path)}`;
+  const key = [
+    await sha256Hex(source, 32),
+    density,
+    await sha256Hex(new TextEncoder().encode(fontKey + hintsJson), 16),
+  ].join("/");
 
-  const cache = await globalThis.caches?.open(CACHE).catch(() => undefined);
-  const listed = await cache?.match(key("files.json"));
-  if (cache && listed) {
-    post({ type: "progress", stage: "cache" });
-    const { paths, missingFonts } = (await listed.json()) as {
-      paths: string[];
-      missingFonts: string[];
-    };
+  const stored = await store.get(key, CACHE_VERSION);
+  if (stored) {
+    post({ type: "progress", value: "cache" });
+    const { [MISSING_FONTS]: missing, ...layers } = stored;
     const files: [string, Uint8Array][] = [];
-    for (const path of paths) {
-      const hit = await cache.match(key(path));
-      if (!hit) return bakeAndStore();
-      files.push([path, new Uint8Array(await hit.arrayBuffer())]);
+    for (const [path, blob] of Object.entries(layers)) {
+      files.push([path, new Uint8Array(await blob.arrayBuffer())]);
     }
-    return done(files, missingFonts);
+    return done(files, missing ? (JSON.parse(await missing.text()) as string[]) : []);
   }
-  return bakeAndStore();
 
-  async function bakeAndStore(): Promise<void> {
-    post({ type: "progress", stage: "bake" });
-    const glue = (await import(
-      new URL("../../wasm/folioscope_wasm.js", import.meta.url).href
-    )) as Glue;
-    await glue.default({
-      module_or_path: new URL("../../wasm/folioscope_wasm_bg.wasm", import.meta.url),
-    });
-    const result = glue.bake(source, false, loaded.fonts, Uint8Array.of(density), hintsJson);
-    const files = [...result.files];
-    const missingFonts = [...loaded.failed, ...result.missingFonts];
-    if (cache) {
-      await Promise.all(
-        files.map(([path, bytes]) =>
-          cache.put(key(path), new Response(bytes as Uint8Array<ArrayBuffer>)),
-        ),
-      );
-      await cache.put(
-        key("files.json"),
-        Response.json({ paths: files.map(([path]) => path), missingFonts }),
-      );
-    }
-    return done(files, missingFonts);
-  }
+  post({ type: "progress", value: "bake" });
+  const glue = (await import(
+    new URL("../../wasm/folioscope_wasm.js", import.meta.url).href
+  )) as Glue;
+  await glue.default({
+    module_or_path: new URL("../../wasm/folioscope_wasm_bg.wasm", import.meta.url),
+  });
+  const result = glue.bake(source, false, loaded.fonts, Uint8Array.of(density), hintsJson);
+  const files = [...result.files];
+  const missingFonts = [...loaded.failed, ...result.missingFonts];
+  await store.put(
+    key,
+    {
+      ...Object.fromEntries(files.map(([path, bytes]) => [path, bytes as Uint8Array<ArrayBuffer>])),
+      [MISSING_FONTS]: JSON.stringify(missingFonts),
+    },
+    CACHE_VERSION,
+  );
+  return done(files, missingFonts);
 }
 
 function done(files: [string, Uint8Array][], missingFonts: string[]): void {
   post(
-    { type: "done", files, missingFonts },
+    { type: "result", value: { files, missingFonts } },
     files.map(([, bytes]) => bytes.buffer),
   );
 }

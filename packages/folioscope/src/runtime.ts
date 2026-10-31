@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { createBackStack, type BackStack } from "helpers4/structure";
 import type { Action, FolioFrame, FolioPage, Point, Rect, Transition } from "./folio.ts";
 
 /** An overlay open over the screen. */
@@ -33,15 +34,13 @@ interface State {
  * The prototype's state machine, independent of the DOM: the current screen of a page, the
  * overlays over it, and the history `back` returns through.
  */
-// TODO(helpers4): rebuild on `createBackStack` (helpers4/structure) once it can replace the current
-// entry (docs/helpers4-requests.md).
 export class Runtime {
   readonly page: FolioPage;
   private readonly frames: Map<string, FolioFrame>;
-  private history: State[] = [];
+  /** The state on top, the ones `back` returns to underneath. */
+  private readonly stack: BackStack<State>;
   /** Frames left by a hover or press still under way, innermost last; `back` skips them. */
   private held: string[] = [];
-  private state: State;
   private readonly start: string;
 
   /** Starts on `flow` (name or index), else the page's first flow, else its first frame. */
@@ -54,7 +53,11 @@ export class Runtime {
     if (start === undefined || !this.frames.has(start))
       throw new Error(`page "${page.name}" has no frame to start on`);
     this.start = start;
-    this.state = { frame: start, overlays: [] };
+    this.stack = createBackStack<State>({ frame: start, overlays: [] });
+  }
+
+  private get state(): State {
+    return this.stack.current;
   }
 
   /** The screen below the overlays. */
@@ -74,7 +77,7 @@ export class Runtime {
   }
 
   get canGoBack(): boolean {
-    return this.history.length > 0;
+    return this.stack.canGoBack;
   }
 
   /**
@@ -124,7 +127,7 @@ export class Runtime {
     if (action.type !== "navigate" || this.state.overlays.length > 0) return undefined;
     if (!this.frames.has(action.to) || action.to === this.state.frame) return undefined;
     this.held.push(this.state.frame);
-    this.state = { frame: action.to, overlays: [] };
+    this.stack.replace({ frame: action.to, overlays: [] });
     return this.step({ transition: action.transition });
   }
 
@@ -132,7 +135,7 @@ export class Runtime {
   release(): Step | undefined {
     const from = this.held.pop();
     if (from === undefined) return undefined;
-    this.state = { frame: from, overlays: [] };
+    this.stack.replace({ frame: from, overlays: [] });
     return this.step();
   }
 
@@ -142,8 +145,8 @@ export class Runtime {
     if (!top) return undefined;
     const below = { frame: this.state.frame, overlays: this.state.overlays.slice(0, -1) };
     // Closing what was just opened takes it out of the history too.
-    if (same(this.history.at(-1), below)) this.history.pop();
-    this.state = below;
+    if (same(this.stack.previous, below)) this.stack.back();
+    else this.stack.replace(below);
     return this.step({ transition: top.transition, reverse: true, layer: "overlay" });
   }
 
@@ -151,11 +154,10 @@ export class Runtime {
     // Back from a held frame starts from the frame the hold left.
     const base = this.held[0];
     this.held = [];
-    if (base !== undefined) this.state = { frame: base, overlays: [] };
-    const previous = this.history.pop();
-    if (previous === undefined) return base === undefined ? undefined : this.step();
+    if (base !== undefined) this.stack.replace({ frame: base, overlays: [] });
     const leaving = this.state;
-    this.state = previous;
+    const previous = this.stack.back() === undefined ? undefined : this.state;
+    if (previous === undefined) return base === undefined ? undefined : this.step();
     if (previous.frame === leaving.frame) {
       // Only overlays changed: undo the top one.
       const top = leaving.overlays.at(-1) ?? previous.overlays.at(-1);
@@ -167,9 +169,8 @@ export class Runtime {
   }
 
   restart(): Step {
-    this.history = [];
     this.held = [];
-    this.state = { frame: this.start, overlays: [] };
+    this.stack.reset({ frame: this.start, overlays: [] });
     return this.step();
   }
 
@@ -180,9 +181,9 @@ export class Runtime {
 
   /** Moves to `next`, recording where it came from; a hold under way is committed. */
   private commit(next: State): void {
-    this.history.push(this.held.length ? { frame: this.held[0]!, overlays: [] } : this.state);
+    if (this.held.length) this.stack.replace({ frame: this.held[0]!, overlays: [] });
     this.held = [];
-    this.state = next;
+    this.stack.push(next);
   }
 
   private step(how: Omit<Step, "frame" | "overlays"> = {}): Step {
