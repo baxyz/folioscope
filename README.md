@@ -21,9 +21,9 @@ It is **not a viewer** for design files: no canvas to pan, no layers to inspect,
 
 > [!WARNING]
 > **Status: early development.** `.fig` prototypes bake and play, with click, timed, hover and
-> press links, overlays, scrolling and interactive components; `.sketch` and `.penpot`
-> prototypes too, with their links, overlays and transitions. `.xd` follows. See the [project plan](PROJECT.md) and its
-> roadmap.
+> press links, overlays, scrolling and interactive components; `.sketch`, `.xd` and `.penpot`
+> prototypes too, with their links and transitions (overlays for `.sketch` and `.penpot`). See the
+> [project plan](PROJECT.md) and its roadmap.
 
 ## Usage
 

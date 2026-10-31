@@ -90,3 +90,12 @@ and back.
 <div class="demo">
   <folioscope-player src="/folio/penpot-navigation.folio" poster="/folio/penpot-navigation.folio/poster.webp" controls></folioscope-player>
 </div>
+
+## From an `.xd` file
+
+And from Adobe XD's format: the button slides the details in from the right, and the grey button
+dissolves back.
+
+<div class="demo">
+  <folioscope-player src="/folio/xd-navigation.folio" poster="/folio/xd-navigation.folio/poster.webp" controls></folioscope-player>
+</div>

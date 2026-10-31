@@ -580,12 +580,12 @@ displayed almost instantly on a portfolio page.
       fonts embedded in `objects/`, blurs, inner shadows, inside and outside strokes (drawn
       centred), `svg-raw` shapes, scrolling boards, fixed elements; a toggled overlay opens like
       any other (the next toggle does not close it yet).
-- [ ] `.xd` importer to the IR:
-  - artboards (`graphicContent.agc`), shared resources (`resources/`);
-  - interactions (`interactions/interactions.json`): tap, hover, delay, navigate, overlay, back,
-    scroll;
-  - component states, mapped to IR variants.
-- [ ] XD auto-animate: mapped to the IR's smart animate (implemented in phase 3).
+- [ ] `.xd`, what is left: gradients, blurs, scrolling artboards (`uxdesign#viewport`), overlays,
+      hover triggers, component states, text underline and strikethrough, image fills other than
+      cover. Read and drawn already: artboards, shapes, clip paths, colour and image fills,
+      borders, drop shadows, text; tap, time, drag and key triggers; slide, push and dissolve;
+      auto-animate (smart animate, layers paired by name). The importer is checked against five
+      real files kept in `fixtures/external/xd/`; the committed fixtures are our own.
 - [ ] Fixtures and tests for both formats, with the same scenarios as for `.fig` and `.sketch`.
 
 **Exit criterion**: the compatibility matrix covers all four formats, with the same basic scenarios
@@ -594,8 +594,8 @@ passing everywhere.
 **Points of attention:**
 
 - **XD**: format not documented by Adobe and frozen since 2023. It will not move any more, which is an
-  advantage for stability. Creating fixtures requires the XD app: use personal archive files, or
-  create them while the app can still be installed.
+  advantage for stability. Our fixtures are written by `tools/fixtures` from what real files show;
+  real files stay in `fixtures/external/xd/` (never committed: no licence).
 - **Penpot**: only the v3 format (ZIP of JSON) is supported; the v1 (binary) format is obsolete.
   Fixtures can be created for free with Penpot, online or self-hosted.
 
