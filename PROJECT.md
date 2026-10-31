@@ -539,7 +539,7 @@ Each phase ends with a demo in the playground and a published release.
 
 Goal: remove the risks before writing the real code.
 
-- [ ] Add `geometry` and `binary` to helpers4: requested in [docs/helpers4-requests.md](docs/helpers4-requests.md).
+- [x] Add `geometry` and `binary` to helpers4: delivered and used ([docs/helpers4-requests.md](docs/helpers4-requests.md)).
 
 **Exit criterion**: a `.fig` frame rendered natively, the list of navigation links printed to the
 console, and the pre-render spike displaying almost instantly.

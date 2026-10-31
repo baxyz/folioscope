@@ -215,8 +215,8 @@ catalogs:
       specifier: 0.8.3
       version: 0.8.3
     helpers4:
-      specifier: 3.1.9
-      version: 3.1.9
+      specifier: 3.1.10
+      version: 3.1.10
     openfig-core:
       specifier: 0.4.1
       version: 0.4.1
@@ -268,7 +268,7 @@ importers:
         version: 24.19.2
       helpers4:
         specifier: 'catalog:'
-        version: 3.1.9(@types/node@24.19.2)(rxjs@7.8.2)
+        version: 3.1.10(@types/node@24.19.2)(rxjs@7.8.2)(vitest@5.0.4(@types/node@24.19.2)(@vitest/browser-preview@5.0.4)(@vitest/ui@5.0.4(vitest@5.0.4))(@voidzero-dev/vite-plus-core@1.2.0(@types/node@24.19.2)(esbuild@0.28.2)(typescript@7.0.2)))
       playwright:
         specifier: 'catalog:'
         version: 1.64.1
@@ -548,124 +548,139 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@helpers4/animation@3.1.9':
-    resolution: {integrity: sha512-8Dwm1KEjz+j2BAbcj2NP8vOZkaVCiOyYpLc9xjcj1rhZn3hF3gC5fBLma+wJXznZUgILlHBG74cAgvfuu9AGcw==}
+  '@helpers4/animation@3.1.10':
+    resolution: {integrity: sha512-NJSCUK1TkSwxbutNfzowoLwH9/Q8tqDeKlBg04uUrbgMedoGw2u5U9vT7w0AeTrNFcnrtL04QQ55eshLw2r5gA==}
     engines: {node: '>=26.0.0'}
 
-  '@helpers4/array@3.1.9':
-    resolution: {integrity: sha512-fv7IiDrBmZH+SthAPT1jCX4U/zF/FwbsQDtvwVh7eE30AunVecvCaZLiVjPsCX3fbcRO60PWs6JFCYwgioPfww==}
+  '@helpers4/array@3.1.10':
+    resolution: {integrity: sha512-sT3vnOEalmQyBiYlJW1x9SiUeUAQhMXhuUrjBqgerq71/VT45Q0sDfIgAzAz/6owytvDyRwQEiVtmPMH1I4C3w==}
     engines: {node: '>=26.0.0'}
 
-  '@helpers4/binary@3.1.9':
-    resolution: {integrity: sha512-NoFGBecczjKf9pfbC2JhUur7ZiNRVpfk44ByMAEefDNwSCYdvtESEtsUuZBd0YluzPkkc/pIKM4b6x5+Va/kqA==}
+  '@helpers4/binary@3.1.10':
+    resolution: {integrity: sha512-vIVINR+s/fdojozT1qACaAISVDODJknd/8stAqBVclp1OqPIDUItgrHZ+7h8lwuqYIDcs1kRQBSp8OPC/lOnyA==}
     engines: {node: '>=26.0.0'}
 
-  '@helpers4/browser@3.1.9':
-    resolution: {integrity: sha512-T1RgLsL2VEbjCw/yHrOl0Xvptj2gzleuXQXNFoN6fnUv7WD75HYXSUJNFYO3bCy9s0UsPTNqLaXVUDyGJn25KA==}
+  '@helpers4/browser@3.1.10':
+    resolution: {integrity: sha512-Aq5B+b0JBvM1DbELitNhNn6oS5tUDB1m97iY+6KSHjrq9tqCZL7eUe8z9Ve9M1QsO4LR4MMdXxnpbczBj6qsVw==}
     engines: {node: '>=26.0.0'}
 
-  '@helpers4/ci@3.1.9':
-    resolution: {integrity: sha512-rvft9sQfqz5mvmj+lWqSDFoIT0fw4dw/CX32ocjOoiYNqOeEgUiBlkU4FEwl+ITA57aYFh0QuU758L7ERvKcqA==}
+  '@helpers4/ci@3.1.10':
+    resolution: {integrity: sha512-+6+IyH+M9v5lV20KuSHQrlcEU5INNh30BwAwxiFJ0iUj3JzrHqM8DenMpROhgFYkL6TxzMxhDRuQMkDTUO1C+w==}
     engines: {node: '>=26.0.0'}
 
-  '@helpers4/color@3.1.9':
-    resolution: {integrity: sha512-+mqbKA5wfuwG37X7d6XZiMwarg4qspP4QhI8sr/KAJupbLb+Gn8Cw+odH1+p7ouDmjgw6b2AWz+5CEExSTwdTg==}
+  '@helpers4/color@3.1.10':
+    resolution: {integrity: sha512-W2Mnal1RRa5GlqTRvTevJb4n09iCdIZ5P/5o9kXcZO0OeCex7TkaVfqFU500Ljy3q2BsMfZL6+3rf/mjUGDkuQ==}
     engines: {node: '>=26.0.0'}
 
-  '@helpers4/commit@3.1.9':
-    resolution: {integrity: sha512-NPuvuHt8glz/R6/i0Z89/qYw9QuG2OwwqW0aaaCyNByFhmH3/1xcOUAjtpA/EtbZCjvYmQupaXSc/+8KgNPkzw==}
+  '@helpers4/commit@3.1.10':
+    resolution: {integrity: sha512-P8RXP0CasVW2aGqFG79Yub0MF2d4Q9EAbZLZqB/3SN//T3xEhxjVHExS0Fm0BpcsLIaEfHhRLm/ifADtxkc7bQ==}
     engines: {node: '>=26.0.0'}
 
-  '@helpers4/date@3.1.9':
-    resolution: {integrity: sha512-R7ysX70lkPbwF8mOyyuI0VW5Vkx7DOraneU6G7MFIppO+tpjBzt72cM5kuUuoFolJinyp3Yt6+f+cI4Qe2Yqag==}
+  '@helpers4/date@3.1.10':
+    resolution: {integrity: sha512-zU2FstF2xyy/IzuazIMj3eo9Xl9ZUfrV2ifHWqa+yH2q1+orSW4nPi0wHK0H6qH58e4sWFOnDtcz1WXb/4mzXg==}
     engines: {node: '>=26.0.0'}
 
-  '@helpers4/font@3.1.9':
-    resolution: {integrity: sha512-Vc+leudHkw012QhxCciPRXRrhrxCDyqbeNO9ZD3WLT71Rg55I3H3JEJGlDSI03+WTvp6P22KoBM4is1YGOoedw==}
+  '@helpers4/font@3.1.10':
+    resolution: {integrity: sha512-uiefQ/r0klBi+xfHKPMJWy1+5RWA+NLQK2Bj8avb+UjtT0CYM9Zzd7KqPugjL+e9vHzsMgUJABLMZI088GWLkA==}
     engines: {node: '>=26.0.0'}
 
-  '@helpers4/function@3.1.9':
-    resolution: {integrity: sha512-kzJDRDG+3yB13CBdKQLCN4bzIVZjfO6HLyU7PEYnMpxICBgG1/ioYUHymQRglbQ91tYNAIkaRL8BO+V4dcS8Eg==}
+  '@helpers4/function@3.1.10':
+    resolution: {integrity: sha512-PZtWZm3QkGS4wXtAv9QAlfkY2wGIRVsb0bsqHW4sxG9TgkNjdA/HQn8NgPhoew9IQbhUwonAvC2u/9+NpdfvRw==}
     engines: {node: '>=26.0.0'}
 
-  '@helpers4/geography@3.1.9':
-    resolution: {integrity: sha512-mJj7xWdhRayzcqPuUI5Tjh44GCRwHPgGbNdJWx8KkM591KLw7O2jCZ4Xp70khOr08KE72r1yZSVqo9Hq9IuqRA==}
+  '@helpers4/geography@3.1.10':
+    resolution: {integrity: sha512-YilpUuE1Eay8c4QBGXWWskvZJVRMQpUwjfcTonc+HIdEkYnrk1PytHBT/PRtjrfLbQpzrHFKabZLMP182m/IJw==}
     engines: {node: '>=26.0.0'}
 
-  '@helpers4/geometry@3.1.9':
-    resolution: {integrity: sha512-GvA+sUzlZzdidbSy68qiHJv79/EjWPGgYgNNfHGnBerQQgoFzEWd/Eo9exW+0w18lBmh2iOjpT+aOoO87HMDGA==}
+  '@helpers4/geometry@3.1.10':
+    resolution: {integrity: sha512-mcHhbnWCkAcplzLXu2mzZmEHm0ZLhn/iLjj7PDVF2ZWX3t3mhn+pPAhO1oELxF7ihVCkNzwZuIG+iQE3z5BHIA==}
     engines: {node: '>=26.0.0'}
 
-  '@helpers4/guard@3.1.9':
-    resolution: {integrity: sha512-xC0+iLu+FkANapyjk7Iblfft5Qh3O+SmYXMvAQ8Y+yTHOrUI0xSmOsvHDn+78lN+0z7H51FBd65k0Xw1Fsmmtw==}
+  '@helpers4/guard@3.1.10':
+    resolution: {integrity: sha512-nlTuIR5+Te1pxlLcdK/FKpFBAiaZD+zTB0dbrUzUfEnjkq48O3i9dzDdveIjuD6bMJc1sUYe3kPfmwvBEitbYA==}
     engines: {node: '>=26.0.0'}
 
-  '@helpers4/id@3.1.9':
-    resolution: {integrity: sha512-/7fTh9pqYCND0QrlD6ltaCP+bzP593S1bpeTOKYyuYGYD9BZ3V8EgnXltl1eubPvfBzaXATtbxwr1Rr1sNOVdQ==}
+  '@helpers4/id@3.1.10':
+    resolution: {integrity: sha512-UCPr9l1lmX4oP1Z/IGKVZ/8xvr/QBInJyDQTpSKl52KfYPSTSaG+BzNZvbJVnvg5eyKxDAbH7oH+kzZnmVBAfQ==}
     engines: {node: '>=26.0.0'}
 
-  '@helpers4/json@3.1.9':
-    resolution: {integrity: sha512-pRN9UgEt0nPFyhlV6fUZUSfb/dhr3B52xmGNZGcoJMb3qMPo+WokxXgJUlLPqA2pqViKBPcfMbBY67FJ1B5REw==}
+  '@helpers4/json@3.1.10':
+    resolution: {integrity: sha512-1YMsRVplgkR8Q1AxwR9v0OLR5AhKgv7vChGrQmbjDkA+fgfUlgjOok+KBP14Jya+d6EGxSMoLEouG7hNiWHIPQ==}
     engines: {node: '>=26.0.0'}
 
-  '@helpers4/license@3.1.9':
-    resolution: {integrity: sha512-MzqmpZi0Hwl8XCG9UkWld2AABJYlsediMy8zOALY+Benpk6ymuOCd8ai+Gmb+TOLTVEezT6AUO/a6xwvzj3AQw==}
+  '@helpers4/license@3.1.10':
+    resolution: {integrity: sha512-Xx7bg2NhLHgfiHr9BO5g5Vrw0tO8apJG+oRN9J1uEJ4ZRPzURWft2bXawrYxqaMnFYkgWNXDwzMCUarGMY3JEA==}
     engines: {node: '>=26.0.0'}
 
-  '@helpers4/map@3.1.9':
-    resolution: {integrity: sha512-h0sljVt1V81VZe56ZACvJoSD8RmI9Z2cP65keqLBHUb0qiifzpyRfNSYoZtjJYF8CoL7japXxK/YtxOQtuFlDw==}
+  '@helpers4/map@3.1.10':
+    resolution: {integrity: sha512-T/HwLQNLc8eT6x2txGpuVLDJOLF+hRSTW5Br+rlm5MiBGwFxxcOrt6bBpgDqRFsWmaXN70oYge9ADJihhkUVMQ==}
     engines: {node: '>=26.0.0'}
 
-  '@helpers4/markdown@3.1.9':
-    resolution: {integrity: sha512-czdZ67QIhTIQ7A21QLtGkGoz28iG8kCSwaHz3dqgd3hxsQyNsYW9hLg0Tu5KTs3MqMphLWfRR5/sowpimJJ90g==}
+  '@helpers4/markdown@3.1.10':
+    resolution: {integrity: sha512-D88qhN1lgn8/pUeO6jveszBEC1vzEqwwaHvoqiUal2wETI9oJNAc25mL5UXvbZ3W1dj5ECCzNXup0XdfbLIEYA==}
     engines: {node: '>=26.0.0'}
 
-  '@helpers4/node@3.1.9':
-    resolution: {integrity: sha512-qBhp9lP1iOB4P+SV0kBzwmawt8p4/Dz4evOsPl7G4aJ+zc3M2xfLQ8BA02tPoN0IIcZzVTj33YdWwleBVwjk1w==}
+  '@helpers4/node@3.1.10':
+    resolution: {integrity: sha512-R1CiuE04qeQJ/f+bAoz7Qxw4KB7jMV6Sq+hHjxHdhHtkKALKlj5zMH2BpVeU83KBNVg3bmL/EMruz3myzZG8wg==}
     engines: {node: '>=26.0.0'}
     peerDependencies:
       '@types/node': '>=22'
 
-  '@helpers4/number@3.1.9':
-    resolution: {integrity: sha512-lK7gAqrmBk3FNrVIaDX2NEreHqEfZbkCj0ucGMOc6GXfXHfPchUTOsdCctZAM6PRcEMmPpVfzlNNCxxWgfx2yA==}
+  '@helpers4/number@3.1.10':
+    resolution: {integrity: sha512-tRQFZtriGcAqyWf7RdefY2JgS+/FG4czUCjLnyai7LZSR5xSVkTWMOk4U2jlHEWLIVfcmdEBnw8Rw62onbfklg==}
     engines: {node: '>=26.0.0'}
 
-  '@helpers4/object@3.1.9':
-    resolution: {integrity: sha512-fiT16nzOwoha2LKE7e4W+ZbBh2Ky3eEuyu8SSI88x7PR/P11RiUnHeUN4TYhFSFdzUDjiM//iSXlE/yrqD+iAw==}
+  '@helpers4/object@3.1.10':
+    resolution: {integrity: sha512-7yh1a7i4DBZLP9Z+exzq498pFr965tWa8lIKZRZMl5nzT5WsGK2WL+AWVu3FAveXiYZTaEFE5BPOe2dHtIGYSQ==}
     engines: {node: '>=26.0.0'}
 
-  '@helpers4/observable@3.1.9':
-    resolution: {integrity: sha512-+FhPwrzB4hSGgPmKmkmZJrr2nphvk15toCwmFBqukNf3elfTJMEYYnA+kr3sLO0mUuLmowYDTTwRKZ1JZ9xa1A==}
+  '@helpers4/observable@3.1.10':
+    resolution: {integrity: sha512-ysEnf4iA7kWGuah0Pmimrr+DgW/DLmfpnvqxr6RllQ9+z9PxppiFkQG2dtzBK0N/1Z3/zYbi845traQRbY3Fhw==}
     engines: {node: '>=26.0.0'}
     peerDependencies:
       rxjs: ^7.0.0
 
-  '@helpers4/promise@3.1.9':
-    resolution: {integrity: sha512-xiJIXdBDnAwIyISdwtWzjeelayHB4FH8DqmDwRh4Df7YS8GMIvWfWrSlj9sxLgDiGcMfxwg+bekk4eM4JW1rGg==}
+  '@helpers4/package@3.1.10':
+    resolution: {integrity: sha512-y2WaC73enUB5ugwoZwQXBFVOhaRnLbtjdC9ga2T1YR8OIuXJ7A5zbpAYUhppumIyUD6TmgTPm1udsFFrR6LKRQ==}
     engines: {node: '>=26.0.0'}
 
-  '@helpers4/set@3.1.9':
-    resolution: {integrity: sha512-vicx4BU2gosjL31J4UD9//NdF8V5cYeQh7DfMGl/Ua5Iqqzm1ifEPSKy4v8ZODhmmda/gUjqV2SplA85fECpSA==}
+  '@helpers4/presets@3.1.10':
+    resolution: {integrity: sha512-JrOD/goLRsybktnw3p3kkWiLKq5QVitxehjRNg3uftx95iC8PlvqSIPEFn+j6UGeD73eODFtgY/zJvf6N55Chg==}
+    peerDependencies:
+      '@stryker-mutator/api': '>=10.0.0'
+      vitest: '>=3.0.0'
+    peerDependenciesMeta:
+      '@stryker-mutator/api':
+        optional: true
+      vitest:
+        optional: true
+
+  '@helpers4/promise@3.1.10':
+    resolution: {integrity: sha512-V/6SYohVRftMMt7laqq+/+nwFneAiHDf9TKvKmaIihyU88qzRuLq68RcNr81QQzX9srP3AP+1SC/O8HiohmxvQ==}
     engines: {node: '>=26.0.0'}
 
-  '@helpers4/string@3.1.9':
-    resolution: {integrity: sha512-Zr462HlMBOjHhx3jOOtVH6+TsTs9yltEDthHnAwiMh+WRVeSfNdHmuJoeBfm+eQUSDVhpvNGZCt4Jz1SFaMixg==}
+  '@helpers4/set@3.1.10':
+    resolution: {integrity: sha512-SMGILT+oCBKwIqxb1CtrYEwmRR0gim2+Ee4lG9WLz4y5T2llJbOX5vywudpZNhPEOorXwFFZAfAuOtump9hFGA==}
     engines: {node: '>=26.0.0'}
 
-  '@helpers4/structure@3.1.9':
-    resolution: {integrity: sha512-x3KvqBgtzoYap2O7bcBoRUPsE1TSCQBfdPODjbWtGjCeBMgDnVNpVY7GlhNGpJnXg43E5velG5KbWKx4g1BYIw==}
+  '@helpers4/string@3.1.10':
+    resolution: {integrity: sha512-f8unO4QYS/2wt8z9XgGnrmcL6UXhB7WizdWLSvaFWXLWFqTb782x2nA3yu8Sot66mLJ+8E3MTSJoPm5GytDRRg==}
     engines: {node: '>=26.0.0'}
 
-  '@helpers4/type@3.1.9':
-    resolution: {integrity: sha512-465Bx9Dj3ZYAdrDymgNTAl2Sb8zhSZPN8TdmRbRJiJekfS3sN31smRr00YuTt8zbxr9xyfYEViMTxed+/wrATw==}
+  '@helpers4/structure@3.1.10':
+    resolution: {integrity: sha512-g8RblJA/8UDSVgjMImsSlQp46C7y+2zpJEas8DqHV3Kdrt7kyJLbkhzYnlNdm4PgrgL3j2SLc82pKkB4QFkRFw==}
     engines: {node: '>=26.0.0'}
 
-  '@helpers4/url@3.1.9':
-    resolution: {integrity: sha512-f8KVo96/bFeuKu0+LW5dPI+ooCg85bH6uCC7LxN2mZCJMBhELeGJ0rV5yumwORYmBHV4kBZXtmDF+4a0EWGgNw==}
+  '@helpers4/type@3.1.10':
+    resolution: {integrity: sha512-rtFfBhYrQuEoKEMSuNuqALQUpvKy17xpeHy+HIRFWFmYZNBV4O/2IFFQBHwOp6goN9IlOBpkj0d6tVJu/Wihcg==}
     engines: {node: '>=26.0.0'}
 
-  '@helpers4/version@3.1.9':
-    resolution: {integrity: sha512-TyrJaHOQQIA8+sTMWeYdfWPJ9JuhKydwRsfn9guQTJWFTj3g7z4VYKTFhwSSfnOkO8H2p2pwoDvNphLbQInDEA==}
+  '@helpers4/url@3.1.10':
+    resolution: {integrity: sha512-7apjybHakti2GOrJ9vEQvfzyZana88ec050P2kmFynyyjNd1heKD44bsIUCRWeF9FTLu8bDrkEVx+ice9ugZZg==}
+    engines: {node: '>=26.0.0'}
+
+  '@helpers4/version@3.1.10':
+    resolution: {integrity: sha512-A7ChlbO/W984PdldeKRXSBdXqwVvfGlWikZxjlveSQ6BBOvA5pZFcD+MGIUwo7ax3nEmogP2cDcrSCoV58jejA==}
     engines: {node: '>=26.0.0'}
 
   '@iconify-json/simple-icons@1.2.100':
@@ -1808,8 +1823,8 @@ packages:
   hast-util-whitespace@3.0.0:
     resolution: {integrity: sha512-88JUN06ipLwsnv+dVn+OIYOvAuvBMy/Qoi6O7mQHxdPXpjy+Cd6xRkWwux7DKO+4sYILtLBRIKgsdpS2gQc7qw==}
 
-  helpers4@3.1.9:
-    resolution: {integrity: sha512-gLLcVu5R+9JdiK+ZfJyV0SFgHRU5rbgnkZBQCvfIDo6MND1NjZNtcNUru9RWtyxlCi3CI36qG/u2JIRg3VYXsw==}
+  helpers4@3.1.10:
+    resolution: {integrity: sha512-n8KO/12wb6HSfNpkN4ah7PsW/jfaVFbMZI6rnhMZTRAKgxTsuLJbfp7e2z85aFegK+aKS4VouVoOfPOWplBFvg==}
     engines: {node: '>=26.0.0'}
 
   hookable@5.5.3:
@@ -2442,67 +2457,73 @@ snapshots:
   '@esbuild/win32-x64@0.28.2':
     optional: true
 
-  '@helpers4/animation@3.1.9': {}
+  '@helpers4/animation@3.1.10': {}
 
-  '@helpers4/array@3.1.9': {}
+  '@helpers4/array@3.1.10': {}
 
-  '@helpers4/binary@3.1.9': {}
+  '@helpers4/binary@3.1.10': {}
 
-  '@helpers4/browser@3.1.9': {}
+  '@helpers4/browser@3.1.10': {}
 
-  '@helpers4/ci@3.1.9': {}
+  '@helpers4/ci@3.1.10': {}
 
-  '@helpers4/color@3.1.9': {}
+  '@helpers4/color@3.1.10': {}
 
-  '@helpers4/commit@3.1.9': {}
+  '@helpers4/commit@3.1.10': {}
 
-  '@helpers4/date@3.1.9': {}
+  '@helpers4/date@3.1.10': {}
 
-  '@helpers4/font@3.1.9': {}
+  '@helpers4/font@3.1.10': {}
 
-  '@helpers4/function@3.1.9': {}
+  '@helpers4/function@3.1.10': {}
 
-  '@helpers4/geography@3.1.9': {}
+  '@helpers4/geography@3.1.10': {}
 
-  '@helpers4/geometry@3.1.9': {}
+  '@helpers4/geometry@3.1.10': {}
 
-  '@helpers4/guard@3.1.9': {}
+  '@helpers4/guard@3.1.10': {}
 
-  '@helpers4/id@3.1.9': {}
+  '@helpers4/id@3.1.10': {}
 
-  '@helpers4/json@3.1.9': {}
+  '@helpers4/json@3.1.10': {}
 
-  '@helpers4/license@3.1.9': {}
+  '@helpers4/license@3.1.10': {}
 
-  '@helpers4/map@3.1.9': {}
+  '@helpers4/map@3.1.10': {}
 
-  '@helpers4/markdown@3.1.9': {}
+  '@helpers4/markdown@3.1.10': {}
 
-  '@helpers4/node@3.1.9(@types/node@24.19.2)':
+  '@helpers4/node@3.1.10(@types/node@24.19.2)':
     dependencies:
       '@types/node': 24.19.2
 
-  '@helpers4/number@3.1.9': {}
+  '@helpers4/number@3.1.10': {}
 
-  '@helpers4/object@3.1.9': {}
+  '@helpers4/object@3.1.10': {}
 
-  '@helpers4/observable@3.1.9(rxjs@7.8.2)':
+  '@helpers4/observable@3.1.10(rxjs@7.8.2)':
     dependencies:
       rxjs: 7.8.2
 
-  '@helpers4/promise@3.1.9': {}
+  '@helpers4/package@3.1.10': {}
 
-  '@helpers4/set@3.1.9': {}
+  '@helpers4/presets@3.1.10(vitest@5.0.4(@types/node@24.19.2)(@vitest/browser-preview@5.0.4)(@vitest/ui@5.0.4(vitest@5.0.4))(@voidzero-dev/vite-plus-core@1.2.0(@types/node@24.19.2)(esbuild@0.28.2)(typescript@7.0.2)))':
+    optionalDependencies:
+      vitest: 5.0.4(@types/node@24.19.2)(@vitest/browser-preview@5.0.4)(@vitest/ui@5.0.4(vitest@5.0.4))(@voidzero-dev/vite-plus-core@1.2.0(@types/node@24.19.2)(esbuild@0.28.2)(typescript@7.0.2))
 
-  '@helpers4/string@3.1.9': {}
+  '@helpers4/promise@3.1.10': {}
 
-  '@helpers4/structure@3.1.9': {}
+  '@helpers4/set@3.1.10': {}
 
-  '@helpers4/type@3.1.9': {}
+  '@helpers4/string@3.1.10': {}
 
-  '@helpers4/url@3.1.9': {}
+  '@helpers4/structure@3.1.10': {}
 
-  '@helpers4/version@3.1.9': {}
+  '@helpers4/type@3.1.10': {}
+
+  '@helpers4/url@3.1.10': {}
+
+  '@helpers4/version@3.1.10': {}
 
   '@iconify-json/simple-icons@1.2.100':
     dependencies:
@@ -3311,40 +3332,44 @@ snapshots:
     dependencies:
       '@types/hast': 3.0.5
 
-  helpers4@3.1.9(@types/node@24.19.2)(rxjs@7.8.2):
+  helpers4@3.1.10(@types/node@24.19.2)(rxjs@7.8.2)(vitest@5.0.4(@types/node@24.19.2)(@vitest/browser-preview@5.0.4)(@vitest/ui@5.0.4(vitest@5.0.4))(@voidzero-dev/vite-plus-core@1.2.0(@types/node@24.19.2)(esbuild@0.28.2)(typescript@7.0.2))):
     dependencies:
-      '@helpers4/animation': 3.1.9
-      '@helpers4/array': 3.1.9
-      '@helpers4/binary': 3.1.9
-      '@helpers4/browser': 3.1.9
-      '@helpers4/ci': 3.1.9
-      '@helpers4/color': 3.1.9
-      '@helpers4/commit': 3.1.9
-      '@helpers4/date': 3.1.9
-      '@helpers4/font': 3.1.9
-      '@helpers4/function': 3.1.9
-      '@helpers4/geography': 3.1.9
-      '@helpers4/geometry': 3.1.9
-      '@helpers4/guard': 3.1.9
-      '@helpers4/id': 3.1.9
-      '@helpers4/json': 3.1.9
-      '@helpers4/license': 3.1.9
-      '@helpers4/map': 3.1.9
-      '@helpers4/markdown': 3.1.9
-      '@helpers4/node': 3.1.9(@types/node@24.19.2)
-      '@helpers4/number': 3.1.9
-      '@helpers4/object': 3.1.9
-      '@helpers4/observable': 3.1.9(rxjs@7.8.2)
-      '@helpers4/promise': 3.1.9
-      '@helpers4/set': 3.1.9
-      '@helpers4/string': 3.1.9
-      '@helpers4/structure': 3.1.9
-      '@helpers4/type': 3.1.9
-      '@helpers4/url': 3.1.9
-      '@helpers4/version': 3.1.9
+      '@helpers4/animation': 3.1.10
+      '@helpers4/array': 3.1.10
+      '@helpers4/binary': 3.1.10
+      '@helpers4/browser': 3.1.10
+      '@helpers4/ci': 3.1.10
+      '@helpers4/color': 3.1.10
+      '@helpers4/commit': 3.1.10
+      '@helpers4/date': 3.1.10
+      '@helpers4/font': 3.1.10
+      '@helpers4/function': 3.1.10
+      '@helpers4/geography': 3.1.10
+      '@helpers4/geometry': 3.1.10
+      '@helpers4/guard': 3.1.10
+      '@helpers4/id': 3.1.10
+      '@helpers4/json': 3.1.10
+      '@helpers4/license': 3.1.10
+      '@helpers4/map': 3.1.10
+      '@helpers4/markdown': 3.1.10
+      '@helpers4/node': 3.1.10(@types/node@24.19.2)
+      '@helpers4/number': 3.1.10
+      '@helpers4/object': 3.1.10
+      '@helpers4/observable': 3.1.10(rxjs@7.8.2)
+      '@helpers4/package': 3.1.10
+      '@helpers4/presets': 3.1.10(vitest@5.0.4(@types/node@24.19.2)(@vitest/browser-preview@5.0.4)(@vitest/ui@5.0.4(vitest@5.0.4))(@voidzero-dev/vite-plus-core@1.2.0(@types/node@24.19.2)(esbuild@0.28.2)(typescript@7.0.2)))
+      '@helpers4/promise': 3.1.10
+      '@helpers4/set': 3.1.10
+      '@helpers4/string': 3.1.10
+      '@helpers4/structure': 3.1.10
+      '@helpers4/type': 3.1.10
+      '@helpers4/url': 3.1.10
+      '@helpers4/version': 3.1.10
     transitivePeerDependencies:
+      - '@stryker-mutator/api'
       - '@types/node'
       - rxjs
+      - vitest
 
   hookable@5.5.3: {}
 

@@ -6,7 +6,7 @@
     ".": "./src/player.ts"
   },
   "imports": {
-    "helpers4/": "npm:/helpers4@^3.1.9/",
+    "helpers4/": "npm:/helpers4@^3.1.10/",
     "thumbhash": "npm:thumbhash@0.1.1"
   },
   "publish": {

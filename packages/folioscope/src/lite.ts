@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { spring, toCssLinear } from "helpers4/animation";
 import { prefersReducedMotion } from "helpers4/browser";
+import { matrixToCss, rectToRect } from "helpers4/geometry";
 import type {
   Action,
   FolioComponent,
@@ -257,10 +258,8 @@ export async function playSmart(
     layer.append(img);
     return img;
   };
-  // TODO(helpers4): rectToRect (docs/helpers4-requests.md § 4).
   // Where `a` would be drawn at `b`'s place, from `a`'s own (transform-origin: 0 0).
-  const toward = (a: Rect, b: Rect) =>
-    `translate(${b.x - a.x}px, ${b.y - a.y}px) scale(${b.width / a.width || 1}, ${b.height / a.height || 1})`;
+  const toward = (a: Rect, b: Rect) => matrixToCss(rectToRect(a, b));
   // Pairs by name, in order: the n-th part named X in `from` with the n-th one in `to`.
   const pairs = new Map<number, number>();
   for (const [i, part] of from.parts.entries()) {

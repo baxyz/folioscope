@@ -11,6 +11,7 @@ import {
   SUPPORTED_IR,
 } from "./folio.ts";
 import { CONTROLS_STYLE, Controls } from "./controls.ts";
+import { mediaTypeOfPath } from "helpers4/binary";
 import { contains, fitContain } from "helpers4/geometry";
 import { thumbHashToDataURL } from "thumbhash";
 import {
@@ -44,13 +45,6 @@ export interface FontRegistration {
 
 /** A raw design file, played by the full player when no `.folio` sits next to it. */
 const RAW = /\.(fig|sketch|xd|penpot)$/i;
-
-// TODO(helpers4): media types by extension (docs/helpers4-requests.md § 5).
-const TYPES: Record<string, string> = {
-  ".json": "application/json",
-  ".webp": "image/webp",
-  ".avif": "image/avif",
-};
 
 // Keeps the module importable during SSR (VitePress build, the Vite plugin), where HTMLElement is undefined.
 const BaseElement: typeof HTMLElement =
@@ -297,7 +291,7 @@ export class FolioscopePlayer extends BaseElement {
     this.forgetBlobs();
     this.base = "";
     for (const [path, bytes] of baked.files) {
-      const type = TYPES[path.slice(path.lastIndexOf("."))] ?? "application/octet-stream";
+      const type = mediaTypeOfPath(path) ?? "application/octet-stream";
       this.blobs.set(
         path,
         URL.createObjectURL(new Blob([bytes as Uint8Array<ArrayBuffer>], { type })),

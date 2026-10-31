@@ -2,6 +2,7 @@
 // The plugin runs in the user's Vite, not in Vite+: its types come from "vite".
 // oxlint-disable-next-line vite-plus/prefer-vite-plus-imports
 import type { Plugin, ResolvedConfig } from "vite";
+import { mediaTypeOfPath } from "helpers4/binary";
 import { createHash } from "node:crypto";
 import {
   existsSync,
@@ -52,14 +53,6 @@ interface Wasm {
 const CACHE_VERSION = "3";
 
 const FONT_FILE = /\.(ttf|otf|ttc|woff2?)$/i;
-
-// TODO(helpers4): media types by extension (docs/helpers4-requests.md § 5).
-const TYPES: Record<string, string> = {
-  ".json": "application/json",
-  ".png": "image/png",
-  ".avif": "image/avif",
-  ".webp": "image/webp",
-};
 
 /**
  * Bakes design files into `.folio` folders while the site builds, and serves them in dev
@@ -174,7 +167,7 @@ export function folioscope(options: FolioscopeOptions = {}): Plugin {
           (folio) => {
             const body = folio.get(match[2]!);
             if (!body) return notFound();
-            res.setHeader("content-type", TYPES[extname(match[2]!)] ?? "application/octet-stream");
+            res.setHeader("content-type", mediaTypeOfPath(match[2]!) ?? "application/octet-stream");
             res.end(body);
           },
           (error: unknown) => next(error),
