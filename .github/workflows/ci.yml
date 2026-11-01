@@ -33,7 +33,7 @@ jobs:
       - name: Lite player budget (15 KB of JS, gzipped)
         run: |
           # index.mjs and the chunks it shares with the full player and the Vite plugin.
-          size=$(cat packages/folioscope/dist/index.mjs packages/folioscope/dist/lib-*.mjs | gzip -9 -c | wc -c)
+          size=$(cat packages/folioscope/dist/*.mjs | gzip -9 -c | wc -c)
           echo "lite player: $size bytes gzipped"
           test "$size" -le 15360
 
