@@ -48,8 +48,8 @@ export async function serve(
           ? Buffer.from(page(url.searchParams))
           : path === "/player.mjs"
             ? readFileSync(join(repo, "packages/folioscope/dist/index.mjs"))
-            : // The chunks the player shares with the full player and the plugin.
-              path.startsWith("/lib-")
+            : // The chunks (top-level modules) the player shares with the full player and the plugin.
+              /^\/[^/]+\.mjs$/.test(path)
               ? readFileSync(join(repo, "packages/folioscope/dist", path))
               : // The full player's module and worker load from next to the player, the
                 // WebAssembly bake from the package's wasm/.
