@@ -21,6 +21,7 @@ const site = bakeFixtures([
   "sketch/navigation.sketch",
   "penpot/navigation.penpot",
   "xd/navigation.xd",
+  "xd/scroll.xd",
 ]);
 // Raw design files for the full player: one alone, one next to its baked .folio.
 mkdirSync(join(site, "raw"));
@@ -275,6 +276,23 @@ try {
   await tab.locator('folioscope-player .frame button[aria-label="Back"]').click();
   await settledOn("Home");
   console.log("✓ xd: an .xd prototype plays the same way");
+
+  // An artboard taller than its viewport scrolls; its last link is below the fold.
+  await tab.goto(`${server.origin}/?folio=xd-scroll`);
+  await settledOn("Feed");
+  const xdScroller = tab.locator("folioscope-player .frame .scroll");
+  const area = (await xdScroller.boundingBox())!;
+  assert.ok(Math.abs(area.height - 812) < 1, "the frame is as tall as the viewport");
+  await tab.mouse.move(area.x + area.width / 2, area.y + area.height / 2);
+  await tab.mouse.wheel(0, 2000);
+  await tab.waitForFunction(
+    () =>
+      document.querySelector("folioscope-player")!.shadowRoot!.querySelector(".scroll")!.scrollTop >
+      700,
+  );
+  await tab.locator('folioscope-player .content button[aria-label="Open details"]').click();
+  await settledOn("Details");
+  console.log("✓ xd: an artboard taller than its viewport scrolls");
 
   // A raw .fig next to its .folio plays the .folio; alone, the full player bakes it in a worker.
   const layerSrc = () =>

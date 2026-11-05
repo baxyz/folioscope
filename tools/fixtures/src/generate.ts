@@ -358,6 +358,28 @@ function xdNavigation(): XdBuilder {
   return xd;
 }
 
+/** An artboard taller than the screen: it scrolls, and its last link shows only at the bottom. */
+function xdScroll(): XdBuilder {
+  const xd = new XdBuilder("Scroll");
+  const feed = xd.artboard("Feed", { x: 0, y: 0, width: 375, height: 1600 }, "#F9FAFB", 812);
+  const details = xd.artboard("Details", { x: 475, y: 0, ...PHONE }, "#FFFFFF");
+  xd.start(feed);
+  for (let i = 0; i < 6; i++) {
+    xd.rect(
+      feed,
+      `Card ${i + 1}`,
+      { x: 16, y: 16 + i * 240, width: 343, height: 216 },
+      i % 2 ? GREY : "#DBEAFE",
+      16,
+    );
+  }
+  const open = xd.rect(feed, "Open details", { x: 88, y: 1500, width: 200, height: 48 }, BLUE, 24);
+  xd.link(open, details, { transition: "slide-left", easing: "ease-out" });
+  const back = xd.rect(details, "Back", { x: 16, y: 56, width: 80, height: 32 }, GREY, 8);
+  xd.link(back, feed, { transition: "dissolve" });
+  return xd;
+}
+
 /** Text in Inter, which an `.xd` does not carry: a bake draws nothing without the font. */
 function xdText(): XdBuilder {
   const xd = new XdBuilder("Text");
@@ -383,6 +405,7 @@ const fixtures: Record<string, () => { toBytes(): Uint8Array }> = {
   "sketch/text.sketch": sketchText,
   "penpot/navigation.penpot": penpotNavigation,
   "xd/navigation.xd": xdNavigation,
+  "xd/scroll.xd": xdScroll,
   "xd/text.xd": xdText,
 };
 

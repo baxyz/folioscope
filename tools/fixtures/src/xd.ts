@@ -31,6 +31,8 @@ interface Artboard {
   name: string;
   box: Box;
   background: string;
+  /** The height that shows at a time, when the artboard is taller and scrolls. */
+  viewport?: number;
   children: Node[];
 }
 
@@ -71,8 +73,8 @@ export class XdBuilder {
     this.home = artboard.id;
   }
 
-  artboard(name: string, box: Box, background = "#FFFFFF"): Artboard {
-    const artboard = { id: this.id(), name, box, background, children: [] };
+  artboard(name: string, box: Box, background = "#FFFFFF", viewport?: number): Artboard {
+    const artboard = { id: this.id(), name, box, background, viewport, children: [] };
     this.artboards.push(artboard);
     return artboard;
   }
@@ -193,6 +195,7 @@ export class XdBuilder {
             name: a.name,
             path: `artboard-${a.id}`,
             "uxdesign#bounds": { x: a.box.x, y: a.box.y, width: a.box.width, height: a.box.height },
+            ...(a.viewport === undefined ? {} : { "uxdesign#viewport": { height: a.viewport } }),
           })),
         },
         { name: "interactions", path: "interactions" },

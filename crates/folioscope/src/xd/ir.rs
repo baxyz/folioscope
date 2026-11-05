@@ -9,8 +9,8 @@ use helpers4::geometry::{Matrix, Rect as Box64};
 use serde_json::Value;
 
 use crate::ir::{
-    Action, Document, Easing, Flow, Frame, Hotspot, Interaction, Page, Rect, Side, SourceFormat,
-    Transition, TransitionKind, Trigger,
+    Action, Document, Easing, Flow, Frame, Hotspot, Interaction, Page, Rect, Scroll,
+    ScrollDirection, Side, SourceFormat, Transition, TransitionKind, Trigger,
 };
 use crate::xd::XdFile;
 use crate::xd::geometry::{children, local_box, matrix};
@@ -55,13 +55,33 @@ pub fn to_ir(file: &XdFile) -> Document {
                     }
                 }
             }
+            // An artboard taller than its viewport scrolls: the frame is what shows, the whole
+            // artboard is what scrolls.
+            let scrolls = entry
+                .viewport_height
+                .is_some_and(|height| height > 0.0 && height < entry.bounds.height);
             Frame {
                 id: entry.id.clone(),
                 name: entry.name.clone(),
-                bounds: entry.bounds,
+                bounds: Rect {
+                    height: entry
+                        .viewport_height
+                        .filter(|_| scrolls)
+                        .unwrap_or(entry.bounds.height),
+                    ..entry.bounds
+                },
                 hotspots,
                 overlay: None,
-                scroll: None,
+                scroll: scrolls.then_some(Scroll {
+                    direction: ScrollDirection::Vertical,
+                    content: Rect {
+                        x: 0.0,
+                        y: 0.0,
+                        width: entry.bounds.width,
+                        height: entry.bounds.height,
+                    },
+                    fixed: Vec::new(),
+                }),
                 components: Vec::new(),
             }
         })
@@ -96,6 +116,9 @@ pub(crate) struct Entry {
     pub name: String,
     /// In the canvas' coordinates.
     pub bounds: Rect,
+    /// The height that shows at a time (`uxdesign#viewport`); less than the artboard's when it
+    /// scrolls.
+    pub viewport_height: Option<f32>,
 }
 
 pub(crate) fn artboard_entries(file: &XdFile) -> Vec<Entry> {
@@ -118,6 +141,10 @@ pub(crate) fn artboard_entries(file: &XdFile) -> Vec<Entry> {
                     width: bound("width"),
                     height: bound("height"),
                 },
+                #[allow(clippy::cast_possible_truncation)]
+                viewport_height: entry["uxdesign#viewport"]["height"]
+                    .as_f64()
+                    .map(|h| h as f32),
             })
         })
         .collect()

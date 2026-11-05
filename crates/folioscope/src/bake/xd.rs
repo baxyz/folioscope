@@ -5,8 +5,8 @@
 //! Handled: groups and clip paths, rectangles (with corner radii), circles, ellipses, lines,
 //! polygons, paths and compound shapes, colour and image fills, borders (centred, inside and
 //! outside), drop shadows, opacity, and text, laid out with the fonts given (ADR 0011) at the
-//! positions XD stored for each line. Not yet: gradients, blurs, per-artboard scrolling, text
-//! underline and strikethrough.
+//! positions XD stored for each line, and artboards taller than their viewport, which scroll. Not
+//! yet: gradients, blurs, text underline and strikethrough.
 
 use std::collections::{BTreeSet, HashMap};
 use std::fmt::Write as _;
@@ -29,6 +29,8 @@ use crate::xd::geometry::{children, local_box, matrix};
 enum What<'a> {
     Whole,
     Background,
+    /// The children alone, at the size of the scrolling content.
+    Content,
     Node(&'a Value),
 }
 
@@ -61,7 +63,10 @@ impl<'f> XdDraw<'f> {
     /// smart animate pairs).
     fn svg(&mut self, frame: &ir::Frame, what: What<'_>) -> Option<String> {
         let artboard = *self.artboards.get(frame.id.as_str())?;
-        let (width, height) = (frame.bounds.width, frame.bounds.height);
+        let (width, height) = match (what, &frame.scroll) {
+            (What::Content, Some(scroll)) => (scroll.content.width, scroll.content.height),
+            _ => (frame.bounds.width, frame.bounds.height),
+        };
         let mut svg = Svg {
             file: self.file,
             typesetter: &mut self.typesetter,
@@ -70,7 +75,7 @@ impl<'f> XdDraw<'f> {
             body: String::new(),
             next_id: 0,
         };
-        if !matches!(what, What::Node(_)) {
+        if !matches!(what, What::Node(_) | What::Content) {
             svg.background(artboard, width, height);
         }
         // The children are placed in the canvas: the artboard's corner is the frame's origin.
@@ -81,7 +86,7 @@ impl<'f> XdDraw<'f> {
         );
         match what {
             What::Node(node) => svg.node(node),
-            What::Whole => children(artboard).iter().for_each(|c| svg.node(c)),
+            What::Whole | What::Content => children(artboard).iter().for_each(|c| svg.node(c)),
             What::Background => {}
         }
         svg.body.push_str("</g>");
@@ -108,7 +113,23 @@ impl Draw for XdDraw<'_> {
             width: frame.bounds.width,
             height: frame.bounds.height,
         };
-        Ok(vec![(whole.to_owned(), bounds, false)])
+        let Some(scroll) = &frame.scroll else {
+            return Ok(vec![(whole.to_owned(), bounds, false)]);
+        };
+        // What shows stays in place; the artboard's children scroll over it.
+        let missing = || BakeError::MissingFrame(frame.id.clone());
+        Ok(vec![
+            (
+                self.svg(frame, What::Background).ok_or_else(missing)?,
+                bounds,
+                false,
+            ),
+            (
+                self.svg(frame, What::Content).ok_or_else(missing)?,
+                scroll.content,
+                true,
+            ),
+        ])
     }
 
     fn state(&mut self, _: &ir::Component, _: &ir::ComponentState) -> Option<String> {
