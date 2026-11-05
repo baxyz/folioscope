@@ -68,6 +68,38 @@ fn a_tall_artboard_scrolls() {
     assert_eq!(layers[1]["bounds"]["height"], 1600.0);
 }
 
+/// An artboard opened as an overlay shows where the action puts it, given from the hotspot's
+/// corner, and "previous artboard" takes it off.
+#[test]
+fn an_overlay_opens_at_its_position() {
+    use folioscope::ir::{Action, OverlayPosition, Point};
+
+    let path = format!(
+        "{}/../../fixtures/xd/overlay.xd",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let ir = to_ir(&decode(&std::fs::read(&path).unwrap()).unwrap());
+    let [home, sheet] = ir.pages[0].frames.as_slice() else {
+        panic!("two artboards expected");
+    };
+    let settings = sheet.overlay.as_ref().expect("the sheet is an overlay");
+    assert_eq!(settings.position, OverlayPosition::Manual);
+    assert!(home.overlay.is_none());
+    let Action::Overlay { to, offset, .. } = &home.hotspots[0].interactions[0].action else {
+        panic!("the button opens an overlay");
+    };
+    assert_eq!(to, &sheet.id);
+    // The sheet's corner is at (0, 449) of the screen; the button's is at (88, 640).
+    assert_eq!(
+        *offset,
+        Some(Point {
+            x: -88.0,
+            y: -191.0
+        })
+    );
+    assert_eq!(sheet.hotspots[0].interactions[0].action, Action::Back);
+}
+
 fn external() -> Vec<(String, Vec<u8>)> {
     let dir = format!("{}/../../fixtures/external/xd", env!("CARGO_MANIFEST_DIR"));
     let Ok(entries) = std::fs::read_dir(format!("{dir}/github")) else {
