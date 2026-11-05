@@ -10,3 +10,18 @@
   overflow: hidden;
   box-shadow: 0 8px 32px rgb(0 0 0 / 0.18);
 }
+
+/* "Why Folioscope?": the flip book beside the text, above it on a narrow screen. */
+.why {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+.why p {
+  margin: 0;
+}
+@media (max-width: 720px) {
+  .why {
+    flex-direction: column;
+  }
+}
