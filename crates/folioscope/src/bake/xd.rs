@@ -3,10 +3,10 @@
 //! Draws `.xd` artboards as SVG, from their JSON graphics trees (see `docs/format-xd.md`).
 //!
 //! Handled: groups and clip paths, rectangles (with corner radii), circles, ellipses, lines,
-//! polygons, paths and compound shapes, colour and image fills, borders (centred, inside and
-//! outside), drop shadows, opacity, and text, laid out with the fonts given (ADR 0011) at the
+//! polygons, paths and compound shapes, colour, linear and radial gradient and image fills, borders
+//! (centred, inside and outside), drop shadows, opacity, and text, laid out with the fonts given (ADR 0011) at the
 //! positions XD stored for each line, and artboards taller than their viewport, which scroll. Not
-//! yet: gradients, blurs, text underline and strikethrough.
+//! yet: blurs, text underline and strikethrough.
 
 use std::collections::{BTreeSet, HashMap};
 use std::fmt::Write as _;
@@ -202,14 +202,18 @@ impl Svg<'_, '_> {
     /// The artboard's own fill; white when it has none, as in XD's player.
     fn background(&mut self, artboard: &Value, width: f32, height: f32) {
         let fill = &artboard["style"]["fill"];
-        let (color, opacity) = match fill["type"].as_str() {
-            Some("solid") => color(&fill["color"]),
+        let paint = match fill["type"].as_str() {
+            Some("solid") => {
+                let (color, opacity) = color(&fill["color"]);
+                format!(r#"fill="{color}" fill-opacity="{opacity}""#)
+            }
             Some("none") => return,
-            _ => ("rgb(255,255,255)".to_owned(), 1.0),
+            Some("gradient") => self.gradient(&fill["gradient"]).unwrap_or_default(),
+            _ => r#"fill="rgb(255,255,255)""#.to_owned(),
         };
         let _ = write!(
             self.body,
-            r#"<rect width="{width}" height="{height}" fill="{color}" fill-opacity="{opacity}"/>"#
+            r#"<rect width="{width}" height="{height}" {paint}/>"#
         );
     }
 
@@ -323,9 +327,50 @@ impl Svg<'_, '_> {
                 );
                 Some(format!(r#"fill="url(#{id})""#))
             }
-            // Gradients and the rest are not drawn yet.
+            "gradient" => self.gradient(&fill["gradient"]),
             _ => None,
         }
+    }
+
+    /// A linear or radial gradient, in the unit square of the shape's box, defined in `defs`.
+    fn gradient(&mut self, gradient: &Value) -> Option<String> {
+        let resources = &gradient["meta"]["ux"]["gradientResources"];
+        let n = |k: &str, default: f64| gradient[k].as_f64().unwrap_or(default);
+        let id = self.id("g");
+        let geometry = match resources["type"].as_str()? {
+            "linear" => format!(
+                r#"<linearGradient id="{id}" gradientUnits="objectBoundingBox" x1="{}" y1="{}" x2="{}" y2="{}">"#,
+                n("x1", 0.0),
+                n("y1", 0.0),
+                n("x2", 1.0),
+                n("y2", 0.0)
+            ),
+            "radial" => format!(
+                r#"<radialGradient id="{id}" gradientUnits="objectBoundingBox" cx="{}" cy="{}" fx="{}" fy="{}" r="{}">"#,
+                n("cx", 0.5),
+                n("cy", 0.5),
+                n("fx", 0.5),
+                n("fy", 0.5),
+                n("r", 0.5)
+            ),
+            _ => return None,
+        };
+        let tag = if resources["type"] == "linear" {
+            "linearGradient"
+        } else {
+            "radialGradient"
+        };
+        self.defs.push_str(&geometry);
+        for stop in resources["stops"].as_array()? {
+            let (color, opacity) = color(&stop["color"]);
+            let _ = write!(
+                self.defs,
+                r#"<stop offset="{}" stop-color="{color}" stop-opacity="{opacity}"/>"#,
+                stop["offset"].as_f64().unwrap_or(0.0)
+            );
+        }
+        let _ = write!(self.defs, "</{tag}>");
+        Some(format!(r#"fill="url(#{id})""#))
     }
 
     /// A border. XD centres it, or keeps it inside or outside the shape: those two are drawn twice
@@ -667,5 +712,53 @@ mod tests {
             runs.iter().map(|r| (r.start, r.end)).collect::<Vec<_>>(),
             [(0, 6), (6, 11)]
         );
+    }
+
+    #[test]
+    fn gradients_keep_their_stops_and_alpha() {
+        let file = XdFile {
+            manifest: Value::Null,
+            interactions: Value::Null,
+            artboards: HashMap::new(),
+            resources: Value::Null,
+            images: HashMap::new(),
+        };
+        let mut typesetter = Typesetter::new(crate::bake::fonts::FontLibrary::default());
+        let mut missing = BTreeSet::new();
+        let mut svg = Svg {
+            file: &file,
+            typesetter: &mut typesetter,
+            missing_fonts: &mut missing,
+            defs: String::new(),
+            body: String::new(),
+            next_id: 0,
+        };
+        let stops = json!([
+            { "offset": 0, "color": { "mode": "RGB", "value": { "r": 2, "g": 2, "b": 2 }, "alpha": 0 } },
+            { "offset": 1, "color": { "mode": "RGB", "value": { "r": 0, "g": 0, "b": 0 } } }
+        ]);
+        let linear = json!({
+            "meta": { "ux": { "gradientResources": { "type": "linear", "stops": stops } } },
+            "x1": 0.5, "y1": 0, "x2": 0.5, "y2": 1, "units": "objectBoundingBox"
+        });
+        assert_eq!(svg.gradient(&linear).unwrap(), r#"fill="url(#g1)""#);
+        let radial = json!({
+            "meta": { "ux": { "gradientResources": { "type": "radial", "stops": stops } } },
+            "cx": 0.5, "cy": 0.5, "fx": 0.5, "fy": 0.5, "r": 0.4, "units": "objectBoundingBox"
+        });
+        assert!(svg.gradient(&radial).is_some());
+        assert_eq!(
+            svg.defs,
+            concat!(
+                r#"<linearGradient id="g1" gradientUnits="objectBoundingBox" x1="0.5" y1="0" x2="0.5" y2="1">"#,
+                r#"<stop offset="0" stop-color="rgb(2,2,2)" stop-opacity="0"/>"#,
+                r#"<stop offset="1" stop-color="rgb(0,0,0)" stop-opacity="1"/></linearGradient>"#,
+                r#"<radialGradient id="g2" gradientUnits="objectBoundingBox" cx="0.5" cy="0.5" fx="0.5" fy="0.5" r="0.4">"#,
+                r#"<stop offset="0" stop-color="rgb(2,2,2)" stop-opacity="0"/>"#,
+                r#"<stop offset="1" stop-color="rgb(0,0,0)" stop-opacity="1"/></radialGradient>"#
+            )
+        );
+        let unknown = json!({ "meta": { "ux": { "gradientResources": { "type": "angular" } } } });
+        assert!(svg.gradient(&unknown).is_none());
     }
 }
