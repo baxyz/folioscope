@@ -5,8 +5,8 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vite-plus/test";
 // oxlint-disable-next-line vite-plus/prefer-vite-plus-imports
-import { build, createServer } from "vite";
-import { folioscope } from "../src/vite/index.ts";
+import { build, createLogger, createServer } from "vite";
+import { folioscope, type FolioscopeOptions } from "../src/vite/index.ts";
 
 const fixture = fileURLToPath(new URL("../../../fixtures/figma/navigation.fig", import.meta.url));
 const wasmBuilt = existsSync(
@@ -85,6 +85,34 @@ describe.skipIf(!wasmBuilt)("folioscope/vite", () => {
       plugins: [folioscope({ include: "designs/*.fig", fonts: "fonts" })],
     });
     expect(existsSync(join(root, "dist/folio/app.folio/index.json"))).toBe(true);
+  });
+
+  test("passes what the fonts option says about its fonts", async () => {
+    const root = site();
+    cpSync(
+      fileURLToPath(new URL("../../../fixtures/fonts/", import.meta.url)),
+      join(root, "fonts"),
+      { recursive: true },
+    );
+    cpSync(
+      fileURLToPath(new URL("../../../fixtures/xd/text.xd", import.meta.url)),
+      join(root, "designs/text.xd"),
+    );
+    const warnings: string[] = [];
+    const bake = (fonts?: FolioscopeOptions["fonts"]) =>
+      build({
+        root,
+        logLevel: "warn",
+        customLogger: { ...createLogger("silent"), warn: (message) => warnings.push(message) },
+        plugins: [folioscope({ include: "designs/text.xd", fonts, cacheDir: "cache" })],
+      });
+    await bake();
+    expect(warnings.join()).toContain("no font for Inter Regular");
+
+    warnings.length = 0;
+    await bake({ src: "fonts", family: "Brand", match: ["SF Pro*"], weight: 400, italic: false });
+    expect(warnings).toEqual([]);
+    expect(existsSync(join(root, "dist/folio/text.folio/index.json"))).toBe(true);
   });
 
   test("refuses two designs served under the same name", async () => {
