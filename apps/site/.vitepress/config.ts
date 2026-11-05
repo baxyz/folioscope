@@ -17,6 +17,7 @@ export default defineConfig({
     nav: [
       { text: "Getting started", link: "/guide/getting-started" },
       { text: "Demos", link: "/demos" },
+      { text: "Compatibility", link: "/compatibility" },
       { text: "About", link: "/about" },
     ],
     socialLinks: [{ icon: "github", link: "https://github.com/baxyz/folioscope" }],

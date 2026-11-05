@@ -626,7 +626,8 @@ The "works right away" path with no build step, and the fallback for dynamic lay
 
 - [ ] Stable, documented API. Complete site: demo gallery, playground, compatibility matrix, API
       reference.
-- [ ] Published compatibility matrix (what is supported for each format).
+- [ ] Published compatibility matrix (what is supported for each format): written by hand and live
+      at `/compatibility`; left: generate it from the tests.
 - [ ] Verified accessibility: keyboard, screen readers, reduced motion.
 - [ ] **"Why Folioscope?" illustration** on the home page, next to the text: a small diagram of a
       flip book, animated if it stays light (CSS or SVG, no video), with `prefers-reduced-motion`
