@@ -14,6 +14,7 @@ cargo install folioscope
 folioscope inspect app.fig                  # pages, frames, flows and links of any format
 folioscope bake app.fig app.folio           # the images and description the player plays
 folioscope bake app.sketch app.folio --fonts ./fonts
+folioscope bake app.sketch app.folio --fonts Inter.ttf --match 'SF Pro*' --match Helvetica
 folioscope fonts ./fonts                    # writes ./fonts/folioscope-fonts.json
 folioscope render app.fig 1:23 out.png 2    # one node of a .fig, as PNG (and SVG)
 ```
@@ -24,7 +25,9 @@ folioscope render app.fig 1:23 out.png 2    # one node of a .fig, as PNG (and SV
 
 - `.fig` files store the outline of every glyph: no font is needed. `.sketch` and `.penpot` text is
   laid out with the fonts you give with `--fonts` (a file or a folder, repeatable); the bake warns
-  about each missing one.
+  about each missing one. Options after a `--fonts` say more about it than the file does:
+  `--family <name>` (another name it answers to), `--match <pattern>` (names it stands in for,
+  with `*` and `?`, repeatable), `--weight <100-900>` and `--italic`.
 - `--no-avif` keeps every layer in lossless WebP; by default, photo-heavy screens become AVIF.
 - If your site builds with Vite, its plugin (`folioscope/vite`) bakes for you.
 
