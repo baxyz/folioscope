@@ -124,6 +124,19 @@ describe("Runtime", () => {
     expect(runtime.back()).toMatchObject({ overlays: [], layer: "overlay" });
   });
 
+  test("a toggled overlay closes when it is already open", () => {
+    const runtime = new Runtime(page);
+    const toggle = { type: "overlay", to: "settings", transition: dissolve, toggle: true } as const;
+    expect(runtime.run(toggle)?.overlays.map((o) => o.frame.id)).toEqual(["settings"]);
+    expect(runtime.run(toggle)).toMatchObject({ overlays: [], reverse: true, layer: "overlay" });
+    // Under another overlay, it leaves that one in place.
+    runtime.run(toggle);
+    runtime.run({ type: "overlay", to: "details", transition: dissolve });
+    expect(runtime.run(toggle)?.overlays.map((o) => o.frame.id)).toEqual(["details"]);
+    const reopened = runtime.run({ type: "overlay", to: "settings", transition: dissolve });
+    expect(reopened?.overlays.map((o) => o.frame.id)).toEqual(["details", "settings"]);
+  });
+
   test("navigating from an overlay replaces the screen and drops the overlays", () => {
     const runtime = new Runtime(page);
     runtime.run({ type: "overlay", to: "settings", transition: dissolve });

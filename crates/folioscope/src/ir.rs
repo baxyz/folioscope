@@ -215,6 +215,9 @@ pub enum Action {
         /// For a `Manual` overlay: its top-left corner, from the hotspot's.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         offset: Option<Point>,
+        /// Closes the overlay instead when it is already open (Penpot's "toggle overlay").
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        toggle: bool,
     },
     /// Replaces the overlay on top with another one.
     SwapOverlay {
