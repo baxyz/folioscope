@@ -630,9 +630,6 @@ The "works right away" path with no build step, and the fallback for dynamic lay
 - [ ] Published compatibility matrix (what is supported for each format): written by hand and live
       at `/compatibility`; left: generate it from the tests.
 - [ ] Verified accessibility: keyboard, screen readers, reduced motion.
-- [ ] **"Why Folioscope?" illustration** on the home page, next to the text: a small diagram of a
-      flip book, animated if it stays light (CSS or SVG, no video), with `prefers-reduced-motion`
-      respected.
 - [ ] **Comparison page** on the site, to show efficiency and speed rather than claim them. A
       scenario picker; **Play** starts loading both sides at once, side by side, with a timer and
       the bytes transferred on each. Scenarios to start from (others to find):
@@ -650,6 +647,13 @@ The "works right away" path with no build step, and the fallback for dynamic lay
   Fairness: the same file and screen on both sides, cold cache, numbers measured in the visitor's
   browser rather than hard-coded, and the method explained on the page. Check the terms of each
   service before measuring it.
+
+  Done: the page, with the first scenario (the CO₂ prototype, Figma's embed against the `.folio`,
+  `apps/site/public/examples/co2.folio`, baked from the author's own file). Left: the other
+  scenarios and the network picker. Figma's data volume cannot be counted from a cross-origin
+  iframe, so the page shows a one-off measurement (23.4 MB, 240 requests, Chromium, empty cache,
+  2026-11-05) and says so; Figma's embed API (`INITIAL_LOAD`, with a registered client id) would
+  give its real load time.
 
 ### After v1 (to be evaluated)
 

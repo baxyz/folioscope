@@ -1,0 +1,265 @@
+{
+  "folio": 1,
+  "irVersion": 1,
+  "densities": [1, 2],
+  "source": "fig",
+  "pages": [
+    {
+      "id": "101:4709",
+      "name": "Pages",
+      "flows": [{ "name": "Flow 1", "start": "501:9511" }],
+      "frames": [
+        {
+          "id": "501:9511",
+          "name": "Dashboard 1",
+          "bounds": { "x": -1.1368684e-13, "y": 0.0, "width": 1440.0, "height": 1156.0 },
+          "hotspots": [
+            {
+              "node": "103:4494",
+              "name": "Header link",
+              "bounds": { "x": 272.0, "y": 78.0, "width": 103.0, "height": 60.0 },
+              "interactions": [
+                {
+                  "trigger": { "type": "click" },
+                  "action": {
+                    "type": "navigate",
+                    "to": "102:4684",
+                    "transition": {
+                      "kind": { "type": "instant" },
+                      "durationMs": 0,
+                      "easing": { "type": "linear" }
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "node": "103:4524",
+              "name": "Header link",
+              "bounds": { "x": 376.0, "y": 78.0, "width": 111.0, "height": 60.0 },
+              "interactions": [
+                {
+                  "trigger": { "type": "click" },
+                  "action": {
+                    "type": "navigate",
+                    "to": "102:4707",
+                    "transition": {
+                      "kind": { "type": "instant" },
+                      "durationMs": 0,
+                      "easing": { "type": "linear" }
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "layers": [
+            {
+              "src": "21e520e27813521f",
+              "format": "avif",
+              "bounds": { "x": 0.0, "y": 0.0, "width": 1440.0, "height": 1156.0 }
+            }
+          ],
+          "placeholder": "jOeBBIAPCzOJqnW7uer2um8eAhIRERERAQ=="
+        },
+        {
+          "id": "102:4707",
+          "name": "Dashboard 3",
+          "bounds": { "x": 2960.0, "y": 0.0, "width": 1440.0, "height": 1153.0 },
+          "hotspots": [
+            {
+              "node": "103:4492",
+              "name": "Header link",
+              "bounds": { "x": 153.0, "y": 78.0, "width": 118.0, "height": 60.0 },
+              "interactions": [
+                {
+                  "trigger": { "type": "click" },
+                  "action": {
+                    "type": "navigate",
+                    "to": "501:9511",
+                    "transition": {
+                      "kind": { "type": "instant" },
+                      "durationMs": 0,
+                      "easing": { "type": "linear" }
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "node": "103:4494",
+              "name": "Header link",
+              "bounds": { "x": 272.0, "y": 78.0, "width": 103.0, "height": 60.0 },
+              "interactions": [
+                {
+                  "trigger": { "type": "click" },
+                  "action": {
+                    "type": "navigate",
+                    "to": "102:4684",
+                    "transition": {
+                      "kind": { "type": "instant" },
+                      "durationMs": 0,
+                      "easing": { "type": "linear" }
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "node": "3031:4888",
+              "name": "Horizontal tab elements",
+              "bounds": { "x": 357.0, "y": 222.0, "width": 53.0, "height": 22.0 },
+              "interactions": [
+                {
+                  "trigger": { "type": "click" },
+                  "action": {
+                    "type": "navigate",
+                    "to": "303:7466",
+                    "transition": {
+                      "kind": { "type": "instant" },
+                      "durationMs": 0,
+                      "easing": { "type": "linear" }
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "layers": [
+            {
+              "src": "7b0d123a36761f7f",
+              "format": "avif",
+              "bounds": { "x": 0.0, "y": 0.0, "width": 1440.0, "height": 1153.0 }
+            }
+          ],
+          "placeholder": "i+eBBIAPsCDDi/ZiZvdVZ29SUKClBQVaAA=="
+        },
+        {
+          "id": "303:7466",
+          "name": "Dashboard 4",
+          "bounds": { "x": 4440.0, "y": 0.0, "width": 1440.0, "height": 1173.0 },
+          "hotspots": [
+            {
+              "node": "103:4492",
+              "name": "Header link",
+              "bounds": { "x": 153.0, "y": 78.0, "width": 118.0, "height": 60.0 },
+              "interactions": [
+                {
+                  "trigger": { "type": "click" },
+                  "action": {
+                    "type": "navigate",
+                    "to": "501:9511",
+                    "transition": {
+                      "kind": { "type": "instant" },
+                      "durationMs": 0,
+                      "easing": { "type": "linear" }
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "node": "103:4494",
+              "name": "Header link",
+              "bounds": { "x": 272.0, "y": 78.0, "width": 103.0, "height": 60.0 },
+              "interactions": [
+                {
+                  "trigger": { "type": "click" },
+                  "action": {
+                    "type": "navigate",
+                    "to": "102:4684",
+                    "transition": {
+                      "kind": { "type": "instant" },
+                      "durationMs": 0,
+                      "easing": { "type": "linear" }
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "node": "3031:4887",
+              "name": "Horizontal tab elements",
+              "bounds": { "x": 280.0, "y": 222.0, "width": 65.0, "height": 22.0 },
+              "interactions": [
+                {
+                  "trigger": { "type": "click" },
+                  "action": {
+                    "type": "navigate",
+                    "to": "102:4707",
+                    "transition": {
+                      "kind": { "type": "instant" },
+                      "durationMs": 0,
+                      "easing": { "type": "linear" }
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "layers": [
+            {
+              "src": "692629fb5ac44168",
+              "format": "avif",
+              "bounds": { "x": 0.0, "y": 0.0, "width": 1440.0, "height": 1173.0 }
+            }
+          ],
+          "placeholder": "jOeBBIAPAjimmrEbusr3u3tvZ2dmBmZmBg=="
+        },
+        {
+          "id": "102:4684",
+          "name": "Dashboard 2",
+          "bounds": { "x": 1480.0, "y": 0.0, "width": 1440.0, "height": 1011.0 },
+          "hotspots": [
+            {
+              "node": "103:4492",
+              "name": "Header link",
+              "bounds": { "x": 153.0, "y": 78.0, "width": 118.0, "height": 60.0 },
+              "interactions": [
+                {
+                  "trigger": { "type": "click" },
+                  "action": {
+                    "type": "navigate",
+                    "to": "501:9511",
+                    "transition": {
+                      "kind": { "type": "instant" },
+                      "durationMs": 0,
+                      "easing": { "type": "linear" }
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "node": "103:4524",
+              "name": "Header link",
+              "bounds": { "x": 376.0, "y": 78.0, "width": 111.0, "height": 60.0 },
+              "interactions": [
+                {
+                  "trigger": { "type": "click" },
+                  "action": {
+                    "type": "navigate",
+                    "to": "102:4707",
+                    "transition": {
+                      "kind": { "type": "instant" },
+                      "durationMs": 0,
+                      "easing": { "type": "linear" }
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "layers": [
+            {
+              "src": "c5f9489f0a6a196c",
+              "format": "avif",
+              "bounds": { "x": 0.0, "y": 0.0, "width": 1440.0, "height": 1011.0 }
+            }
+          ],
+          "placeholder": "jOeBBIAPBUS0rKCbmMn3qn0/NDQzMzM3AA=="
+        }
+      ]
+    }
+  ]
+}
