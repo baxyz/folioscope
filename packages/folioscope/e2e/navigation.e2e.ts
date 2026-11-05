@@ -22,6 +22,7 @@ const site = bakeFixtures([
   "penpot/navigation.penpot",
   "xd/navigation.xd",
   "xd/scroll.xd",
+  "xd/overlay.xd",
 ]);
 // Raw design files for the full player: one alone, one next to its baked .folio.
 mkdirSync(join(site, "raw"));
@@ -293,6 +294,27 @@ try {
   await tab.locator('folioscope-player .content button[aria-label="Open details"]').click();
   await settledOn("Details");
   console.log("✓ xd: an artboard taller than its viewport scrolls");
+
+  // An .xd overlay opens where XD puts it (a bottom sheet) and "previous artboard" closes it.
+  await tab.goto(`${server.origin}/?folio=xd-overlay`);
+  await settledOn("Home");
+  const sheet = tab.locator('folioscope-player .overlay[data-frame] .frame[aria-label="Sheet"]');
+  await tab.locator('folioscope-player .frame button[aria-label="Open sheet"]').click();
+  await sheet.waitFor();
+  await tab.waitForFunction(() =>
+    document
+      .querySelector("folioscope-player")!
+      .shadowRoot!.getAnimations()
+      .every((a) => a.playState === "finished"),
+  );
+  const sheetBox = (await sheet.boundingBox())!;
+  const xdStage = (await tab.locator("folioscope-player .stage").boundingBox())!;
+  const scale = xdStage.width / 375;
+  assert.ok(Math.abs(sheetBox.x - xdStage.x) < 1, "the sheet starts at the screen's left edge");
+  assert.ok(Math.abs(sheetBox.y - xdStage.y - 449 * scale) < 1.5, "the sheet is at y = 449");
+  await tab.locator('folioscope-player .overlay button[aria-label="Close"]').click();
+  await sheet.waitFor({ state: "detached" });
+  console.log("✓ xd: an overlay opens at its position and closes with previous artboard");
 
   // A raw .fig next to its .folio plays the .folio; alone, the full player bakes it in a worker.
   const layerSrc = () =>

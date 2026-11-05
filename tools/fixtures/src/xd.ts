@@ -4,11 +4,22 @@ import type { Box } from "./figma.ts";
 
 const FIXED_DATE = new Date("2026-01-01T00:00:00Z");
 
-export type XdTransition = "dissolve" | "slide-left" | "slide-right" | "push-left" | "none";
+export type XdTransition =
+  | "dissolve"
+  | "slide-left"
+  | "slide-right"
+  | "slide-up"
+  | "push-left"
+  | "none";
 
 export interface XdLink {
-  /** `artboard-transition`, or `auto-animate` to pair the layers of both artboards by name. */
-  action?: "artboard-transition" | "auto-animate";
+  /**
+   * `artboard-transition`, `auto-animate` to pair the layers of both artboards by name,
+   * `overlay-transition` to open the artboard over the screen, or `previous-artboard`.
+   */
+  action?: "artboard-transition" | "auto-animate" | "overlay-transition" | "previous-artboard";
+  /** Where an overlay's top-left corner goes, from the screen's. */
+  position?: { x: number; y: number };
   trigger?: "tap" | "time";
   transition?: XdTransition;
   /** Seconds. */
@@ -165,6 +176,8 @@ export class XdBuilder {
       preserveScrollPosition: false,
       destination: to.id,
     };
+    if (action === "previous-artboard") delete properties.destination;
+    if (link.position) properties.overlayPosition = link.position;
     if (link.delay !== undefined) properties.delay = link.delay;
     (this.interactions[node.id] ??= []).push({
       triggerEvent: link.trigger ?? "tap",

@@ -380,6 +380,23 @@ function xdScroll(): XdBuilder {
   return xd;
 }
 
+/** A bottom sheet opened over the screen at a position, and closed with "previous artboard". */
+function xdOverlay(): XdBuilder {
+  const xd = new XdBuilder("Overlay");
+  const home = xd.artboard("Home", { x: 0, y: 0, ...PHONE });
+  const sheet = xd.artboard("Sheet", { x: 475, y: 0, width: 375, height: 363 }, "#F9FAFB");
+  xd.start(home);
+  const open = xd.rect(home, "Open sheet", { x: 88, y: 640, width: 200, height: 48 }, BLUE, 24);
+  xd.link(open, sheet, {
+    action: "overlay-transition",
+    transition: "slide-up",
+    position: { x: 0, y: 449 },
+  });
+  const close = xd.rect(sheet, "Close", { x: 88, y: 24, width: 200, height: 48 }, GREY, 24);
+  xd.link(close, home, { action: "previous-artboard" });
+  return xd;
+}
+
 /** Text in Inter, which an `.xd` does not carry: a bake draws nothing without the font. */
 function xdText(): XdBuilder {
   const xd = new XdBuilder("Text");
@@ -405,6 +422,7 @@ const fixtures: Record<string, () => { toBytes(): Uint8Array }> = {
   "sketch/text.sketch": sketchText,
   "penpot/navigation.penpot": penpotNavigation,
   "xd/navigation.xd": xdNavigation,
+  "xd/overlay.xd": xdOverlay,
   "xd/scroll.xd": xdScroll,
   "xd/text.xd": xdText,
 };

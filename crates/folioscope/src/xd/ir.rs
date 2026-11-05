@@ -3,14 +3,15 @@
 //! `.xd` → IR v1 (ADR 0008): artboards as frames, the home artboard as the flow's start, and
 //! every node with an interaction as a hotspot. See `docs/format-xd.md`.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use helpers4::geometry::{Matrix, Rect as Box64};
 use serde_json::Value;
 
 use crate::ir::{
-    Action, Document, Easing, Flow, Frame, Hotspot, Interaction, Page, Rect, Scroll,
-    ScrollDirection, Side, SourceFormat, Transition, TransitionKind, Trigger,
+    Action, Document, Easing, Flow, Frame, Hotspot, Interaction, OverlayPosition, OverlaySettings,
+    Page, Point, Rect, Scroll, ScrollDirection, Side, SourceFormat, Transition, TransitionKind,
+    Trigger,
 };
 use crate::xd::XdFile;
 use crate::xd::geometry::{children, local_box, matrix};
@@ -21,6 +22,7 @@ pub fn to_ir(file: &XdFile) -> Document {
     let entries = artboard_entries(file);
     let home = home(file, &entries);
     let interactions = file.interactions["interactions"].as_object();
+    let mut overlays = overlay_settings(file);
     let frames: Vec<Frame> = entries
         .iter()
         .map(|entry| {
@@ -36,7 +38,15 @@ pub fn to_ir(file: &XdFile) -> Document {
                         width: entry.bounds.width,
                         height: entry.bounds.height,
                     },
-                    interactions: interactions_of(list),
+                    interactions: interactions_of(
+                        list,
+                        Rect {
+                            x: 0.0,
+                            y: 0.0,
+                            width: entry.bounds.width,
+                            height: entry.bounds.height,
+                        },
+                    ),
                     fixed: false,
                 });
             }
@@ -71,7 +81,7 @@ pub fn to_ir(file: &XdFile) -> Document {
                     ..entry.bounds
                 },
                 hotspots,
-                overlay: None,
+                overlay: overlays.remove(&entry.id),
                 scroll: scrolls.then_some(Scroll {
                     direction: ScrollDirection::Vertical,
                     content: Rect {
@@ -187,32 +197,33 @@ fn collect(
     {
         let b: Box64 = to_canvas.bounding_box(local);
         #[allow(clippy::cast_possible_truncation)]
-        let hotspot = Hotspot {
+        let bounds = Rect {
+            x: b.x as f32 - origin.0,
+            y: b.y as f32 - origin.1,
+            width: b.width as f32,
+            height: b.height as f32,
+        };
+        out.push(Hotspot {
             node: id.to_owned(),
             name: node["name"].as_str().unwrap_or("").to_owned(),
-            bounds: Rect {
-                x: b.x as f32 - origin.0,
-                y: b.y as f32 - origin.1,
-                width: b.width as f32,
-                height: b.height as f32,
-            },
-            interactions: interactions_of(list),
+            bounds,
+            interactions: interactions_of(list, bounds),
             fixed: false,
-        };
-        out.push(hotspot);
+        });
     }
     for child in children(node) {
         collect(child, to_canvas, origin, all, seen, out);
     }
 }
 
-fn interactions_of(list: &Value) -> Vec<Interaction> {
+/// The interactions of a node; `hotspot` is where it sits in its artboard.
+fn interactions_of(list: &Value, hotspot: Rect) -> Vec<Interaction> {
     list.as_array()
         .into_iter()
         .flatten()
         .map(|interaction| Interaction {
             trigger: trigger(interaction),
-            action: action(interaction),
+            action: action(interaction, hotspot),
         })
         .collect()
 }
@@ -231,7 +242,7 @@ fn trigger(interaction: &Value) -> Trigger {
     }
 }
 
-fn action(interaction: &Value) -> Action {
+fn action(interaction: &Value, hotspot: Rect) -> Action {
     let properties = &interaction["properties"];
     let to = || properties["destination"].as_str().unwrap_or("").to_owned();
     let kind = interaction["action"].as_str().unwrap_or("");
@@ -240,11 +251,62 @@ fn action(interaction: &Value) -> Action {
             to: to(),
             transition: transition(kind == "auto-animate", properties),
         },
+        // The overlay's top-left corner is given from the artboard's: the action wants it from the
+        // hotspot's.
+        "overlay-transition" => Action::Overlay {
+            to: to(),
+            transition: transition(false, properties),
+            offset: overlay_position(properties).map(|(x, y)| Point {
+                x: x - hotspot.x,
+                y: y - hotspot.y,
+            }),
+            toggle: false,
+        },
         "previous-artboard" | "goToPreviousArtboard" => Action::Back,
         other => Action::Unsupported {
             name: other.to_owned(),
         },
     }
+}
+
+/// Where an overlay's top-left corner goes, from its artboard's, when XD stored it.
+#[allow(clippy::cast_possible_truncation)]
+fn overlay_position(properties: &Value) -> Option<(f32, f32)> {
+    let position = &properties["overlayPosition"];
+    Some((
+        position["x"].as_f64()? as f32,
+        position["y"].as_f64()? as f32,
+    ))
+}
+
+/// How the artboards that open as overlays show: where the first action that opens each puts it.
+/// XD draws no backdrop and has no "click outside" of its own.
+fn overlay_settings(file: &XdFile) -> HashMap<String, OverlaySettings> {
+    let mut settings = HashMap::new();
+    let sources = file.interactions["interactions"].as_object();
+    for interaction in sources
+        .into_iter()
+        .flat_map(|all| all.values())
+        .flat_map(|l| l.as_array().into_iter().flatten())
+    {
+        if interaction["action"] != "overlay-transition" {
+            continue;
+        }
+        let properties = &interaction["properties"];
+        let Some(to) = properties["destination"].as_str() else {
+            continue;
+        };
+        settings.entry(to.to_owned()).or_insert(OverlaySettings {
+            position: if overlay_position(properties).is_some() {
+                OverlayPosition::Manual
+            } else {
+                OverlayPosition::Center
+            },
+            close_on_click_outside: false,
+            backdrop: None,
+        });
+    }
+    settings
 }
 
 fn transition(smart: bool, properties: &Value) -> Transition {
