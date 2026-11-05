@@ -134,3 +134,145 @@ fn xd_text_needs_its_fonts() {
     assert!(missing.is_empty(), "{missing:?}");
     assert_ne!(drawn, blank, "the text is drawn");
 }
+
+/// Draws every frame as a flat white rectangle, to test the bake without a design file.
+mod flat {
+    use folioscope::bake::draw::Draw;
+    use folioscope::bake::folio::BakeError;
+    use folioscope::ir::{
+        Component, ComponentState, Document, Flow, Frame, Page, Rect, SourceFormat,
+    };
+    use std::collections::BTreeSet;
+
+    pub struct Flat;
+
+    impl Draw for Flat {
+        fn frame(&mut self, frame: &Frame) -> Option<String> {
+            let (w, h) = (frame.bounds.width, frame.bounds.height);
+            Some(format!(
+                r##"<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}"><rect width="{w}" height="{h}" fill="#fff"/></svg>"##
+            ))
+        }
+
+        fn layers(
+            &mut self,
+            frame: &Frame,
+            whole: &str,
+        ) -> Result<Vec<(String, Rect, bool)>, BakeError> {
+            Ok(vec![(whole.to_owned(), frame.bounds, false)])
+        }
+
+        fn state(&mut self, _: &Component, _: &ComponentState) -> Option<String> {
+            None
+        }
+
+        fn missing_fonts(&mut self) -> BTreeSet<String> {
+            BTreeSet::new()
+        }
+    }
+
+    pub fn frame(name: &str, width: f32) -> Frame {
+        Frame {
+            id: name.to_owned(),
+            name: name.to_owned(),
+            bounds: Rect {
+                x: 0.0,
+                y: 0.0,
+                width,
+                height: 10.0,
+            },
+            hotspots: Vec::new(),
+            overlay: None,
+            scroll: None,
+            components: Vec::new(),
+        }
+    }
+
+    pub fn page(name: &str, start: Option<&str>, frames: Vec<Frame>) -> Page {
+        Page {
+            id: name.to_owned(),
+            name: name.to_owned(),
+            flows: start
+                .map(|s| Flow {
+                    name: "Flow".to_owned(),
+                    description: String::new(),
+                    start: s.to_owned(),
+                })
+                .into_iter()
+                .collect(),
+            frames,
+        }
+    }
+
+    pub fn document(pages: Vec<Page>) -> Document {
+        Document {
+            source: SourceFormat::Fig,
+            pages,
+        }
+    }
+}
+
+fn bake_flat(
+    document: &folioscope::ir::Document,
+    options: &BakeOptions,
+) -> (folioscope::bake::folio::BakeReport, serde_json::Value) {
+    let mut index = Vec::new();
+    let report = folioscope::bake::folio::bake_into(
+        document,
+        &mut flat::Flat,
+        options,
+        &mut |path, bytes| {
+            if path == "index.json" {
+                index = bytes.to_vec();
+            }
+            Ok(())
+        },
+    )
+    .unwrap();
+    (report, serde_json::from_slice(&index).unwrap())
+}
+
+/// A frame too wide to be an image (a strip of icons, 28,000 px wide) is left out and reported:
+/// it must not fail the bake of everything else.
+#[test]
+fn a_frame_too_large_for_an_image_is_skipped() {
+    use flat::{document, frame, page};
+    let document = document(vec![page(
+        "Page",
+        None,
+        vec![frame("Strip", 28_000.0), frame("Small", 100.0)],
+    )]);
+    let (report, _) = bake_flat(&document, &BakeOptions::default());
+    assert_eq!(report.skipped_frames, ["Strip"]);
+    assert_eq!(report.frames, 1);
+}
+
+/// With a flow somewhere, the pages without one (a component library) are not part of the
+/// prototype; `all_pages` keeps them, and a file with no flow at all keeps everything.
+#[test]
+fn pages_without_a_flow_are_left_out() {
+    use flat::{document, frame, page};
+    let pages = || {
+        vec![
+            page("Prototype", Some("Home"), vec![frame("Home", 100.0)]),
+            page("Library", None, vec![frame("Button", 100.0)]),
+            page("Empty", None, Vec::new()),
+        ]
+    };
+    let (report, index) = bake_flat(&document(pages()), &BakeOptions::default());
+    assert_eq!(report.skipped_pages, ["Library"]);
+    assert_eq!(index["pages"].as_array().unwrap().len(), 1);
+
+    let all = BakeOptions {
+        all_pages: true,
+        ..BakeOptions::default()
+    };
+    let (report, index) = bake_flat(&document(pages()), &all);
+    assert_eq!(report.skipped_pages, Vec::<String>::new());
+    assert_eq!(index["pages"].as_array().unwrap().len(), 3);
+
+    let no_flow = document(vec![page("A", None, vec![frame("A", 100.0)])]);
+    let (report, index) = bake_flat(&no_flow, &BakeOptions::default());
+    assert_eq!(report.skipped_pages, Vec::<String>::new());
+    assert_eq!(index["pages"].as_array().unwrap().len(), 1);
+}
