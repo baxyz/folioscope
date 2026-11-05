@@ -29,6 +29,7 @@ fn generated_fixture_converts_to_ir() {
 
 /// An artboard taller than its viewport is a frame of the viewport's height that scrolls over the
 /// whole artboard; the bake draws its background in place and its content as the scrolling layer.
+#[cfg(feature = "bake")]
 #[test]
 fn a_tall_artboard_scrolls() {
     use folioscope::bake::folio::{BakeOptions, bake_file_into};
