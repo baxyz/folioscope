@@ -567,10 +567,11 @@ displayed almost instantly on a portfolio page.
       text: needs the fonts); smart animate between states (dissolves for now); interactive
       components nested in a state; "after delay" inside a state; D7 measured on real files and made
       configurable.
-- [ ] Fonts for pre-rendering, what is left: substitution rules (`match`, glob or regex) and a
+- [ ] Fonts for pre-rendering, what is left: regex substitution rules (`match="/^SF Pro/i"`) and a
       `folioscope.config.ts` read by the CLI; fonts embedded in `.sketch` and `.penpot` files, with
-      their importers. Done: `--fonts` and the `fonts` option of `folioscope/vite`, the
-      `folioscope fonts` manifest, missing-font warnings (ADR 0011).
+      their importers. Done: `--fonts` and the `fonts` option of `folioscope/vite`, with a
+      family, glob `match` rules, a weight and a style for each; the `folioscope fonts` manifest,
+      missing-font warnings (ADR 0011).
 
 **Exit criterion**: the same test scenarios work from a `.fig` and from a `.sketch`.
 
