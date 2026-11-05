@@ -65,8 +65,14 @@ layers: `type` `text`, `shape`, `group`, `syncRef` (component instance)…, each
 - **Triggers** seen: `tap`, `time` (with `properties.delay` in seconds), `drag`, `keys-gamepad`
   (with `keysGamepad…` properties), and `voice` (`voiceLocale`).
 - **Actions** seen: `artboard-transition` (navigate, with `transition`: `dissolve`, `slide-left`,
-  `slide-right`…) and `auto-animate` (XD's smart animate). XD also has overlays, "previous
-  artboard", scroll-to and audio actions, not seen in our sample files yet.
+  `slide-right`…), `auto-animate` (XD's smart animate), `overlay-transition` (open the
+  `destination` artboard over the screen, with `overlayPosition: { x, y }`, the overlay's top-left
+  corner from the screen's), `previous-artboard` (no destination: back, or closing an overlay) and
+  `state-transition` (a component's states; not played yet). XD also has scroll-to and audio
+  actions, not seen in our sample files yet.
+- **Overlays**: the artboard that is the `destination` is drawn like any other; the action carries
+  where it goes, so it becomes a `manual` overlay whose offset is `overlayPosition` minus the
+  hotspot's corner. XD draws no backdrop; closing outside is not assumed.
 - **Easings**: `ease-in`, `ease-out`, `ease-in-out`, `linear`, and XD's `wind-up` (overshoot).
 
 ## Graphics: what the bake draws
@@ -102,4 +108,11 @@ layers: `type` `text`, `shape`, `group`, `syncRef` (component instance)…, each
   artboard: the background stays in place, the children are the scrolling layer. Two artboards of
   our real files scroll (934 against 812). XD's "fixed position" elements are not read yet.
 - **Start point**: `homeArtboard`; without one (some files), XD starts on the top-left artboard.
-- **Gradients**: `resources.gradients` was empty in every file we have, so they are not drawn yet.
+- **Gradients**: a fill `{ type: "gradient", gradient }` whose `meta.ux.gradientResources` holds
+  the `type` (`linear` or `radial`) and the `stops` (`offset`, a colour with an optional `alpha`);
+  the geometry is in the unit square of the shape's box (`x1`…`y2`; `cx`, `cy`, `fx`, `fy`, `r`),
+  as SVG's `objectBoundingBox`. An artboard's own fill can be one. `resources.gradients` stays
+  empty in the files we have.
+- **Blurs**: `style.filters` holds `{ type: "uxdesign#blur", params: { blurAmount, brightnessAmount,
+  fillOpacity, backgroundEffect } }`: XD's background blur (frosted glass), which blurs what is
+  behind the shape. Not drawn: a layer does not know what is under it.
