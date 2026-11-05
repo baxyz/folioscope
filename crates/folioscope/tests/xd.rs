@@ -27,6 +27,46 @@ fn generated_fixture_converts_to_ir() {
     insta::assert_snapshot!("ir-navigation", serde_json::to_string_pretty(&ir).unwrap());
 }
 
+/// An artboard taller than its viewport is a frame of the viewport's height that scrolls over the
+/// whole artboard; the bake draws its background in place and its content as the scrolling layer.
+#[test]
+fn a_tall_artboard_scrolls() {
+    use folioscope::bake::folio::{BakeOptions, bake_file_into};
+    use folioscope::ir::ScrollDirection;
+
+    let path = format!("{}/../../fixtures/xd/scroll.xd", env!("CARGO_MANIFEST_DIR"));
+    let bytes = std::fs::read(&path).unwrap_or_else(|e| panic!("{path}: {e}"));
+    let ir = to_ir(&decode(&bytes).unwrap());
+    let [feed, details] = ir.pages[0].frames.as_slice() else {
+        panic!("two artboards expected");
+    };
+    assert_eq!((feed.bounds.width, feed.bounds.height), (375.0, 812.0));
+    let scroll = feed.scroll.as_ref().expect("the feed scrolls");
+    assert_eq!(scroll.direction, ScrollDirection::Vertical);
+    assert_eq!(
+        (scroll.content.width, scroll.content.height),
+        (375.0, 1600.0)
+    );
+    assert!(details.scroll.is_none());
+
+    let mut index = Vec::new();
+    bake_file_into(&bytes, &BakeOptions::default(), &mut |path, bytes| {
+        if path == "index.json" {
+            index = bytes.to_vec();
+        }
+        Ok(())
+    })
+    .unwrap();
+    let index: serde_json::Value = serde_json::from_slice(&index).unwrap();
+    let layers = index["pages"][0]["frames"][0]["layers"].as_array().unwrap();
+    let scrolls: Vec<bool> = layers
+        .iter()
+        .map(|l| l["scrolls"].as_bool().unwrap_or(false))
+        .collect();
+    assert_eq!(scrolls, [false, true]);
+    assert_eq!(layers[1]["bounds"]["height"], 1600.0);
+}
+
 fn external() -> Vec<(String, Vec<u8>)> {
     let dir = format!("{}/../../fixtures/external/xd", env!("CARGO_MANIFEST_DIR"));
     let Ok(entries) = std::fs::read_dir(format!("{dir}/github")) else {
