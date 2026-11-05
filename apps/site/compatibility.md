@@ -51,7 +51,8 @@ Vite plugin).
   modes, inner shadows and masks by alpha are not drawn.
 - **Penpot**: only the v3 format (a ZIP of JSON). Blurs, inner shadows and `svg-raw` shapes are not
   drawn; strokes are always centred.
-- **XD**: the format is not documented by Adobe and no longer changes. Gradients, blurs, text
+- **XD**: the format is not documented by Adobe and no longer changes. An artboard taller than its
+  screen scrolls; elements fixed in place while it scrolls are not read yet. Gradients, blurs, text
   underline and strikethrough are not drawn; image fills other than _cover_ are not either. A
   "previous artboard" link goes back in the history, which is our reading of it.
 

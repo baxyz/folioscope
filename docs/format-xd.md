@@ -97,6 +97,9 @@ layers: `type` `text`, `shape`, `group`, `syncRef` (component instance)…, each
   has a `width` and `height`. Glyphs are not stored: the fonts are given to the bake, as for
   `.sketch` and `.penpot`.
 - **Artboards taller than their viewport**: `uxdesign#viewport.height` is the visible height of a
-  scrolling artboard. Not read yet: such an artboard is baked at its full height.
+  scrolling artboard, in the manifest next to `uxdesign#bounds` (whose height is the whole
+  artboard). It becomes a frame of the viewport's height with a vertical `scroll` over the whole
+  artboard: the background stays in place, the children are the scrolling layer. Two artboards of
+  our real files scroll (934 against 812). XD's "fixed position" elements are not read yet.
 - **Start point**: `homeArtboard`; without one (some files), XD starts on the top-left artboard.
 - **Gradients**: `resources.gradients` was empty in every file we have, so they are not drawn yet.

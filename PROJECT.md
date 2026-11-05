@@ -581,10 +581,10 @@ displayed almost instantly on a portfolio page.
       fonts embedded in `objects/`, blurs, inner shadows, inside and outside strokes (drawn
       centred), `svg-raw` shapes, scrolling boards, fixed elements; a toggled overlay opens like
       any other (the next toggle does not close it yet).
-- [ ] `.xd`, what is left: gradients, blurs, scrolling artboards (`uxdesign#viewport`), overlays,
+- [ ] `.xd`, what is left: gradients, blurs, fixed elements in scrolling artboards, overlays,
       hover triggers, component states, text underline and strikethrough, image fills other than
-      cover. Read and drawn already: artboards, shapes, clip paths, colour and image fills,
-      borders, drop shadows, text; tap, time, drag and key triggers; slide, push and dissolve;
+      cover. Read and drawn already: artboards (and those taller than their viewport, which scroll),
+      shapes, clip paths, colour and image fills, borders, drop shadows, text; tap, time, drag and key triggers; slide, push and dissolve;
       auto-animate (smart animate, layers paired by name). The importer is checked against five
       real files kept in `fixtures/external/xd/`; the committed fixtures are our own.
 - [ ] Fixtures and tests for both formats, with the same scenarios as for `.fig` and `.sketch`.
