@@ -16,6 +16,10 @@ import { folioscope } from "folioscope/vite";
 export default { plugins: [folioscope({ include: "designs/*.{fig,sketch}", fonts: "fonts" })] };
 ```
 
+`fonts` takes paths, folders and globs. To say more about some fonts than their files do, give an
+object: `fonts: { src: "fonts/Inter.ttf", match: ["SF Pro*", "Helvetica"], weight: 400 }`
+(`family`, `match`, `weight`, `italic`).
+
 `designs/app.fig` is served as `/folio/app.folio/`: layered images (lossless WebP, or AVIF for
 photos), a description of the screens and links, and a poster. The bake runs as WebAssembly, so
 nothing else is installed, and is cached between builds.

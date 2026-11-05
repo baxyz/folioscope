@@ -32,9 +32,33 @@ export interface FolioscopeOptions {
   avif?: boolean;
   /**
    * Fonts for text the design file stores no glyphs for: font files, folders of them, or globs,
-   * relative to the Vite root (TTF, OTF, TTC, WOFF, WOFF2). A `.fig` file rarely needs any.
+   * relative to the Vite root (TTF, OTF, TTC, WOFF, WOFF2). A `.fig` file rarely needs any. An
+   * object says more about the fonts it names than their files do.
    */
-  fonts?: string | string[];
+  fonts?: FontSource | FontSource[];
+}
+
+/** Font files, as a path or glob, or with what to say about them. */
+export type FontSource =
+  | string
+  | {
+      /** Font files, folders of them, or globs, relative to the Vite root. */
+      src: string | string[];
+      /** A family name these fonts also answer to, besides their own. */
+      family?: string;
+      /** Family names or patterns (`SF Pro*`, `/^Helvetica/i`) they substitute for. */
+      match?: string | string[];
+      /** The weight they are, instead of the one in the files. */
+      weight?: number;
+      /** Whether they are italic, instead of what the files say. */
+      italic?: boolean;
+    };
+
+/** The fonts the bake is given: their bytes by name, and what was said about each. */
+interface Fonts {
+  files: Map<string, Uint8Array>;
+  /** The `hints` argument of the WebAssembly bake: a JSON array, or nothing. */
+  hints?: string;
 }
 
 /** Files of one `.folio` folder, by path inside it (`index.json`, `layers/…`). */
@@ -46,11 +70,12 @@ interface Wasm {
     avif: boolean,
     fonts: Map<string, Uint8Array>,
     densities?: Uint8Array,
+    hints?: string,
   ): { files: Map<string, Uint8Array>; missingFonts: string[] };
 }
 
 /** Bumped when the bake's output changes, so stale cache entries are not reused. */
-const CACHE_VERSION = "3";
+const CACHE_VERSION = "4";
 
 const FONT_FILE = /\.(ttf|otf|ttc|woff2?)$/i;
 
@@ -91,26 +116,40 @@ export function folioscope(options: FolioscopeOptions = {}): Plugin {
     return found;
   };
 
-  let fonts: Map<string, Uint8Array> | undefined;
+  let fonts: Fonts | undefined;
   /** The `fonts` option's files, by path from the root, read once. */
-  const loadFonts = (): Map<string, Uint8Array> => {
+  const loadFonts = (): Fonts => {
     if (fonts) return fonts;
-    fonts = new Map();
-    for (const pattern of [options.fonts ?? []].flat()) {
-      const matches = globSync(pattern, { cwd: config.root });
-      for (const match of matches.toSorted()) {
-        const path = resolve(config.root, match);
-        const files = statSync(path).isDirectory()
-          ? readdirSync(path, { recursive: true, encoding: "utf8" })
-              .toSorted()
-              .map((f) => join(path, f))
-          : [path];
-        for (const file of files) {
-          if (FONT_FILE.test(file)) fonts.set(relative(config.root, file), readFileSync(file));
+    const files = new Map<string, Uint8Array>();
+    const hints: Record<string, unknown>[] = [];
+    for (const source of [options.fonts ?? []].flat()) {
+      const { src, family, match, weight, italic } =
+        typeof source === "string" ? ({ src: source } as Exclude<FontSource, string>) : source;
+      for (const pattern of [src].flat()) {
+        for (const entry of globSync(pattern, { cwd: config.root }).toSorted()) {
+          const path = resolve(config.root, entry);
+          const found = statSync(path).isDirectory()
+            ? readdirSync(path, { recursive: true, encoding: "utf8" })
+                .toSorted()
+                .map((f) => join(path, f))
+            : [path];
+          for (const file of found) {
+            if (!FONT_FILE.test(file)) continue;
+            const name = relative(config.root, file);
+            files.set(name, readFileSync(file));
+            if (
+              family !== undefined ||
+              match !== undefined ||
+              weight !== undefined ||
+              italic !== undefined
+            ) {
+              hints.push({ name, family, match: match && [match].flat(), weight, italic });
+            }
+          }
         }
       }
     }
-    return fonts;
+    return (fonts = { files, hints: hints.length ? JSON.stringify(hints) : undefined });
   };
 
   const bake = (path: string): Promise<Folio> => {
@@ -182,17 +221,24 @@ async function bakeCached(
   path: string,
   cacheDir: string,
   avif: boolean,
-  fonts: Map<string, Uint8Array>,
+  fonts: Fonts,
   warn: (font: string) => void,
 ): Promise<Folio> {
   const source = readFileSync(path);
   const hash = createHash("sha256").update(`${CACHE_VERSION}:${avif}`).update(source);
-  for (const [name, bytes] of fonts) hash.update(name).update(bytes);
+  for (const [name, bytes] of fonts.files) hash.update(name).update(bytes);
+  hash.update(fonts.hints ?? "");
   const key = hash.digest("hex").slice(0, 32);
   const dir = join(cacheDir, key);
   if (existsSync(join(dir, "index.json"))) return readFolder(dir);
 
-  const { files: folio, missingFonts } = (await loadWasm()).bake(source, avif, fonts);
+  const { files: folio, missingFonts } = (await loadWasm()).bake(
+    source,
+    avif,
+    fonts.files,
+    undefined,
+    fonts.hints,
+  );
   missingFonts.forEach(warn);
   for (const [file, bytes] of folio) {
     mkdirSync(dirname(join(dir, file)), { recursive: true });
