@@ -18,6 +18,7 @@ export default defineConfig({
       { text: "Getting started", link: "/guide/getting-started" },
       { text: "Demos", link: "/demos" },
       { text: "Compatibility", link: "/compatibility" },
+      { text: "Comparison", link: "/comparison" },
       { text: "About", link: "/about" },
     ],
     socialLinks: [{ icon: "github", link: "https://github.com/baxyz/folioscope" }],
