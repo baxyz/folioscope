@@ -21,8 +21,8 @@ than _not yet_.
 | Click or tap links       | Plays        | Plays             | Plays             | Plays          |
 | Hover and press          | Plays        | Not in the format | Plays             | Not yet        |
 | After a delay            | Plays        | Not in the format | Plays             | Plays          |
-| Back, previous screen    | Plays        | Plays             | Plays             | Partly         |
-| Overlays                 | Plays        | Not in the format | Plays             | Not yet        |
+| Back, previous screen    | Plays        | Plays             | Plays             | Plays          |
+| Overlays                 | Plays        | Not in the format | Plays             | Plays          |
 | Scrolling inside screens | Partly       | Not yet           | Not yet           | Not yet        |
 | Slide, push, dissolve    | Plays        | Slides only       | Plays             | Plays          |
 | Smart animate            | Partly       | Not in the format | Not in the format | Plays          |
@@ -33,7 +33,7 @@ than _not yet_.
 | Feature                      | Figma `.fig`          | Sketch `.sketch` | Penpot `.penpot` | Adobe XD `.xd`   |
 | ---------------------------- | --------------------- | ---------------- | ---------------- | ---------------- |
 | Shapes, colour fills, images | Plays                 | Plays            | Plays            | Plays            |
-| Gradients                    | Plays                 | Plays            | Plays            | Not yet          |
+| Gradients                    | Partly                | Plays            | Plays            | Plays            |
 | Drop shadows                 | Plays                 | Plays            | Plays            | Plays            |
 | Masks and clip paths         | Plays                 | Plays            | Plays            | Plays            |
 | Text                         | Plays, no font needed | Needs your fonts | Needs your fonts | Needs your fonts |
@@ -52,9 +52,10 @@ Vite plugin).
 - **Penpot**: only the v3 format (a ZIP of JSON). Blurs, inner shadows and `svg-raw` shapes are not
   drawn; strokes are always centred.
 - **XD**: the format is not documented by Adobe and no longer changes. An artboard taller than its
-  screen scrolls; elements fixed in place while it scrolls are not read yet. Gradients, blurs, text
-  underline and strikethrough are not drawn; image fills other than _cover_ are not either. A
-  "previous artboard" link goes back in the history, which is our reading of it.
+  screen scrolls; elements fixed in place while it scrolls are not read yet. Background blurs
+  (frosted glass), text underline and strikethrough are not drawn; image fills other than _cover_
+  are not either, and neither are component states. Overlays have no backdrop and do not close on
+  a click outside, as in XD's player as far as we know.
 
 This page is written by hand from the project's [roadmap](https://github.com/baxyz/folioscope/blob/main/PROJECT.md).
 It will be generated from the tests once each importer reports what it supports.

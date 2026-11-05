@@ -580,12 +580,14 @@ displayed almost instantly on a portfolio page.
 - [ ] `.penpot`, what is left: component variants (Penpot 2) as interactive components, custom
       fonts embedded in `objects/`, blurs, inner shadows, inside and outside strokes (drawn
       centred), `svg-raw` shapes, scrolling boards, fixed elements.
-- [ ] `.xd`, what is left: gradients, blurs, fixed elements in scrolling artboards, overlays,
-      hover triggers, component states, text underline and strikethrough, image fills other than
-      cover. Read and drawn already: artboards (and those taller than their viewport, which scroll),
-      shapes, clip paths, colour and image fills, borders, drop shadows, text; tap, time, drag and key triggers; slide, push and dissolve;
-      auto-animate (smart animate, layers paired by name). The importer is checked against five
-      real files kept in `fixtures/external/xd/`; the committed fixtures are our own.
+- [ ] `.xd`, what is left: background blurs (frosted glass), fixed elements in scrolling
+      artboards, component states (`state-transition`), text underline and strikethrough, image
+      fills other than cover. Read and drawn already: artboards (and those taller than their
+      viewport, which scroll), shapes, clip paths, colour, linear and radial gradient and image
+      fills, borders, drop shadows, text; tap, time, drag and key triggers; slide, push and
+      dissolve; overlays, previous artboard; auto-animate (smart animate, layers paired by name).
+      The importer is checked against fourteen real files kept in `fixtures/external/xd/`; the
+      committed fixtures are our own.
 - [ ] Fixtures and tests for both formats, with the same scenarios as for `.fig` and `.sketch`.
 
 **Exit criterion**: the compatibility matrix covers all four formats, with the same basic scenarios
