@@ -5,11 +5,13 @@
 
 use std::sync::Arc;
 
-use helpers4::font::{FontFace, FontRequest, FontStyle, is_italic, pick_closest, split_postscript};
+use helpers4::font::{
+    FontFace, FontRequest, FontStyle, font_count, is_italic, pick_closest, read_font_at,
+    split_postscript, to_sfnt,
+};
 use helpers4::string::match_glob_ignore_case;
 use serde::{Deserialize, Serialize};
-use skrifa::raw::FileRef;
-use skrifa::{FontRef, MetadataProvider, Tag, attribute::Style, string::StringId};
+use skrifa::FontRef;
 
 #[derive(Debug, thiserror::Error)]
 pub enum FontError {
@@ -131,41 +133,31 @@ impl FontLibrary {
         hints: &FontHints,
     ) -> Result<usize, FontError> {
         let error = || FontError::Format(source.to_owned());
-        let data = Arc::new(match bytes.get(..4) {
-            Some(b"wOFF") => wuff::decompress_woff1(bytes).map_err(|_| error())?,
-            Some(b"wOF2") => wuff::decompress_woff2(bytes).map_err(|_| error())?,
-            _ => bytes.to_vec(),
+        // WOFF2 needs a Brotli decoder, which helpers4 does not have: `wuff` opens it. A WOFF is
+        // rebuilt as an sfnt by helpers4, and a TrueType or OpenType file is kept as it is.
+        let data = Arc::new(if bytes.starts_with(b"wOF2") {
+            wuff::decompress_woff2(bytes).map_err(|_| error())?
+        } else {
+            to_sfnt(bytes).map_err(|_| error())?.into_owned()
         });
-        let fonts: Vec<FontRef<'_>> = match FileRef::new(&data).map_err(|_| error())? {
-            FileRef::Font(font) => vec![font],
-            FileRef::Collection(collection) => collection.iter().filter_map(Result::ok).collect(),
-        };
         let before = self.faces.len();
-        for (index, font) in (0u32..).zip(fonts) {
-            let Some(family) = family(&font) else {
+        for index in 0..font_count(&data).map_err(|_| error())? {
+            // A font without a name table or a family is skipped, as the others of its collection
+            // are kept.
+            let Ok(info) = read_font_at(&data, index) else {
                 continue;
             };
-            let attributes = font.attributes();
-            let weight = font
-                .axes()
-                .get_by_tag(Tag::new(b"wght"))
-                .map_or([attributes.weight.value(); 2], |axis| {
-                    [axis.min_value(), axis.max_value()]
-                });
-            let postscript = font
-                .localized_strings(StringId::POSTSCRIPT_NAME)
-                .english_or_first()
-                .map(|name| name.to_string())
-                .unwrap_or_default();
+            let weight = info
+                .weight_range
+                .map_or([info.weight; 2], |(min, max)| [min, max])
+                .map(narrow);
             self.faces.push(Face {
-                family,
-                postscript,
+                family: info.family,
+                postscript: info.postscript_name.unwrap_or_default(),
                 weight: hints.weight.map_or(weight, |w| [w, w]),
-                italic: hints
-                    .italic
-                    .unwrap_or(!matches!(attributes.style, Style::Normal)),
+                italic: hints.italic.unwrap_or(info.italic),
                 source: source.to_owned(),
-                index,
+                index: u32::try_from(index).map_err(|_| error())?,
                 aliases: hints.family.iter().chain(&hints.matches).cloned().collect(),
                 data: Arc::clone(&data),
             });
@@ -221,11 +213,9 @@ impl FontLibrary {
     }
 }
 
-fn family(font: &FontRef<'_>) -> Option<String> {
-    [StringId::TYPOGRAPHIC_FAMILY_NAME, StringId::FAMILY_NAME]
-        .into_iter()
-        .find_map(|id| font.localized_strings(id).english_or_first())
-        .map(|name| name.to_string())
+#[allow(clippy::cast_possible_truncation)] // 1 to 1000
+fn narrow(weight: f64) -> f32 {
+    weight as f32
 }
 
 /// Weight of a style name as design tools write it ("Semi Bold Italic" → 600).
