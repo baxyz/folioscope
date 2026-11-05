@@ -45,7 +45,8 @@ its geometry in **absolute page coordinates**, stored several times over: `x`, `
   - `preserveScroll`.
 
 The model maps onto the IR with no structural change: named flows, the usual triggers, navigate,
-overlays, back, URL, and dissolve, slide and push transitions.
+overlays, back, URL, and dissolve, slide and push transitions. `toggle-overlay` is an overlay
+action with `toggle` set: it closes the overlay when that one is already open.
 
 ## Rendering
 

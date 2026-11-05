@@ -91,6 +91,10 @@ export class Runtime {
       case "overlay":
       case "swapOverlay": {
         if (!this.frames.has(action.to)) return undefined;
+        if (action.type === "overlay" && action.toggle) {
+          const open = this.state.overlays.findIndex((o) => o.id === action.to);
+          if (open >= 0) return this.closeAt(open);
+        }
         const overlays = [...this.state.overlays];
         if (action.type === "swapOverlay") overlays.pop();
         overlays.push({
@@ -136,6 +140,14 @@ export class Runtime {
     const from = this.held.pop();
     if (from === undefined) return undefined;
     this.stack.replace({ frame: from, overlays: [] });
+    return this.step();
+  }
+
+  /** Closes the overlay at `index` in the stack, as a toggle does: the top one is a close. */
+  private closeAt(index: number): Step | undefined {
+    if (index === this.state.overlays.length - 1) return this.close();
+    const overlays = this.state.overlays.filter((_, i) => i !== index);
+    this.stack.replace({ frame: this.state.frame, overlays });
     return this.step();
   }
 

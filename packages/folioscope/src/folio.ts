@@ -142,6 +142,8 @@ export type Action =
       transition: Transition;
       /** For a `manual` overlay: its top-left corner, from the hotspot's. */
       offset?: Point;
+      /** An `overlay` that closes the overlay instead when it is already open. */
+      toggle?: boolean;
     }
   | { type: "back" | "close" }
   | { type: "openUrl"; url: string; newTab?: boolean }

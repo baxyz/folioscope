@@ -476,6 +476,7 @@ fn action(action: &Value) -> Option<Action> {
                     to,
                     transition,
                     offset,
+                    toggle: false,
                 },
                 "SWAP_STATE" => Action::ChangeTo { to, transition },
                 "SWAP" => Action::SwapOverlay {

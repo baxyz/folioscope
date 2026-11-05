@@ -579,8 +579,7 @@ displayed almost instantly on a portfolio page.
 
 - [ ] `.penpot`, what is left: component variants (Penpot 2) as interactive components, custom
       fonts embedded in `objects/`, blurs, inner shadows, inside and outside strokes (drawn
-      centred), `svg-raw` shapes, scrolling boards, fixed elements; a toggled overlay opens like
-      any other (the next toggle does not close it yet).
+      centred), `svg-raw` shapes, scrolling boards, fixed elements.
 - [ ] `.xd`, what is left: gradients, blurs, fixed elements in scrolling artboards, overlays,
       hover triggers, component states, text underline and strikethrough, image fills other than
       cover. Read and drawn already: artboards (and those taller than their viewport, which scroll),

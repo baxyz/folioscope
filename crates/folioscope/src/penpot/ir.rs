@@ -155,11 +155,12 @@ fn interaction(
             to: to(),
             transition: transition(),
         },
-        // Toggling opens the overlay; the player closes it on the next toggle as on a close.
-        "open-overlay" | "toggle-overlay" => Action::Overlay {
+        // Toggling closes the overlay when it is already open.
+        kind @ ("open-overlay" | "toggle-overlay") => Action::Overlay {
             to: to(),
             transition: transition(),
             offset: manual_offset(interaction, hotspot, origin, page),
+            toggle: kind == "toggle-overlay",
         },
         "close-overlay" => Action::Close,
         "prev-screen" => Action::Back,
