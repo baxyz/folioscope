@@ -11,7 +11,7 @@ use folioscope::figma::{self, tree::Tree};
 const USAGE: &str = "usage:
   folioscope inspect <file.fig|.sketch|.xd|.penpot>
   folioscope render <file.fig> <node-id> <out.png> [scale]   (also writes <out>.svg)
-  folioscope bake <file.fig|.sketch|.xd|.penpot> <out.folio> [--no-avif] [--fonts <file or folder>
+  folioscope bake <file.fig|.sketch|.xd|.penpot> <out.folio> [--no-avif] [--all-pages] [--fonts <file or folder>
       [--family <name>] [--match <name or pattern>]... [--weight <100-900>] [--italic]]...
   folioscope fonts <folder>   (writes <folder>/folioscope-fonts.json)";
 
@@ -95,12 +95,14 @@ fn bake_args<'a>(args: &[&'a str]) -> Option<(&'a str, &'a str, BakeArgs<'a>)> {
     let mut positional = Vec::new();
     let mut options = BakeArgs {
         avif: true,
+        all_pages: false,
         fonts: Vec::new(),
     };
     let mut args = args.iter();
     while let Some(&arg) = args.next() {
         match arg {
             "--no-avif" => options.avif = false,
+            "--all-pages" => options.all_pages = true,
             "--fonts" => options.fonts.push((*args.next()?, FontHints::default())),
             "--family" => options.fonts.last_mut()?.1.family = Some((*args.next()?).to_owned()),
             "--match" => options
@@ -124,6 +126,7 @@ fn bake_args<'a>(args: &[&'a str]) -> Option<(&'a str, &'a str, BakeArgs<'a>)> {
 
 struct BakeArgs<'a> {
     avif: bool,
+    all_pages: bool,
     /// Each font path with what was said about it.
     fonts: Vec<(&'a str, FontHints)>,
 }
@@ -140,6 +143,7 @@ fn bake(path: &str, out: &str, args: &BakeArgs<'_>) -> Result<(), String> {
         Path::new(out),
         &folioscope::bake::folio::BakeOptions {
             avif: args.avif,
+            all_pages: args.all_pages,
             fonts,
             ..Default::default()
         },
@@ -152,6 +156,16 @@ fn bake(path: &str, out: &str, args: &BakeArgs<'_>) -> Result<(), String> {
         report.bytes / 1024,
         started.elapsed().as_millis()
     );
+    if !report.skipped_pages.is_empty() {
+        eprintln!(
+            "note: {} pages have no flow and were left out (--all-pages keeps them): {}",
+            report.skipped_pages.len(),
+            report.skipped_pages.join(", ")
+        );
+    }
+    for frame in &report.skipped_frames {
+        eprintln!("warning: frame {frame} is too large to be an image: left out");
+    }
     for font in &report.missing_fonts {
         eprintln!(
             "warning: no font for {font}: its text is left out or keeps another style (--fonts)"

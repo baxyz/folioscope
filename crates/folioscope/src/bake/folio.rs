@@ -52,6 +52,9 @@ pub struct BakeOptions {
     pub avif: bool,
     /// Fonts for text the file stores no glyphs for (ADR 0011).
     pub fonts: FontLibrary,
+    /// Bake the pages that have no flow too. By default, when some page has one, the others (a
+    /// design system's components, say) are left out: they are not part of the prototype.
+    pub all_pages: bool,
 }
 
 impl Default for BakeOptions {
@@ -60,6 +63,7 @@ impl Default for BakeOptions {
             densities: vec![1, 2],
             avif: true,
             fonts: FontLibrary::default(),
+            all_pages: false,
         }
     }
 }
@@ -72,7 +76,15 @@ pub struct BakeReport {
     pub bytes: usize,
     /// Fonts some text needed and was not given (`Family Style`).
     pub missing_fonts: BTreeSet<String>,
+    /// Frames left out because an image of them would be wider or taller than the formats allow
+    /// (a 28,000 px strip of icons, say): by name.
+    pub skipped_frames: Vec<String>,
+    /// Pages left out for having no flow while another page has one: by name.
+    pub skipped_pages: Vec<String>,
 }
+
+/// The longest side of an image WebP can hold.
+const MAX_IMAGE_SIDE: f32 = 16383.0;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -452,9 +464,20 @@ pub fn bake_into(
 
     let smart = smart_animated(document);
     let mut pages = Vec::new();
+    let has_flows = document.pages.iter().any(|p| !p.flows.is_empty());
     for page in &document.pages {
+        if has_flows && page.flows.is_empty() && !options.all_pages {
+            report
+                .skipped_pages
+                .extend((!page.frames.is_empty()).then_some(page.name.clone()));
+            continue;
+        }
         let mut frames = Vec::new();
         for frame in &page.frames {
+            if too_large(frame, &densities) {
+                report.skipped_frames.push(frame.name.clone());
+                continue;
+            }
             let whole = draw
                 .frame(frame)
                 .ok_or_else(|| BakeError::MissingFrame(frame.id.clone()))?;
@@ -527,6 +550,14 @@ pub fn bake_into(
     report.bytes += json.len();
     sink("index.json", json.as_bytes())?;
     Ok(report)
+}
+
+/// Whether an image of the frame (or of its scrolling content, when that is larger), at the top
+/// density, would be longer than WebP can hold.
+fn too_large(frame: &ir::Frame, densities: &[u8]) -> bool {
+    let size = frame.scroll.as_ref().map_or(frame.bounds, |s| s.content);
+    let densest = f32::from(densities.first().copied().unwrap_or(1));
+    size.width.max(size.height) * densest > MAX_IMAGE_SIDE
 }
 
 /// First 16 hex digits of the SHA-256 of a layer's SVG: stable across bakes and densities.
