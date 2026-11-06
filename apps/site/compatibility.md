@@ -46,7 +46,10 @@ Vite plugin).
 
 - **Figma**: only linear gradients are drawn (the others use their first colour), and blend modes are not. A nested frame that scrolls, and sticky elements, are not played yet. Smart animate
   pairs the direct children of a screen, not nested layers. A component variant other than the one
-  in the file is drawn at its own size, without its overrides' layout.
+  in the file is drawn at its own size, without its overrides' layout. Inside an instance, a stack
+  that starts at its beginning is laid out again when a child changed size; other auto layouts
+  (centred, spaced between) keep the component's positions. Of an instance's component properties,
+  only the boolean ones that show or hide a layer are read.
 - **Sketch**: only the first shadow, and a text takes the style of its first run. Blurs, blend
   modes, inner shadows and masks by alpha are not drawn.
 - **Penpot**: only the v3 format (a ZIP of JSON). Blurs, inner shadows and `svg-raw` shapes are not
