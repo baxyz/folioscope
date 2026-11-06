@@ -90,6 +90,22 @@ try {
   assert.equal(await control("Flow").isHidden(), true);
   console.log("✓ controls: flow and page pickers, restart, back state");
 
+  // A framework builds the element, sets `controls`, then inserts it.
+  await tab.goto(`${server.origin}/?folio=navigation`);
+  await tab.evaluate(() => {
+    const player = document.createElement("folioscope-player");
+    player.id = "built";
+    player.setAttribute("src", "/navigation.folio");
+    player.setAttribute("controls", "");
+    document.body.append(player);
+  });
+  assert.equal(
+    await tab.locator("#built .controls").isVisible(),
+    true,
+    "controls set before the element is inserted show",
+  );
+  console.log("✓ controls: set before the element is inserted, they show");
+
   // A click beside every hotspot flashes them, unless hotspots="never".
   const missClick = async () => {
     const stage = (await tab.locator("folioscope-player .stage").boundingBox())!;

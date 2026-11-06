@@ -179,6 +179,9 @@ export class FolioscopePlayer extends BaseElement {
   }
 
   connectedCallback(): void {
+    // A framework builds the element, sets its attributes, then inserts it: `controls` was not
+    // there yet when the constructor ran, and the callback ignores changes while disconnected.
+    this.controls.element.hidden = !this.hasAttribute("controls");
     this.fontObserver ??= new MutationObserver(() => this.fontsChanged());
     this.fontObserver.observe(this, { childList: true, attributes: true, subtree: true });
     // A press ends wherever the button is released, even outside the player.
