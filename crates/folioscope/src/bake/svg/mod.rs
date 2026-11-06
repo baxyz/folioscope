@@ -7,7 +7,7 @@
 //! Not handled yet: instance overrides, radial and angular gradients, blend modes, blurs, image
 //! transforms and tiling, auto-layout changes since the file was saved.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap};
 use std::fmt::Write;
 
 use crate::figma::instance::Overrides;
@@ -120,6 +120,7 @@ pub fn render_component_state<'t>(
         overrides,
         typesetter,
         missing_fonts: BTreeSet::new(),
+        shifts: HashMap::new(),
     };
     ctx.node(root, true);
     Some(svg(&ctx, size))
@@ -205,6 +206,7 @@ fn render(
         overrides: Overrides::default(),
         typesetter: None,
         missing_fonts: BTreeSet::new(),
+        shifts: HashMap::new(),
     };
     ctx.node(node, true);
     svg(&ctx, (width, height))
@@ -251,6 +253,8 @@ struct Ctx<'t, 'a> {
     /// Lays text out where the file's glyphs do not fit it; none when no font was given.
     typesetter: Option<&'t mut Typesetter>,
     missing_fonts: BTreeSet<String>,
+    /// How far auto layout moves a node of an instance from where its component has it: `(x, y)`.
+    shifts: HashMap<NodeId, (f32, f32)>,
 }
 
 impl Ctx<'_, '_> {
@@ -276,6 +280,7 @@ impl Ctx<'_, '_> {
         let mut attrs = String::new();
         if !root && let Some(m) = v.get("transform") {
             let f = |k: &str| m.get(k).and_then(Value::as_f32).unwrap_or(0.0);
+            let (dx, dy) = self.shifts.get(&node.id).copied().unwrap_or((0.0, 0.0));
             // SVG's matrix(a b c d e f) is column-major: Figma's m00 m10 m01 m11 m02 m12.
             let _ = write!(
                 attrs,
@@ -284,8 +289,8 @@ impl Ctx<'_, '_> {
                 f("m10"),
                 f("m01"),
                 f("m11"),
-                f("m02"),
-                f("m12")
+                f("m02") + dx,
+                f("m12") + dy
             );
         }
         if let Some(opacity) = v.get("opacity").and_then(Value::as_f32)
@@ -331,6 +336,11 @@ impl Ctx<'_, '_> {
     }
 
     fn children(&mut self, node: &Node<'_>, root: bool) {
+        // A boolean operation is drawn from the outline Figma computed (its own `fillGeometry`,
+        // painted with its own fill): its children are the operands, not drawn.
+        if node.kind == "BOOLEAN_OPERATION" {
+            return;
+        }
         let container = matches!(node.kind, "FRAME" | "SYMBOL" | "INSTANCE" | "COMPONENT_SET");
         // Instances do not store their children: draw the component's, without overrides.
         let source = if node.kind == "INSTANCE" {
@@ -346,6 +356,7 @@ impl Ctx<'_, '_> {
         if children.is_empty() {
             return;
         }
+        self.reflow(node.value, &children);
         let clip = container
             && (!root || self.root.clip)
             && !matches!(node.value.get("frameMaskDisabled"), Some(Value::Bool(true)));
@@ -372,6 +383,73 @@ impl Ctx<'_, '_> {
         }
     }
 
+    /// Where auto layout puts the children of a stack inside an instance. Figma writes the sizes it
+    /// computed for the instance, not always the positions that follow: when a child grew (a
+    /// longer label, a spacer that fills), those after it move along the stack. Only a stack that
+    /// starts at its beginning is reflowed, from the sizes and spacing it has; anything else keeps
+    /// the positions of the component.
+    fn reflow(&mut self, parent: &Value, children: &[NodeId]) {
+        if !self.overrides.active() {
+            return;
+        }
+        let horizontal = match parent.get("stackMode").and_then(Value::as_str) {
+            Some("HORIZONTAL") => true,
+            Some("VERTICAL") => false,
+            _ => return,
+        };
+        if parent
+            .get("stackPrimaryAlignItems")
+            .and_then(Value::as_str)
+            .is_some_and(|align| align != "MIN")
+        {
+            return;
+        }
+        let number = |v: &Value, k: &str| v.get(k).and_then(Value::as_f32).unwrap_or(0.0);
+        let mut cursor = number(
+            parent,
+            if horizontal {
+                "stackHorizontalPadding"
+            } else {
+                "stackVerticalPadding"
+            },
+        );
+        let spacing = number(parent, "stackSpacing");
+        let mut shifts = Vec::new();
+        for &id in children {
+            let Some(child) = self.tree.get(id) else {
+                continue;
+            };
+            let child = self.overrides.resolve(child);
+            if matches!(child.get("visible"), Some(Value::Bool(false)))
+                || child.get("stackPositioning").and_then(Value::as_str) == Some("ABSOLUTE")
+            {
+                continue;
+            }
+            let Some(m) = child.get("transform") else {
+                return;
+            };
+            let (w, h) = size(&child);
+            let f = |k: &str| number(m, k);
+            // The child's extent along the stack, whatever its rotation.
+            let (origin, along_w, along_h) = if horizontal {
+                (f("m02"), f("m00") * w, f("m01") * h)
+            } else {
+                (f("m12"), f("m10") * w, f("m11") * h)
+            };
+            let corners = [0.0, along_w, along_h, along_w + along_h];
+            let low = origin + corners.iter().copied().fold(f32::INFINITY, f32::min);
+            let high = origin + corners.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+            if (cursor - low).abs() > 0.5 {
+                shifts.push((id, cursor - low));
+            }
+            cursor += high - low + spacing;
+        }
+        for (id, by) in shifts {
+            self.shifts
+                .insert(id, if horizontal { (by, 0.0) } else { (0.0, by) });
+        }
+    }
+
     /// The node's own shape, for clipping: its first fill geometry, or its rounded bounds.
     fn outline(&self, v: &Value) -> String {
         if let Some(path) = v
@@ -394,9 +472,7 @@ impl Ctx<'_, '_> {
         paints: &str,
         fallback_to_bounds: bool,
     ) {
-        let paints: Vec<&Value> = v
-            .get(paints)
-            .map_or(&[][..], Value::as_array)
+        let paints: Vec<&Value> = paints_of(self.tree, v, paints)
             .iter()
             .filter(|p| visible(p))
             .collect();
@@ -434,21 +510,15 @@ impl Ctx<'_, '_> {
         }
     }
 
-    /// Text from the glyph outlines Figma stored after laying it out.
+    /// Text from the glyph outlines Figma stored after laying it out. A run of the text can have
+    /// a fill of its own (`textData.styleOverrideTable`): its glyphs are drawn with it.
     fn text(&mut self, node: &Node<'_>) {
         let v = node.value;
-        let Some(fill) = v
-            .get("fillPaints")
-            .map_or(&[][..], Value::as_array)
+        let (w, h) = size(v);
+        let base = paints_of(self.tree, v, "fillPaints")
             .iter()
             .find(|p| visible(p))
-        else {
-            return;
-        };
-        let (w, h) = size(v);
-        let Some(fill) = self.paint(fill, w, h) else {
-            return;
-        };
+            .cloned();
         let data = v.get("derivedTextData");
         let glyphs = data
             .and_then(|d| d.get("glyphs"))
@@ -461,18 +531,48 @@ impl Ctx<'_, '_> {
         };
         // The file's glyphs, unless they were laid out in another font (a variant other than
         // the one stored, with another style) and the right one was given.
-        let mut path = if stale_glyphs(v) {
-            self.lay_out(v).unwrap_or_default()
-        } else {
-            String::new()
-        };
-        if path.is_empty() {
-            for glyph in glyphs.iter().take(shown) {
-                self.glyph(glyph, &mut path);
+        if stale_glyphs(v) {
+            let path = self.lay_out(v).unwrap_or_default();
+            if !path.is_empty()
+                && let Some(base) = base
+                && let Some(fill) = self.paint(&base, w, h)
+            {
+                let _ = write!(self.body, r#"<path d="{path}" {fill}/>"#);
             }
+            return;
         }
-        if !path.is_empty() {
-            let _ = write!(self.body, r#"<path d="{path}" {fill}/>"#);
+        // The glyphs to draw with each fill: the run's own, or the text's.
+        let runs = run_fills(self.tree, v);
+        let mut paths: Vec<(u32, String)> = Vec::new();
+        for glyph in glyphs.iter().take(shown) {
+            let style = glyph
+                .get("firstCharacter")
+                .and_then(Value::as_u32)
+                .and_then(|c| runs.styles.get(c as usize))
+                .copied()
+                .filter(|s| runs.fills.iter().any(|(id, _)| id == s))
+                .unwrap_or(0);
+            let at = if let Some(at) = paths.iter().position(|(id, _)| *id == style) {
+                at
+            } else {
+                paths.push((style, String::new()));
+                paths.len() - 1
+            };
+            self.glyph(glyph, &mut paths[at].1);
+        }
+        for (style, path) in paths {
+            let paint = runs
+                .fills
+                .iter()
+                .find(|(id, _)| *id == style)
+                .and_then(|(_, paints)| paints.iter().find(|p| visible(p)))
+                .or(base.as_ref());
+            if path.is_empty() {
+                continue;
+            }
+            if let Some(fill) = paint.and_then(|p| self.paint(p, w, h)) {
+                let _ = write!(self.body, r#"<path d="{path}" {fill}/>"#);
+            }
         }
     }
 
@@ -517,6 +617,52 @@ impl Ctx<'_, '_> {
         path_commands(bytes, &mut d, |x, y| (x, y));
         (!d.is_empty()).then_some(d)
     }
+}
+
+/// The paints of a node: those of the shared style it uses, when it has one, else its own.
+/// Figma keeps a node's own paints beside the style's, and they go stale when the style is
+/// edited: the style is what Figma draws.
+fn paints_of<'v>(tree: &'v Tree<'_>, v: &'v Value, key: &str) -> &'v [Value] {
+    let style = match key {
+        "fillPaints" => "styleIdForFill",
+        "strokePaints" => "styleIdForStrokeFill",
+        _ => "",
+    };
+    v.get(style)
+        .and_then(|s| s.get("guid"))
+        .and_then(node_id)
+        .and_then(|id| tree.get(id))
+        .and_then(|style| style.value.get("fillPaints"))
+        .or_else(|| v.get(key))
+        .map_or(&[][..], Value::as_array)
+}
+
+/// What a text's runs say about their fill: the style of each character, and the paints of the
+/// styles that have some (their own, or a shared fill style's).
+struct RunFills {
+    styles: Vec<u32>,
+    fills: Vec<(u32, Vec<Value>)>,
+}
+
+fn run_fills(tree: &Tree<'_>, text: &Value) -> RunFills {
+    let data = text.get("textData");
+    let styles = data
+        .and_then(|d| d.get("characterStyleIDs"))
+        .map_or(&[][..], Value::as_array)
+        .iter()
+        .map(|s| s.as_u32().unwrap_or(0))
+        .collect();
+    let fills = data
+        .and_then(|d| d.get("styleOverrideTable"))
+        .map_or(&[][..], Value::as_array)
+        .iter()
+        .filter_map(|o| {
+            let id = o.get("styleID").and_then(Value::as_u32)?;
+            let paints = paints_of(tree, o, "fillPaints");
+            (!paints.is_empty()).then(|| (id, paints.to_vec()))
+        })
+        .collect();
+    RunFills { styles, fills }
 }
 
 /// Whether a text's stored glyphs were laid out in another font than its own: Figma lists the

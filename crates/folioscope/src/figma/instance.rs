@@ -30,6 +30,8 @@ pub struct Overrides {
     scopes: Vec<(Entries, usize)>,
     /// Override keys of the instances entered so far.
     keys: Vec<NodeId>,
+    /// Per instance: the boolean component properties it sets, by definition (`defID`).
+    flags: Vec<HashMap<NodeId, bool>>,
     /// Keys to read other nodes' overrides under: see [`Overrides::alias`].
     aliases: HashMap<NodeId, NodeId>,
 }
@@ -60,6 +62,19 @@ impl Overrides {
             }
         }
         self.scopes.push((entries, self.keys.len()));
+        // Component properties of type boolean, set on the instance: a node bound to one by
+        // `componentPropRefs` (field `VISIBLE`) is shown or hidden by it.
+        let flags = resolved
+            .get("componentPropAssignments")
+            .map_or(&[][..], Value::as_array)
+            .iter()
+            .filter_map(|a| {
+                let def = a.get("defID").and_then(node_id)?;
+                let value = a.get("value")?.get("boolValue")?;
+                matches!(value, Value::Bool(_)).then(|| (def, matches!(value, Value::Bool(true))))
+            })
+            .collect();
+        self.flags.push(flags);
     }
 
     /// Reads the overrides of `to`'s nodes under the keys of the `from` nodes that have the same
@@ -76,7 +91,14 @@ impl Overrides {
         });
     }
 
+    /// Whether a walk is inside an instance.
+    #[must_use]
+    pub fn active(&self) -> bool {
+        !self.scopes.is_empty()
+    }
+
     pub fn leave(&mut self) {
+        self.flags.pop();
         self.scopes.pop();
         self.keys.pop();
     }
@@ -94,6 +116,19 @@ impl Overrides {
             for entry in entries.get(&path).into_iter().flatten() {
                 merge(resolved.get_or_insert_with(|| node.value.clone()), entry);
             }
+        }
+        // The outermost instance's setting wins, as for the other overrides.
+        let shown = node
+            .value
+            .get("componentPropRefs")
+            .map_or(&[][..], Value::as_array)
+            .iter()
+            .filter(|r| r.get("componentPropNodeField").and_then(Value::as_str) == Some("VISIBLE"))
+            .filter_map(|r| r.get("defID").and_then(node_id))
+            .find_map(|def| self.flags.iter().find_map(|flags| flags.get(&def).copied()));
+        if let Some(shown) = shown {
+            let change = Value::Object(vec![(Arc::from("visible"), Value::Bool(shown))]);
+            merge(resolved.get_or_insert_with(|| node.value.clone()), &change);
         }
         resolved.map_or(Cow::Borrowed(node.value), Cow::Owned)
     }
