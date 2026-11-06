@@ -2,6 +2,13 @@
 <!--
   A flip book: screens drawn as simple wireframes, turned one after another. Decorative: the text
   next to it says the same. With reduced motion, the book rests on its first screen.
+
+  How it is built, so it does not jump:
+  - the pages are stacked by z-index, not by depth: planes that cross in 3D flicker where they meet,
+    and the first page crossed the second as it started to turn. Each page changes its z-index as it
+    passes the spine, so a page that lands on the left lies on top of the ones already there;
+  - the book ends by fading out and in, while the pages go back to the right unseen, instead of
+    turning back under the pile. The first frame, the rest state and the last frame are the same.
 -->
 <template>
   <div class="flipbook" aria-hidden="true">
@@ -51,15 +58,20 @@ const screens = ["home", "list", "detail", "home"];
   perspective: 900px;
   margin: 8px auto;
 }
+/* Flat on purpose (no `preserve-3d`): its own perspective turns the pages, the outer one tilts it. */
 .book {
+  --period: 9s;
   position: relative;
   width: 100%;
   height: 100%;
-  transform-style: preserve-3d;
+  perspective: 900px;
   transform: rotateX(8deg) rotateY(-8deg);
+  animation: fade var(--period) ease-in-out infinite;
 }
 .page {
-  --period: 9s;
+  /* Where the page stacks while it lies on the right, then on the left. */
+  --right: calc(var(--n) - var(--i));
+  --left: calc(var(--i) + 1);
   position: absolute;
   top: 0;
   bottom: 0;
@@ -67,7 +79,7 @@ const screens = ["home", "list", "detail", "home"];
   width: 168px;
   transform-origin: left center;
   transform-style: preserve-3d;
-  z-index: calc(var(--n) - var(--i));
+  z-index: var(--right);
   animation: turn var(--period) ease-in-out infinite;
   animation-delay: calc(var(--i) * 0.45s);
 }
@@ -143,23 +155,50 @@ const screens = ["home", "list", "detail", "home"];
   opacity: 0.35;
 }
 
-/* Each page waits, turns over, stays turned, then they all come back. */
+/* Each page waits, turns over, stays turned, then goes back to the right while the book is faded. */
 @keyframes turn {
   0%,
   12% {
     transform: rotateY(0deg);
+    z-index: var(--right);
+  }
+  /* The page is edge-on: it changes sides, so it lies over the pages already on the left. */
+  20% {
+    z-index: var(--right);
+  }
+  20.1% {
+    z-index: var(--left);
   }
   28%,
-  80% {
+  90% {
     transform: rotateY(-172deg);
+    z-index: var(--left);
   }
-  94%,
+  90.1%,
   100% {
     transform: rotateY(0deg);
+    z-index: var(--right);
+  }
+}
+
+/* The pages are staggered by up to 0.9 s: the book is hidden from 8.0 s to 9.0 s of the cycle,
+   when they go back (8.1 s, 8.55 s, 9.0 s), and shows again as the first page waits. */
+@keyframes fade {
+  0% {
+    opacity: 0;
+  }
+  4%,
+  83% {
+    opacity: 1;
+  }
+  89%,
+  100% {
+    opacity: 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .book,
   .page {
     animation: none;
   }
