@@ -20,9 +20,11 @@ import {
   type HoldKind,
   play,
   playOverlay,
+  type Part,
   playSmart,
   renderFrame,
   scrollFrame,
+  shifted,
 } from "./lite.ts";
 import type { FontDeclaration } from "./full/index.ts";
 import { type OpenOverlay, Runtime, type Step } from "./runtime.ts";
@@ -69,7 +71,7 @@ const STYLE = `
 .sheet > .frame { pointer-events: auto; }
 .component { position: absolute; }
 .smart { position: absolute; inset: 0; overflow: hidden; }
-.smart img { position: absolute; display: block; transform-origin: 0 0; pointer-events: none; }
+.smart > * { position: absolute; display: block; transform-origin: 0 0; pointer-events: none; }
 .hotspot { position: absolute; margin: 0; padding: 0; border: 0; background: none; cursor: pointer; }
 .hotspot:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
 :host([hotspots="always"]) .hotspot { background: rgb(37 99 235 / 0.15); box-shadow: inset 0 0 0 2px rgb(37 99 235 / 0.6); }
@@ -437,7 +439,9 @@ export class FolioscopePlayer extends BaseElement {
     const before = this.shownFrame;
     this.shownFrame = frame;
     if (step.transition?.kind.type === "smartAnimate" && before?.parts && frame.parts) {
-      await playSmart(this.stage, before, frame, step.transition, (layer) => this.layerUrl(layer));
+      await playSmart(this.stage, before.parts, frame.parts, step.transition, (layer) =>
+        this.layerUrl(layer),
+      );
     } else {
       await play(outgoing, incoming, step.transition, step.reverse ?? false);
     }
@@ -465,7 +469,17 @@ export class FolioscopePlayer extends BaseElement {
       this.stage.append(opening);
     }
     const transition = top?.transition ?? step.transition;
-    if (transition) {
+    const swapped = closing && opening && this.overlayParts(closing, opening);
+    if (transition?.kind.type === "smartAnimate" && swapped) {
+      // A swap with smart animate: the parts of both overlays move from one to the other.
+      const sheet = opening!.querySelector<HTMLElement>(".sheet")!;
+      sheet.style.visibility = "hidden";
+      closing!.querySelector<HTMLElement>(".sheet")!.style.visibility = "hidden";
+      await playSmart(this.stage, swapped[0], swapped[1], transition, (layer) =>
+        this.layerUrl(layer),
+      );
+      sheet.style.visibility = "";
+    } else if (transition) {
       await Promise.all([
         opening && playOverlay(opening, transition, false),
         closing && playOverlay(closing, transition, true),
@@ -475,6 +489,23 @@ export class FolioscopePlayer extends BaseElement {
     closing?.remove();
     const shown = this.stage.querySelectorAll<HTMLElement>(":scope > .overlay > .sheet > .frame");
     return shown[shown.length - 1] ?? this.shown;
+  }
+
+  /** The parts of a closing and an opening overlay, in the screen's coordinates, when both have. */
+  private overlayParts(closing: HTMLElement, opening: HTMLElement): [Part[], Part[]] | undefined {
+    const frames = this.runtime?.page.frames ?? [];
+    const partsOf = (layer: HTMLElement) => {
+      const frame = frames.find((f) => f.id === layer.dataset.frame);
+      const el = layer.querySelector<HTMLElement>(".sheet > .frame");
+      if (!frame?.parts || !el) return undefined;
+      return shifted(frame.parts, {
+        x: Number.parseFloat(el.style.left) || 0,
+        y: Number.parseFloat(el.style.top) || 0,
+      });
+    };
+    const from = partsOf(closing);
+    const to = partsOf(opening);
+    return from && to ? [from, to] : undefined;
   }
 
   /** A frame with its hotspots wired to the runtime; `at` places it in the screen's coordinates. */

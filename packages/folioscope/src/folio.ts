@@ -48,8 +48,18 @@ export interface FolioFrame {
   };
   /** Interactive component instances, whose variants change in place. */
   components?: FolioComponent[];
-  /** For smart animate: the background (named `""`), then each direct child, by name. */
-  parts?: { name: string; layer: Layer }[];
+  /**
+   * For smart animate: the background (named `""`), then each layer by its path (`Card/Title`),
+   * drawn without its own parts.
+   */
+  parts?: {
+    name: string;
+    layer: Layer;
+    /** `[a, b, c, d, e, f]`: where it goes in the frame, its top-left corner at the origin. */
+    matrix?: [number, number, number, number, number, number];
+    /** A plain rounded rectangle, animated as a box. */
+    shape?: { fill: string; radius: number };
+  }[];
 }
 
 /** An instance switching between variants ("change to"), each a state with its own layer. */
@@ -72,6 +82,8 @@ export interface FolioComponent {
     layer: Layer;
     /** Interactive components inside this state, in its coordinates. */
     components?: FolioComponent[];
+    /** For smart animate between states: as a frame's `parts`, in the state's coordinates. */
+    parts?: FolioFrame["parts"];
   }[];
 }
 
