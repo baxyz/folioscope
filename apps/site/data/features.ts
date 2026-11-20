@@ -201,21 +201,31 @@ export const FEATURES: Feature[] = [
     group: "Prototype",
     name: "Drag and swipe gestures",
     formats: {
-      fig: todo("drag triggers are read, not played"),
+      fig: unverified(
+        "e2e: keys and drags: a key combination and a swipe follow their links",
+        FIG_CHECK,
+        "a swipe follows the link; the screen does not follow the finger",
+      ),
       sketch: na,
       penpot: na,
-      xd: todo("drag triggers are read, not played"),
+      xd: unverified(
+        "e2e: keys and drags: a key combination and a swipe follow their links",
+        XD_CHECK,
+      ),
     },
   },
   {
     id: "keys",
     group: "Prototype",
-    name: "Keyboard triggers",
+    name: "Keyboard triggers, keys and combinations",
     formats: {
-      fig: todo("key triggers are read, not played"),
+      fig: unverified(
+        "e2e: keys and drags: a key combination and a swipe follow their links",
+        FIG_CHECK,
+      ),
       sketch: na,
       penpot: na,
-      xd: todo("key triggers are read, not played"),
+      xd: todo("an .xd file with a key trigger, to see where XD keeps which keys"),
     },
   },
 
