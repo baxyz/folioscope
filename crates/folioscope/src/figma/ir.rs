@@ -107,10 +107,6 @@ fn page(tree: &Tree<'_>, canvas: &Node<'_>) -> Page {
     }
 }
 
-/// At most this many variants are baked per interactive component (decision D7); the others
-/// stay unreachable.
-const MAX_STATES: usize = 16;
-
 /// Hotspots and interactive components of one frame.
 struct Walk<'t, 'a> {
     tree: &'t Tree<'a>,
@@ -214,8 +210,8 @@ impl<'t, 'a> Walk<'t, 'a> {
         let mut states: Vec<ComponentState> = Vec::new();
         let mut queue = vec![symbol.id];
         while let Some(variant) = queue.pop() {
-            if states.len() == MAX_STATES || states.iter().any(|s| s.variant == variant.to_string())
-            {
+            // Every reachable variant, each once: the bake decides how many it draws (ADR 0007).
+            if states.iter().any(|s| s.variant == variant.to_string()) {
                 continue;
             }
             let Some(variant) = self.tree.get(variant) else {

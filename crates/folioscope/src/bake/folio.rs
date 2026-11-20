@@ -18,7 +18,7 @@ use sha2::{Digest, Sha256};
 
 use crate::bake::draw::{Draw, FigmaDraw};
 use crate::bake::fonts::FontLibrary;
-use crate::bake::image::{ImageFormat, encode, encode_best};
+use crate::bake::image::{ImageFormat, encode, encode_best, gzipped_len, svg_eligible};
 use crate::bake::penpot::PenpotDraw;
 use crate::bake::sketch::SketchDraw;
 use crate::bake::text::Typesetter;
@@ -50,6 +50,12 @@ pub struct BakeOptions {
     pub densities: Vec<u8>,
     /// Encode large, photo-like layers as AVIF when it beats lossless WebP (see `image`).
     pub avif: bool,
+    /// Serve a layer as its SVG when it holds no image or filter and weighs less than its densest
+    /// raster (ADR 0006).
+    pub svg: bool,
+    /// The most states baked per interactive component (ADR 0007); the others stay unreachable,
+    /// and the report lists the component.
+    pub max_states: usize,
     /// Fonts for text the file stores no glyphs for (ADR 0011).
     pub fonts: FontLibrary,
     /// Bake the pages that have no flow too. By default, when some page has one, the others (a
@@ -62,6 +68,8 @@ impl Default for BakeOptions {
         Self {
             densities: vec![1, 2],
             avif: true,
+            svg: true,
+            max_states: DEFAULT_MAX_STATES,
             fonts: FontLibrary::default(),
             all_pages: false,
         }
@@ -73,7 +81,12 @@ impl Default for BakeOptions {
 pub struct BakeReport {
     pub frames: usize,
     pub layers: usize,
+    /// Of `layers`, those served as their SVG.
+    pub svg_layers: usize,
     pub bytes: usize,
+    /// Interactive components with more states than `max_states`: the states past it were left
+    /// out.
+    pub capped_components: Vec<CappedComponent>,
     /// Fonts some text needed and was not given (`Family Style`).
     pub missing_fonts: BTreeSet<String>,
     /// Frames left out because an image of them would be wider or taller than the formats allow
@@ -82,6 +95,20 @@ pub struct BakeReport {
     /// Pages left out for having no flow while another page has one: by name.
     pub skipped_pages: Vec<String>,
 }
+
+/// An interactive component the bake kept only some states of (ADR 0007).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CappedComponent {
+    /// The component's name, then the frame's.
+    pub name: String,
+    pub frame: String,
+    /// States baked, of `states` reachable.
+    pub kept: usize,
+    pub states: usize,
+}
+
+/// States baked per interactive component by default (ADR 0007).
+pub const DEFAULT_MAX_STATES: usize = 16;
 
 /// The longest side of an image WebP can hold.
 const MAX_IMAGE_SIDE: f32 = 16383.0;
@@ -176,8 +203,17 @@ fn bake_components<'a>(
     let densities = &sorted_densities(options);
     let mut components = Vec::new();
     for component in &frame.components {
+        let kept = component.states.len().min(options.max_states.max(1));
+        if kept < component.states.len() {
+            report.capped_components.push(CappedComponent {
+                name: component.name.clone(),
+                frame: frame.name.clone(),
+                kept,
+                states: component.states.len(),
+            });
+        }
         let mut states = Vec::new();
-        for state in &component.states {
+        for state in &component.states[..kept] {
             let markup = draw
                 .state(component, state)
                 .ok_or_else(|| BakeError::MissingFrame(state.variant.clone()))?;
@@ -271,7 +307,8 @@ enum LayerError {
     Sink(BakeError),
 }
 
-/// Encodes one layer at every density, highest first (it picks the format), into `sink`.
+/// Encodes one layer into `sink`: as its SVG when that is allowed and lighter (ADR 0006), else at
+/// every density, highest first (it picks the raster format).
 fn encode_layer(
     markup: &str,
     densities: &[u8],
@@ -287,6 +324,19 @@ fn encode_layer(
             None => encode_best(&pixmap, options.avif).map_err(LayerError::Render)?,
             Some(f) => (f, encode(&pixmap, f).map_err(LayerError::Render)?),
         };
+        // The densest raster against the SVG, both as a server sends them (WebP and AVIF do not
+        // shrink when gzipped): the SVG is one file for every density, and sharp at any zoom.
+        if format.is_none()
+            && options.svg
+            && svg_eligible(markup)
+            && gzipped_len(markup) < bytes.len()
+        {
+            report.bytes += markup.len();
+            report.layers += 1;
+            report.svg_layers += 1;
+            sink(&format!("layers/{src}.svg"), markup.as_bytes()).map_err(LayerError::Sink)?;
+            return Ok((src, ImageFormat::Svg));
+        }
         format = Some(chosen);
         report.bytes += bytes.len();
         report.layers += 1;

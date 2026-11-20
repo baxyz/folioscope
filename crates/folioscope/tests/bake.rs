@@ -13,7 +13,8 @@ fn navigation_bakes_to_a_folio_folder() {
     let file = decode(&std::fs::read(input).unwrap()).unwrap();
 
     let report = bake_fig(&file, &out, &BakeOptions::default()).unwrap();
-    assert_eq!((report.frames, report.layers), (2, 4));
+    // Two flat screens: each one SVG file, lighter than its images (ADR 0006).
+    assert_eq!((report.frames, report.layers, report.svg_layers), (2, 2, 2));
 
     let index: serde_json::Value =
         serde_json::from_slice(&std::fs::read(out.join("index.json")).unwrap()).unwrap();
@@ -22,15 +23,31 @@ fn navigation_bakes_to_a_folio_folder() {
     let home = &index["pages"][0]["frames"][0];
     assert_eq!(home["name"], "Home");
     let layer = home["layers"][0]["src"].as_str().unwrap();
-    // A flat screen stays lossless WebP: AVIF is only tried on large, photo-like layers.
+    assert_eq!(home["layers"][0]["format"], "svg");
+    assert!(out.join(format!("layers/{layer}.svg")).is_file());
+    assert!(out.join("poster.webp").is_file());
+
+    // Without SVG, a flat screen is lossless WebP: AVIF is only tried on large, photo-like
+    // layers.
+    let raster = out.join("raster");
+    let options = BakeOptions {
+        svg: false,
+        ..BakeOptions::default()
+    };
+    let report = bake_fig(&file, &raster, &options).unwrap();
+    assert_eq!((report.layers, report.svg_layers), (4, 0));
+    let index: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(raster.join("index.json")).unwrap()).unwrap();
+    let home = &index["pages"][0]["frames"][0];
+    let layer = home["layers"][0]["src"].as_str().unwrap();
     assert_eq!(home["layers"][0]["format"], "webp");
     for density in [1, 2] {
         assert!(
-            out.join(format!("layers/{layer}@{density}x.webp"))
+            raster
+                .join(format!("layers/{layer}@{density}x.webp"))
                 .is_file()
         );
     }
-    assert!(out.join("poster.webp").is_file());
 
     // Layers are named by content: baking again changes nothing.
     let again = out.join("again");
@@ -58,8 +75,10 @@ fn sketch_text_needs_its_fonts() {
         if let Some(hints) = hints {
             fonts.add_with("Inter-Latin.ttf", &inter, &hints).unwrap();
         }
+        // Raster layers, to compare the pixels.
         let options = BakeOptions {
             fonts,
+            svg: false,
             ..BakeOptions::default()
         };
         let mut layer = Vec::new();
@@ -110,8 +129,10 @@ fn xd_text_needs_its_fonts() {
     let inter = std::fs::read(format!("{root}/../../fixtures/fonts/Inter-Latin.ttf")).unwrap();
 
     let bake = |fonts: FontLibrary| {
+        // Raster layers, to compare the pixels.
         let options = BakeOptions {
             fonts,
+            svg: false,
             ..BakeOptions::default()
         };
         let mut layer = Vec::new();
@@ -162,8 +183,12 @@ mod flat {
             Ok(vec![(whole.to_owned(), frame.bounds, false)])
         }
 
-        fn state(&mut self, _: &Component, _: &ComponentState) -> Option<String> {
-            None
+        fn state(&mut self, _: &Component, state: &ComponentState) -> Option<String> {
+            let (w, h) = (state.bounds.width, state.bounds.height);
+            Some(format!(
+                r#"<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}"><text>{}</text></svg>"#,
+                state.name
+            ))
         }
 
         fn missing_fonts(&mut self) -> BTreeSet<String> {
@@ -275,4 +300,73 @@ fn pages_without_a_flow_are_left_out() {
     let (report, index) = bake_flat(&no_flow, &BakeOptions::default());
     assert_eq!(report.skipped_pages, Vec::<String>::new());
     assert_eq!(index["pages"].as_array().unwrap().len(), 1);
+}
+
+/// A layer with an image or a filter stays a raster image, whatever its weight (ADR 0006).
+#[test]
+fn only_layers_without_images_or_filters_may_be_svg() {
+    use folioscope::bake::image::svg_eligible;
+    assert!(svg_eligible(
+        r##"<svg><rect fill="#fff"/><path d="M0 0L1 1Z"/></svg>"##
+    ));
+    assert!(!svg_eligible(
+        r#"<svg><image href="data:image/png;base64,AAAA"/></svg>"#
+    ));
+    assert!(!svg_eligible(
+        r#"<svg><filter id="f"><feGaussianBlur stdDeviation="4"/></filter></svg>"#
+    ));
+}
+
+/// Past `max_states`, a component's states are left out and the report names it (ADR 0007).
+#[test]
+fn states_past_the_cap_are_left_out_and_reported() {
+    use flat::{document, frame, page};
+    use folioscope::ir::{Component, ComponentState, Rect};
+    let bounds = Rect {
+        x: 0.0,
+        y: 0.0,
+        width: 10.0,
+        height: 10.0,
+    };
+    let mut home = frame("Home", 100.0);
+    home.components.push(Component {
+        id: "1".to_owned(),
+        name: "Toggle".to_owned(),
+        bounds,
+        initial: "a".to_owned(),
+        fixed: false,
+        states: ["a", "b", "c"]
+            .map(|v| ComponentState {
+                variant: v.to_owned(),
+                name: v.to_owned(),
+                bounds,
+                hotspots: Vec::new(),
+            })
+            .to_vec(),
+    });
+    let document = document(vec![page("Page", Some("Home"), vec![home])]);
+    let states = |index: &serde_json::Value| {
+        index["pages"][0]["frames"][0]["components"][0]["states"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|s| s["name"].as_str().unwrap().to_owned())
+            .collect::<Vec<_>>()
+    };
+
+    let (report, index) = bake_flat(&document, &BakeOptions::default());
+    assert_eq!(report.capped_components, []);
+    assert_eq!(states(&index), ["a", "b", "c"]);
+
+    let capped = BakeOptions {
+        max_states: 2,
+        ..BakeOptions::default()
+    };
+    let (report, index) = bake_flat(&document, &capped);
+    assert_eq!(states(&index), ["a", "b"]);
+    let c = &report.capped_components[0];
+    assert_eq!(
+        (c.name.as_str(), c.frame.as_str(), c.kept, c.states),
+        ("Toggle", "Home", 2, 3)
+    );
 }
