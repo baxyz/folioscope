@@ -107,6 +107,19 @@ mod features {
         ));
     }
 
+    /// A slide without Penpot's offset effect moves only the new screen.
+    #[test]
+    fn penpot_slides() {
+        use folioscope::ir::{Side, TransitionKind};
+        let ir = to_ir(&file());
+        let open = &on(frame(&ir, "Home"), "Open details")[0].action;
+        assert!(matches!(
+            open,
+            Action::Navigate { transition, .. }
+                if transition.kind == TransitionKind::MoveIn { from: Side::Right }
+        ));
+    }
+
     #[test]
     fn penpot_overlays() {
         let ir = to_ir(&file());

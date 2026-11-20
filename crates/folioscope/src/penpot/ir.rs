@@ -247,8 +247,14 @@ fn transition(animation: &Value) -> Transition {
     };
     let kind = match kind {
         "dissolve" => TransitionKind::Dissolve,
-        "slide" if animation["way"] == "out" => TransitionKind::SlideOut { to: opposite },
-        "slide" => TransitionKind::SlideIn { from: side },
+        // With its offset effect, a slide moves the screen underneath too; without, it moves only
+        // the screen that comes or goes.
+        "slide" if animation["way"] == "out" && animation["offsetEffect"] == true => {
+            TransitionKind::SlideOut { to: opposite }
+        }
+        "slide" if animation["way"] == "out" => TransitionKind::MoveOut { to: opposite },
+        "slide" if animation["offsetEffect"] == true => TransitionKind::SlideIn { from: side },
+        "slide" => TransitionKind::MoveIn { from: side },
         "push" => TransitionKind::Push { from: side },
         other => TransitionKind::Other {
             name: other.to_owned(),
