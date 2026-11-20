@@ -203,6 +203,18 @@ try {
   await settledOn("Home");
   console.log("✓ overlays: centered on a backdrop, closed by a button or a click outside");
 
+  // Swapping an overlay with smart animate: the items both menus share move to their places.
+  await tab.locator('folioscope-player .frame button[aria-label="Open menu"]').click();
+  await menu.waitFor();
+  await tab.locator('folioscope-player .overlay button[aria-label="More"]').click();
+  await tab.locator("folioscope-player .smart").waitFor();
+  await tab
+    .locator('folioscope-player .overlay[data-frame] .frame[aria-label="Menu, more"]')
+    .waitFor();
+  await tab.locator("folioscope-player .smart").waitFor({ state: "detached" });
+  await menu.waitFor({ state: "detached" });
+  console.log("✓ overlays: a swap with smart animate moves the shared layers");
+
   // A scrolling frame: the content moves under fixed layers, and "scroll to" brings a card back.
   await tab.goto(`${server.origin}/?folio=scroll`);
   await settledOn("Feed");
@@ -274,6 +286,9 @@ try {
   assert.equal(await stateOf(pushButton), "State=Default");
   await zones.nth(toggleSwitch).locator("button").click();
   assert.equal(await stateOf(toggleSwitch), "On=true");
+  // The knob slides: smart animate between the switch's states.
+  await zones.nth(toggleSwitch).locator(".smart").waitFor();
+  await zones.nth(toggleSwitch).locator(".smart").waitFor({ state: "detached" });
   await zones.nth(toggleSwitch).locator("button").click();
   assert.equal(await stateOf(toggleSwitch), "On=false");
   console.log("✓ components: variants change while hovering, while pressing and on click");
@@ -302,14 +317,18 @@ try {
   await tab.locator('folioscope-player .frame button[aria-label="Open"]').click();
   const smart = tab.locator("folioscope-player .smart");
   await smart.waitFor();
-  assert.equal(await smart.locator("img").count(), 8); // 4 parts on each side
-  // Mid-way, the card has left its place on Home (24, 128) for the header of Details (0, 0).
+  // Every part of both frames, nested ones included; two paired plain boxes make one.
+  assert.ok((await smart.locator(":scope > *").count()) >= 12);
   await tab.waitForTimeout(200);
-  const card = await smart
-    .locator("img")
-    .nth(2)
-    .evaluate((img) => getComputedStyle(img).transform);
-  assert.notEqual(card, "none");
+  const transforms = await smart
+    .locator(":scope > *")
+    .evaluateAll((els) => els.map((el) => getComputedStyle(el).transform));
+  // Mid-way, parts are between their places: some are turning (a matrix with b ≠ 0).
+  const turning = transforms.filter((t) => {
+    const m = /matrix\(([^)]+)\)/.exec(t)?.[1]?.split(",").map(Number);
+    return m && Math.abs(m[1]!) > 0.05 && Math.abs(m[1]!) < 0.95;
+  });
+  assert.ok(turning.length >= 1, "the arrow turns");
   await settledOn("Details");
   await smart.waitFor({ state: "detached" });
   await tab.locator('folioscope-player .frame button[aria-label="Back"]').click();
