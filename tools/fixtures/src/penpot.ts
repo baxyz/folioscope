@@ -89,7 +89,7 @@ export class PenpotBuilder {
   ): Shape {
     const shape = this.add(page, parent.id, { name, type }, box, "#FFFFFF");
     Object.assign(shape, extra);
-    if (type === "group" || type === "frame") shape.shapes ??= [];
+    if (type === "group" || type === "frame" || type === "svg-raw") shape.shapes ??= [];
     return shape;
   }
 
@@ -99,7 +99,14 @@ export class PenpotBuilder {
     parent: Shape,
     name: string,
     box: Box,
-    runs: { text: string; family: string; weight?: number; size: number; color: string }[],
+    runs: {
+      text: string;
+      family: string;
+      weight?: number;
+      size: number;
+      color: string;
+      decoration?: "underline" | "line-through";
+    }[],
   ): Shape {
     let bottom = box.y;
     const positionData = runs.map((run) => {
@@ -115,6 +122,7 @@ export class PenpotBuilder {
         fontSize: `${run.size}px`,
         fontStyle: "normal",
         fills: [{ fillColor: run.color, fillOpacity: 1 }],
+        ...(run.decoration ? { textDecoration: `${run.decoration} ${run.color}` } : {}),
       };
     });
     return this.shape(page, parent, name, "text", box, { positionData, fills: [] });

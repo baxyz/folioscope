@@ -375,6 +375,64 @@ function sketchFeatures(): SketchBuilder {
   const avatar = sketch.group(home, "Avatar", { x: 168, y: 304, width: 64, height: 64 });
   sketch.mask(sketch.oval(avatar, "Circle mask", { x: 0, y: 0, width: 64, height: 64 }, "#000000"));
   sketch.rect(avatar, "Square", { x: 0, y: 0, width: 64, height: 64 }, "#EC4899");
+  const spin = sketch.oval(home, "Angular", { x: 256, y: 304, width: 64, height: 64 }, BLUE);
+  sketch.gradient(spin, 2, "#2563EB", "#F59E0B");
+  const inner = sketch.rect(
+    home,
+    "Inner shadow",
+    { x: 24, y: 400, width: 96, height: 64 },
+    GREY,
+    12,
+  );
+  sketch.innerShadow(inner, 4, 8, "#00000066");
+  const blurred = sketch.oval(home, "Layer blur", { x: 136, y: 400, width: 64, height: 64 }, BLUE);
+  sketch.blur(blurred, 0, 4);
+  for (let i = 0; i < 6; i++) {
+    const stripe = { x: 216 + i * 22, y: 400, width: 22, height: 64 };
+    sketch.rect(home, `Stripe ${i + 1}`, stripe, i % 2 ? "#F59E0B" : "#1E3A8A");
+  }
+  const glass = sketch.rect(
+    home,
+    "Frosted glass",
+    { x: 228, y: 412, width: 108, height: 40 },
+    "#FFFFFF66",
+    8,
+  );
+  sketch.blur(glass, 3, 8);
+  sketch.rect(home, "Under", { x: 24, y: 488, width: 64, height: 64 }, "#3B82F6");
+  const multiply = sketch.oval(
+    home,
+    "Multiply",
+    { x: 56, y: 488, width: 64, height: 64 },
+    "#F59E0B",
+  );
+  sketch.blend(multiply, 2);
+  const inside = sketch.rect(
+    home,
+    "Inside border",
+    { x: 144, y: 488, width: 64, height: 64 },
+    "#FFFFFF",
+    8,
+  );
+  sketch.border(inside, "#111827", 4, 1);
+  const outside = sketch.rect(
+    home,
+    "Outside border",
+    { x: 232, y: 488, width: 64, height: 64 },
+    "#FFFFFF",
+    8,
+  );
+  sketch.border(outside, "#111827", 4, 2);
+  const faded = sketch.group(home, "Faded", { x: 312, y: 488, width: 48, height: 64 });
+  const fade = sketch.rect(faded, "Fade mask", { x: 0, y: 0, width: 48, height: 64 }, "#000000");
+  sketch.gradient(fade, 0, "#000000FF", "#00000000");
+  sketch.alphaMask(fade);
+  sketch.rect(faded, "Faded square", { x: 0, y: 0, width: 48, height: 64 }, "#EC4899");
+  sketch.richText(home, "Rich text", { x: 24, y: 576, width: 320, height: 48 }, [
+    { text: "Plain, ", font: "Inter-Regular", size: 18, fill: "#111827" },
+    { text: "bold blue", font: "Inter-Bold", size: 18, fill: "#2563EB", underline: true },
+    { text: ", struck", font: "Inter-Regular", size: 18, fill: "#6B7280", strike: true },
+  ]);
 
   const open = sketch.rect(
     home,
@@ -604,9 +662,159 @@ function penpotFeatures(): PenpotBuilder {
     },
   );
   penpot.shape(page, masked, "Circle mask", "circle", { x: 715, y: 304, width: 64, height: 64 });
+  // Effects: inner shadow, layer blur, blend mode, inside and outside strokes, a path stored as
+  // SVG path data, and an imported SVG element (svg-raw).
+  penpot.shape(
+    page,
+    home,
+    "Inner",
+    "rect",
+    { x: 499, y: 480, width: 64, height: 48 },
+    {
+      fills: [{ fillColor: "#E5E7EB", fillOpacity: 1 }],
+      shadow: [
+        {
+          id: "i",
+          style: "inner-shadow",
+          offsetX: 0,
+          offsetY: 4,
+          blur: 8,
+          spread: 0,
+          hidden: false,
+          color: { color: "#000000", opacity: 0.4 },
+        },
+      ],
+    },
+  );
+  penpot.shape(
+    page,
+    home,
+    "Blurred",
+    "circle",
+    { x: 579, y: 480, width: 48, height: 48 },
+    {
+      fills: [{ fillColor: "#2563EB", fillOpacity: 1 }],
+      blur: { id: "b", type: "layer-blur", value: 4, hidden: false },
+    },
+  );
+  penpot.shape(
+    page,
+    home,
+    "Screen",
+    "circle",
+    { x: 611, y: 480, width: 48, height: 48 },
+    {
+      fills: [{ fillColor: "#F59E0B", fillOpacity: 1 }],
+      blendMode: "screen",
+    },
+  );
+  penpot.shape(
+    page,
+    home,
+    "Inner stroke",
+    "rect",
+    { x: 675, y: 480, width: 48, height: 48 },
+    {
+      strokes: [
+        { strokeColor: "#111827", strokeOpacity: 1, strokeWidth: 4, strokeAlignment: "inner" },
+      ],
+    },
+  );
+  penpot.shape(
+    page,
+    home,
+    "Outer stroke",
+    "rect",
+    { x: 739, y: 480, width: 48, height: 48 },
+    {
+      strokes: [
+        {
+          strokeColor: "#111827",
+          strokeOpacity: 1,
+          strokeWidth: 4,
+          strokeAlignment: "outer",
+          strokeCapStart: "round",
+          strokeCapEnd: "round",
+        },
+      ],
+    },
+  );
+  penpot.shape(
+    page,
+    home,
+    "Check",
+    "path",
+    { x: 803, y: 480, width: 32, height: 24 },
+    {
+      content: "M803.0,492.0L813.0,502.0L835.0,480.0",
+      fills: [],
+      strokes: [
+        {
+          strokeColor: "#10B981",
+          strokeOpacity: 1,
+          strokeWidth: 3,
+          strokeCapStart: "round",
+          strokeCapEnd: "round",
+        },
+      ],
+    },
+  );
+  const svgText = penpot.shape(
+    page,
+    home,
+    "svg-text",
+    "svg-raw",
+    { x: 475, y: 0, width: 375, height: 812 },
+    {
+      svgViewbox: { x: 0, y: 0, width: 375, height: 812, x1: 0, y1: 0, x2: 375, y2: 812 },
+      content: {
+        tag: "text",
+        attrs: {
+          x: "24",
+          y: "548",
+          fontFamily: "Inter, sans-serif",
+          fontSize: "14",
+          fill: "#6B7280",
+        },
+        content: ["Imported SVG text"],
+      },
+      fills: [{ fillColor: "#6B7280" }],
+    },
+  );
+  penpot.shape(
+    page,
+    svgText,
+    "Imported SVG text",
+    "svg-raw",
+    { x: 475, y: 0, width: 375, height: 812 },
+    {
+      content: "Imported SVG text",
+    },
+  );
+  penpot.shape(
+    page,
+    home,
+    "svg-path",
+    "svg-raw",
+    { x: 475, y: 0, width: 375, height: 812 },
+    {
+      svgViewbox: { x: 0, y: 0, width: 375, height: 812, x1: 0, y1: 0, x2: 375, y2: 812 },
+      content: {
+        tag: "rect",
+        attrs: { x: "300", y: "536", width: "40", height: "16", rx: "4", fill: "#EC4899" },
+      },
+    },
+  );
   penpot.text(page, home, "Title", { x: 499, y: 400, width: 327, height: 80 }, [
     { text: "Hello Inter", family: "Inter", size: 24, color: "#111827" },
-    { text: "Bold and blue", family: '"Inter"', weight: 700, size: 18, color: "#2563EB" },
+    {
+      text: "Bold and blue",
+      family: '"Inter"',
+      weight: 700,
+      size: 18,
+      color: "#2563EB",
+      decoration: "underline",
+    },
   ]);
 
   // Prototype.

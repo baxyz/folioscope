@@ -102,3 +102,63 @@ mod features {
         assert!(svg.contains("<radialGradient"), "radial");
     }
 }
+
+mod effects {
+    //! The effects of `fixtures/sketch/features.sketch`, drawn with Inter.
+    use folioscope::bake::draw::Draw;
+    use folioscope::bake::fonts::FontLibrary;
+    use folioscope::bake::sketch::SketchDraw;
+    use folioscope::bake::text::Typesetter;
+    use folioscope::sketch::{decode, ir::to_ir};
+
+    fn svg() -> String {
+        let root = format!("{}/../../fixtures", env!("CARGO_MANIFEST_DIR"));
+        let file =
+            decode(&std::fs::read(format!("{root}/sketch/features.sketch")).unwrap()).unwrap();
+        let ir = to_ir(&file);
+        let mut fonts = FontLibrary::default();
+        let inter = std::fs::read(format!("{root}/fonts/Inter-Latin.ttf")).unwrap();
+        fonts.add("Inter-Latin.ttf", &inter).unwrap();
+        let mut draw = SketchDraw::new(&file, Typesetter::new(fonts));
+        let svg = draw.frame(&ir.pages[0].frames[0]).unwrap();
+        folioscope::bake::rasterize(&svg, 1.0).unwrap();
+        svg
+    }
+
+    #[test]
+    fn sketch_effects() {
+        let svg = svg();
+        assert!(
+            svg.contains(r#"operator="arithmetic" k1="-1""#),
+            "inner shadow"
+        );
+        assert!(
+            svg.contains("<feGaussianBlur stdDeviation=\"4\"/>"),
+            "layer blur"
+        );
+        assert!(
+            svg.contains("frame\"><") && svg.contains("<use href"),
+            "background blur"
+        );
+        assert!(svg.contains("mix-blend-mode:multiply"), "blend mode");
+    }
+
+    #[test]
+    fn sketch_borders_and_masks() {
+        let svg = svg();
+        // Inside and outside borders: twice as wide, clipped.
+        assert!(svg.contains(r#"stroke-width="8""#), "aligned borders");
+        assert!(svg.contains(r#"mask-type="alpha""#), "alpha mask");
+        // The angular gradient is a pattern of thin wedges.
+        assert!(svg.contains("<pattern"), "angular gradient");
+    }
+
+    #[test]
+    fn sketch_rich_text() {
+        let svg = svg();
+        // Three runs, three colours; the underline and strikethrough are drawn.
+        for color in ["rgb(17 24 39)", "rgb(37 99 235)", "rgb(107 114 128)"] {
+            assert!(svg.contains(color), "{color}");
+        }
+    }
+}
