@@ -212,7 +212,7 @@ mod features {
             "image fill"
         );
         assert!(svg.contains("<clipPath"), "clip path");
-        assert!(svg.contains("feDropShadow"), "shadow");
+        assert!(svg.contains(r#"result="s0""#), "shadow");
         folioscope::bake::rasterize(&svg, 1.0).unwrap();
     }
 
@@ -221,5 +221,61 @@ mod features {
         let svg = svg("Home");
         assert!(svg.contains("<linearGradient"), "linear");
         assert!(svg.contains("<radialGradient"), "radial");
+    }
+}
+
+mod effects {
+    //! The effects of `fixtures/xd/features.xd`, drawn with Inter.
+    use folioscope::bake::draw::Draw;
+    use folioscope::bake::fonts::FontLibrary;
+    use folioscope::bake::text::Typesetter;
+    use folioscope::bake::xd::XdDraw;
+    use folioscope::xd::{decode, ir::to_ir};
+
+    fn svg() -> String {
+        let root = format!("{}/../../fixtures", env!("CARGO_MANIFEST_DIR"));
+        let file = decode(&std::fs::read(format!("{root}/xd/features.xd")).unwrap()).unwrap();
+        let ir = to_ir(&file);
+        let mut fonts = FontLibrary::default();
+        let inter = std::fs::read(format!("{root}/fonts/Inter-Latin.ttf")).unwrap();
+        fonts.add("Inter-Latin.ttf", &inter).unwrap();
+        let mut draw = XdDraw::new(&file, Typesetter::new(fonts));
+        let home = ir.pages[0]
+            .frames
+            .iter()
+            .find(|f| f.name == "Home")
+            .unwrap();
+        let svg = draw.frame(home).unwrap();
+        assert!(draw.missing_fonts().is_empty());
+        folioscope::bake::rasterize(&svg, 1.0).unwrap();
+        svg
+    }
+
+    #[test]
+    fn xd_blurs() {
+        let svg = svg();
+        assert!(
+            svg.contains("<feGaussianBlur stdDeviation=\"4\"/>"),
+            "object blur"
+        );
+        assert!(
+            svg.contains("frame\"><") && svg.contains("<use href"),
+            "background blur"
+        );
+    }
+
+    #[test]
+    fn xd_blend_and_image_fit() {
+        let svg = svg();
+        assert!(svg.contains("mix-blend-mode:multiply"), "blend mode");
+        assert!(
+            svg.contains(r#"preserveAspectRatio="xMidYMid meet""#),
+            "image fit whole"
+        );
+    }
+
+    #[test]
+    fn xd_text_decoration() {
+        assert!(svg().contains("v1.2857143h-"), "underline");
     }
 }
