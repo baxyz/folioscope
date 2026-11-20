@@ -62,11 +62,16 @@ Baked images animated with the Web Animations API, no rendering in the browser:
 - **Whole screens**: dissolve, slide, push, move in and out. Easing is CSS: `cubic-bezier()`, or
   `linear()` sampled from a spring (helpers4 `animation`), in which case the spring sets the
   duration.
-- **Smart animate**: the parts of the two frames ([format](folio.md#layers)) are paired by name.
-  Each pair moves and scales from its first bounds to its second while the first image fades into
-  the second (so colour, opacity and contents change too); a part on one side only fades out or in;
-  the backgrounds cross-fade. Without parts, smart animate plays as a dissolve.
-- **Component states** change with a dissolve.
+- **Smart animate**: the parts of the two frames ([format](folio.md#layers)) are paired by their
+  path (`Card/Title`, three levels deep). Each pair goes from its first place to its second, its
+  matrix interpolated (so it turns too) and its image scaled, while the first image fades into the
+  second (colour, opacity and contents change too); a plain rounded rectangle is one box whose
+  size, corner radius and colour are animated, so its corners keep their shape. A part on one side
+  only fades out or in; the backgrounds cross-fade. Without parts, smart animate plays as a
+  dissolve.
+- **Smart animate between a component's states** and **when swapping overlays** pairs their
+  parts the same way.
+- **Component states** otherwise change with a dissolve.
 - **`prefers-reduced-motion`** turns every transition into a cut.
 
 ## Full player
