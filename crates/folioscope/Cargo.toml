@@ -20,6 +20,7 @@ bake = [
   "dep:image-webp",
   "dep:parley",
   "dep:ravif",
+  "dep:regex-lite",
   "dep:resvg",
   "dep:sha2",
   "dep:skrifa",
@@ -60,6 +61,7 @@ zip.workspace = true
 image-webp = { workspace = true, optional = true }
 parley = { workspace = true, optional = true }
 ravif = { workspace = true, optional = true }
+regex-lite = { workspace = true, optional = true }
 resvg = { workspace = true, optional = true }
 sha2 = { workspace = true, optional = true }
 skrifa = { workspace = true, optional = true }
