@@ -7,6 +7,7 @@
 use std::fmt::Write;
 
 use helpers4::color::Rgba;
+use helpers4::geometry::Matrix;
 
 /// A gradient stop: its offset (0–1) and colour.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -136,6 +137,119 @@ pub fn diamond(
     }
     defs.push_str("</g></pattern>");
     format!(r#"fill="url(#{id})""#)
+}
+
+/// Where a stroke sits on its path.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StrokeAlign {
+    Center,
+    Inside,
+    Outside,
+}
+
+/// Writes a stroke of `path` into `body`. `attributes` are its paint (`stroke`, `stroke-opacity`,
+/// dashes…). Inside and outside strokes are drawn twice as wide, clipped to the path's inside or
+/// outside with clip path `clip`, written into `defs`.
+pub fn stroke(
+    defs: &mut String,
+    body: &mut String,
+    clip: &str,
+    path: &str,
+    attributes: &str,
+    width: f64,
+    align: StrokeAlign,
+) {
+    let clip_path = match align {
+        StrokeAlign::Center => {
+            let _ = write!(
+                body,
+                r#"<path d="{path}" fill="none" {attributes} stroke-width="{width}"/>"#
+            );
+            return;
+        }
+        StrokeAlign::Inside => format!(r#"<path d="{path}"/>"#),
+        StrokeAlign::Outside => format!(
+            r#"<path clip-rule="evenodd" d="M-100000 -100000H100000V100000H-100000Z{path}"/>"#
+        ),
+    };
+    let _ = write!(defs, r#"<clipPath id="{clip}">{clip_path}</clipPath>"#);
+    let _ = write!(
+        body,
+        r#"<g clip-path="url(#{clip})"><path d="{path}" fill="none" {attributes} stroke-width="{}"/></g>"#,
+        width * 2.0
+    );
+}
+
+/// What a background blur needs while a frame is drawn. SVG cannot read what is behind an
+/// element, so a renderer draws the frame a second time, stopping before the blurred node, and
+/// shows that drawing blurred inside the node's outline ([`backdrop`]).
+#[derive(Debug, Default, Clone)]
+pub struct Backdrop {
+    /// Prefix of the ids of a second drawing, unique in the document.
+    pub prefix: String,
+    /// In a second drawing: the node to stop before (its id), and whether it was reached.
+    pub stop_at: Option<String>,
+    pub stopped: bool,
+    /// Each open node's transform from the frame, the innermost last.
+    pub matrices: Vec<Matrix>,
+}
+
+impl Backdrop {
+    /// Whether node `id` must not be drawn: it is where a second drawing stops, or comes after.
+    pub fn stops_at(&mut self, id: &str) -> bool {
+        if self.stopped || self.stop_at.as_deref() == Some(id) {
+            self.stopped = true;
+        }
+        self.stopped
+    }
+
+    /// Enters a node whose transform from its parent is `local`.
+    pub fn enter(&mut self, local: Matrix) {
+        let parent = self.matrices.last().copied().unwrap_or(Matrix::IDENTITY);
+        self.matrices.push(parent.multiply(local));
+    }
+
+    pub fn leave(&mut self) {
+        self.matrices.pop();
+    }
+
+    /// The transform from the current node back to the frame's coordinates.
+    #[must_use]
+    pub fn to_node(&self) -> Option<Matrix> {
+        self.matrices
+            .last()
+            .copied()
+            .unwrap_or(Matrix::IDENTITY)
+            .invert()
+    }
+}
+
+/// Writes a background blur: `behind` (the frame drawn up to the node, its defs and body, with
+/// ids prefixed by `prefix`) blurred by `radius`, clipped to `outline` (the node's shape, in its
+/// coordinates). `to_node` brings the frame's coordinates into the node's.
+#[allow(clippy::too_many_arguments)]
+pub fn backdrop(
+    defs: &mut String,
+    body: &mut String,
+    prefix: &str,
+    behind: (&str, &str),
+    outline: &str,
+    (clip, blur): (&str, &str),
+    radius: f64,
+    to_node: Matrix,
+) {
+    let _ = write!(
+        defs,
+        r#"{}<g id="{prefix}frame">{}</g><clipPath id="{clip}">{outline}</clipPath>"#,
+        behind.0, behind.1
+    );
+    layer_blur(defs, blur, radius);
+    let m = to_node;
+    let _ = write!(
+        body,
+        r##"<g clip-path="url(#{clip})"><g transform="matrix({} {} {} {} {} {})"><g filter="url(#{blur})"><use href="#{prefix}frame"/></g></g></g>"##,
+        m.a, m.b, m.c, m.d, m.e, m.f
+    );
 }
 
 /// A shadow, as the design tools describe it.
