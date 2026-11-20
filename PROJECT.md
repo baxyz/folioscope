@@ -174,14 +174,12 @@ Pre-rendering therefore splits each frame **into layers**, like video-game compo
 | Transitions (dissolve, slide, push…)           | Parameters and curves                                        | Web Animations or CSS, GPU-accelerated                                                    |
 | Smart animate and auto-animate (XD)            | Layers paired between the two frames, and computed keyframes | CSS transforms (position, size, opacity, rotation)                                        |
 | Interactive zones                              | Rectangles, triggers and actions                             | Transparent, focusable DOM elements: keyboard-accessible, no canvas                       |
-| High-density screens                           | Several densities per layer (1x, 2x, 3x)                     | `srcset`, the browser picks                                                               |
+| High-density screens                           | Flat layers: one SVG (ADR 0006); others: 1x and 2x images    | The player picks one density per page load                                                |
 | Variables, conditions, typed text              | **Not pre-renderable**                                       | Layer flagged "dynamic": rendered on the fly by the full player, loaded only in that case |
 
 **Limits:**
 
-- **Combinatorial explosion.** If interactive components are nested or depend on each other, states
-  multiply. As long as they are independent, they only add up. Past a configurable threshold, the
-  layer switches to dynamic mode, with a warning at pre-render time.
+- **Combinatorial explosion**: see [ADR 0007](docs/adr/0007-component-states.md).
 - **Dynamic content** goes through the full player, as above.
 
 **Why it is fast:**
@@ -392,17 +390,6 @@ player.fonts = fonts;
 
 ---
 
-## 5. Open decisions
-
-These are settled with ADRs, in [`docs/adr/`](docs/adr/).
-
-| ID     | Question                          | Starting recommendation                                                                                 | How to decide                                            |
-| ------ | --------------------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| **D6** | Raster or SVG layers              | Raster by default. SVG as an option for simple layers (shapes and vectorized text), crisp at every zoom | Compare weight and effect rendering (blurs, blend modes) |
-| **D7** | Combinatorial explosion threshold | Maximum number of pre-rendered states per frame, configurable; beyond it, dynamic layer                 | Measure on real files                                    |
-
----
-
 ## 6. Tech stack
 
 ### 6.1 TypeScript
@@ -474,22 +461,8 @@ as in Rust (crate `helpers4`, one feature per module).
 | License header and `NOTICE` generation     | `helpers4/license`                                              | feature `license`             |
 | Conventional commit messages               | `helpers4/commit`                                               | feature `commit`              |
 
-**Candidates to add to helpers4** when something is missing. Each function is written in helpers4
-rather than locally in Folioscope, with tests:
-
-| Candidate               | TS                   | Rust               | Contents                                                                                                                                                                                          | Why it is generic                                                      |
-| ----------------------- | -------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| **`geometry`**          | `helpers4/geometry`  | feature `geometry` | `Rect`, `Point`, `Size`, 2D affine matrices (`compose`, `invert`, `apply`), `intersects`, `contains`, `fitContain`, `fitCover`                                                                    | Hit-testing, scaling and transforms are useful in any graphics project |
-| **`easing`**            | `helpers4/easing`    | feature `easing`   | Cubic Bézier curves (`cubicBezier(x1, y1, x2, y2)`), springs, standard easings (`ease-in-out`, etc.), `lerp`                                                                                      | Prototype transitions; useful for any animation                        |
-| **`binary`**            | `helpers4/binary`    | merge into `bytes` | `DataView` reader and writer with a cursor, varint and zigzag (LEB128), little-endian `f32` and `u32`                                                                                             | Kiwi uses varints; useful for any binary format                        |
-| **`color` (extension)** | `helpers4/color`     | feature `color`    | Blend modes (multiply, screen, overlay…), premultiplied alpha, HSL and HSB conversion, as in Figma and Sketch                                                                                     | Style rendering requires it; likely not covered yet                    |
-| **`dom` or `web`**      | `helpers4/dom`       | —                  | Custom Element helpers (typed, reflected attributes, `observedAttributes`), debounced `ResizeObserver`, pointer handling (hover, press, and the tap / drag distinction), `prefers-reduced-motion` | Every web component needs it                                           |
-| **`fsm`**               | `helpers4/fsm`       | feature `fsm`      | Small typed state machine, with a history stack (_back_)                                                                                                                                          | The prototype runtime, and many UIs                                    |
-| **`font`**              | `helpers4/font`      | —                  | Font loading with `FontFace`, fallback, missing-font detection, closest weight and style selection                                                                                                | Any text rendering on canvas                                           |
-| **`glob`**              | in `helpers4/string` | feature `string`   | `globToRegExp`, `matchGlob` (with `*`, `?`, case-insensitive), and `parsePatternOrRegExp` for the `/…/flags` syntax                                                                               | Font `match` rules; useful wherever names are filtered                 |
-
-Suggested order: `geometry` and `binary` first (phase 0), then `fsm` and `dom` (phase 1), then
-`easing` (phase 3).
+helpers4 is used as it is: what it lacks is written in Folioscope
+([docs/helpers4-requests.md](docs/helpers4-requests.md)).
 
 ---
 
@@ -548,8 +521,7 @@ console, and the pre-render spike displaying almost instantly.
 
 The fast path comes first: it is the one portfolio visitors will see.
 
-- [ ] Add `fsm` and `dom` to helpers4.
-- [ ] Minimal site live on `folioscope.baxyz.dev` (built, waiting for the Worker's first deploy).
+- [ ] Release v0.1: run the **Release** workflow with `bump: minor` (a human decision).
 
 **Exit criterion**: a simple `.fig` prototype, pre-rendered at build time, clickable end to end and
 displayed almost instantly on a portfolio page.
@@ -565,8 +537,8 @@ displayed almost instantly on a portfolio page.
 - [ ] Interactive components, what is left: a variant other than the one in the file is drawn
       at its own size with the overrides that still apply (no layout, no glyphs for overridden
       text: needs the fonts); smart animate between states (dissolves for now); interactive
-      components nested in a state; "after delay" inside a state; D7 measured on real files and made
-      configurable.
+      components nested in a state, drawn as an inline SVG sheet where each state is a group
+      (ADR 0007); "after delay" inside a state.
 - [ ] Fonts for pre-rendering, what is left: regex substitution rules (`match="/^SF Pro/i"`) and a
       `folioscope.config.ts` read by the CLI; fonts embedded in `.sketch` and `.penpot` files, with
       their importers. Done: `--fonts` and the `fonts` option of `folioscope/vite`, with a
