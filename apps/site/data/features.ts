@@ -43,6 +43,11 @@ const todo = (missing: string): Status => ({ status: "todo", missing });
 const na: Status = { status: "na" };
 
 const NAV = "e2e: the hotspot navigates to Details, with its transition";
+/** What would validate a feature drawn from our own files only, per format. */
+const FIG_CHECK = "a .fig file using it, to compare with Figma's own rendering";
+const SKETCH_CHECK = "a .sketch file using it, to compare with Sketch's or Lunacy's rendering";
+const PENPOT_CHECK = "a Penpot file using it, to compare with Penpot's own rendering";
+const XD_CHECK = "an .xd file using it: the fields are read as documented, not seen in a real file";
 
 export const FEATURES: Feature[] = [
   // Prototype
@@ -303,11 +308,8 @@ export const FEATURES: Feature[] = [
     group: "Drawing",
     name: "Radial, angular and diamond gradients",
     formats: {
-      fig: todo("drawn with their first colour"),
-      sketch: works(
-        "rust: sketch_gradients",
-        "radial only; Sketch's angular gradient is not drawn",
-      ),
+      fig: unverified("rust: figma_other_gradients", FIG_CHECK),
+      sketch: unverified("rust: sketch_borders_and_masks", SKETCH_CHECK, "radial and angular"),
       penpot: works("rust: penpot_gradients", "radial; Penpot has no angular gradient"),
       xd: works("rust: xd_gradients", "radial; XD has no angular gradient"),
     },
@@ -315,10 +317,10 @@ export const FEATURES: Feature[] = [
   {
     id: "shadows",
     group: "Drawing",
-    name: "Drop shadows",
+    name: "Drop shadows, several per layer",
     formats: {
-      fig: works("rust: frame_renders_to_svg_and_png"),
-      sketch: works("rust: sketch_draws_shapes", "the first shadow only"),
+      fig: works("rust: figma_shadows"),
+      sketch: works("rust: sketch_draws_shapes"),
       penpot: works("rust: penpot_draws_shapes"),
       xd: works("rust: xd_draws_shapes"),
     },
@@ -328,21 +330,36 @@ export const FEATURES: Feature[] = [
     group: "Drawing",
     name: "Inner shadows",
     formats: {
-      fig: todo("not drawn"),
-      sketch: todo("not drawn"),
-      penpot: todo("not drawn"),
+      fig: unverified("rust: figma_shadows", FIG_CHECK),
+      sketch: unverified("rust: sketch_effects", SKETCH_CHECK),
+      penpot: unverified("rust: penpot_effects", PENPOT_CHECK),
       xd: na,
     },
   },
   {
-    id: "blurs",
+    id: "layer-blur",
     group: "Drawing",
-    name: "Layer and background blurs",
+    name: "Layer blur",
     formats: {
-      fig: todo("not drawn"),
-      sketch: todo("not drawn"),
-      penpot: todo("not drawn"),
-      xd: todo("not drawn"),
+      fig: unverified("rust: figma_blurs", FIG_CHECK),
+      sketch: unverified(
+        "rust: sketch_effects",
+        SKETCH_CHECK,
+        "motion and zoom blurs drawn as Gaussian",
+      ),
+      penpot: unverified("rust: penpot_effects", PENPOT_CHECK),
+      xd: unverified("rust: xd_blurs", XD_CHECK),
+    },
+  },
+  {
+    id: "background-blur",
+    group: "Drawing",
+    name: "Background blur (frosted glass)",
+    formats: {
+      fig: unverified("rust: figma_blurs", FIG_CHECK),
+      sketch: unverified("rust: sketch_effects", SKETCH_CHECK),
+      penpot: na,
+      xd: unverified("rust: xd_blurs", XD_CHECK),
     },
   },
   {
@@ -350,10 +367,10 @@ export const FEATURES: Feature[] = [
     group: "Drawing",
     name: "Blend modes",
     formats: {
-      fig: todo("not drawn"),
-      sketch: todo("not drawn"),
-      penpot: todo("not drawn"),
-      xd: todo("not drawn"),
+      fig: unverified("rust: figma_blend_modes", FIG_CHECK),
+      sketch: unverified("rust: sketch_effects", SKETCH_CHECK),
+      penpot: unverified("rust: penpot_effects", PENPOT_CHECK),
+      xd: unverified("rust: xd_blend_and_image_fit", XD_CHECK),
     },
   },
   {
@@ -362,8 +379,8 @@ export const FEATURES: Feature[] = [
     name: "Inside and outside strokes",
     formats: {
       fig: works("rust: frame_renders_to_svg_and_png", "Figma stores the stroke's outline"),
-      sketch: todo("drawn centred"),
-      penpot: todo("drawn centred"),
+      sketch: unverified("rust: sketch_borders_and_masks", SKETCH_CHECK),
+      penpot: works("rust: penpot_strokes_and_paths"),
       xd: works("rust: xd_draws_shapes"),
     },
   },
@@ -373,27 +390,49 @@ export const FEATURES: Feature[] = [
     name: "Masks and clip paths",
     formats: {
       fig: works("rust: frame_renders_to_svg_and_png"),
-      sketch: works("rust: sketch_draws_shapes", "masks by alpha are not drawn"),
+      sketch: works("rust: sketch_draws_shapes"),
       penpot: works("rust: penpot_draws_shapes"),
       xd: works("rust: xd_draws_shapes"),
     },
   },
   {
+    id: "alpha-masks",
+    group: "Drawing",
+    name: "Masks by transparency (alpha)",
+    formats: {
+      fig: todo("Figma's alpha masks are drawn as outline masks"),
+      sketch: unverified("rust: sketch_borders_and_masks", SKETCH_CHECK),
+      penpot: na,
+      xd: na,
+    },
+  },
+  {
     id: "image-fills",
     group: "Drawing",
-    name: "Image fills: fill, fit, crop, tile",
+    name: "Image fills: fill, fit, stretch",
     formats: {
-      fig: works("rust: frame_renders_to_svg_and_png", "fill and fit"),
-      sketch: works("rust: sketch_draws_shapes", "fill"),
-      penpot: works("rust: penpot_draws_shapes", "fill"),
-      xd: works("rust: xd_draws_shapes", "cover only"),
+      fig: works("rust: frame_renders_to_svg_and_png"),
+      sketch: works("rust: sketch_draws_shapes"),
+      penpot: works("rust: penpot_draws_shapes", "Penpot only fills"),
+      xd: unverified("rust: xd_blend_and_image_fit", XD_CHECK, "fit and stretch"),
+    },
+  },
+  {
+    id: "image-tiles",
+    group: "Drawing",
+    name: "Image fills: tile and crop",
+    formats: {
+      fig: todo("tiled and cropped image fills are drawn filling the shape"),
+      sketch: todo("tiled image fills are drawn filling the shape"),
+      penpot: na,
+      xd: na,
     },
   },
   {
     id: "svg-raw",
     group: "Drawing",
-    name: "Raw SVG shapes",
-    formats: { fig: na, sketch: na, penpot: todo("svg-raw shapes are not drawn"), xd: na },
+    name: "Shapes imported from an SVG",
+    formats: { fig: na, sketch: na, penpot: works("rust: penpot_svg_raw"), xd: na },
   },
   {
     id: "variant-size",
@@ -428,7 +467,7 @@ export const FEATURES: Feature[] = [
     name: "Several styles within one text",
     formats: {
       fig: works("rust: frame_renders_to_svg_and_png"),
-      sketch: todo("a text takes its first run's style"),
+      sketch: unverified("rust: sketch_rich_text", SKETCH_CHECK),
       penpot: works("rust: penpot_text"),
       xd: works("rust: xd_text_needs_its_fonts"),
     },
@@ -438,10 +477,10 @@ export const FEATURES: Feature[] = [
     group: "Text",
     name: "Underline and strikethrough",
     formats: {
-      fig: works("rust: frame_renders_to_svg_and_png"),
-      sketch: todo("not drawn"),
-      penpot: todo("not drawn"),
-      xd: todo("not drawn"),
+      fig: works("rust: frame_renders_to_svg_and_png", "the file stores the decoration's outline"),
+      sketch: unverified("rust: sketch_rich_text", SKETCH_CHECK),
+      penpot: unverified("rust: penpot_text_decoration", PENPOT_CHECK),
+      xd: unverified("rust: xd_text_decoration", XD_CHECK),
     },
   },
   {
