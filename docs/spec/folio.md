@@ -76,8 +76,12 @@ runtime, never in the pixels. A layer is `{ src, format, bounds, scrolls? }`, dr
   content (every child but the fixed ones, at the content's full size, `scrolls: true`), and its
   fixed children on top. The player puts the content in a native scroller between the two.
 - **Overlays** are frames of their own, drawn over the screen.
-- **Smart animate**: a frame a smart animate leaves or reaches also has `parts`: its background
-  (named `""`), then each direct child, each a layer at its bounds with its name.
+- **Smart animate**: a frame a smart animate leaves or reaches (a navigation, an overlay, a swap)
+  also has `parts`: its background (named `""`), then its layers by path (`Card/Title`), three
+  levels deep, at most 80, each drawn without its own parts. A part has its `layer` (unrotated,
+  at its position), its `matrix` in the frame when it is turned or flipped, and a `shape`
+  (`fill`, `radius`) when it is a plain rounded rectangle. A component state changed with smart
+  animate has `parts` too, in the state's coordinates.
 - **Interactive components** are left out of their frame's layers, and have one layer per state.
 
 ### Files

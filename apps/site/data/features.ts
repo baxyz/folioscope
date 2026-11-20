@@ -286,31 +286,42 @@ export const FEATURES: Feature[] = [
     group: "Transitions",
     name: "Smart animate, auto-animate (layers paired by name)",
     formats: {
-      fig: works(
-        "e2e: smart animate: paired parts move from one frame to the other, both ways",
-        "direct children only",
-      ),
+      fig: works("e2e: smart animate: paired parts move from one frame to the other, both ways"),
       sketch: na,
       penpot: na,
-      xd: works("rust: xd_auto_animate", "direct children only"),
+      xd: works("rust: xd_auto_animate", "the artboard's direct children"),
     },
   },
   {
     id: "smart-animate-nested",
     group: "Transitions",
-    name: "Smart animate of nested layers, rotation, corner radii",
+    name: "Smart animate of nested layers, rotation, corner radii that keep their shape",
     formats: {
-      fig: todo("direct children only"),
+      fig: unverified(
+        "e2e: smart animate: paired parts move from one frame to the other, both ways",
+        FIG_CHECK,
+        "three levels deep",
+      ),
       sketch: na,
       penpot: na,
-      xd: todo("direct children only"),
+      xd: todo(
+        "an .xd file with groups that auto-animate, to check XD pairs nested layers the same way",
+      ),
     },
   },
   {
     id: "smart-animate-states",
     group: "Transitions",
     name: "Smart animate between component states and overlays",
-    formats: { fig: todo("states and overlays dissolve"), sketch: na, penpot: na, xd: na },
+    formats: {
+      fig: unverified(
+        "e2e: overlays: a swap with smart animate moves the shared layers",
+        FIG_CHECK,
+      ),
+      sketch: na,
+      penpot: na,
+      xd: na,
+    },
   },
   {
     id: "reduced-motion",
