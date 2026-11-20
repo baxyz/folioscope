@@ -148,3 +148,78 @@ fn real_prototypes_keep_their_links() {
         }
     }
 }
+
+mod features {
+    //! `fixtures/xd/features.xd`: every XD scenario, one test per feature.
+    use folioscope::bake::draw::Draw;
+    use folioscope::bake::fonts::FontLibrary;
+    use folioscope::bake::text::Typesetter;
+    use folioscope::bake::xd::XdDraw;
+    use folioscope::ir::{Action, Document, Frame, TransitionKind, Trigger};
+    use folioscope::xd::{XdFile, decode, ir::to_ir};
+
+    fn file() -> XdFile {
+        let path = format!(
+            "{}/../../fixtures/xd/features.xd",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        decode(&std::fs::read(path).unwrap()).unwrap()
+    }
+
+    fn frame<'d>(ir: &'d Document, name: &str) -> &'d Frame {
+        ir.pages
+            .iter()
+            .flat_map(|p| &p.frames)
+            .find(|f| f.name == name)
+            .unwrap_or_else(|| panic!("no frame {name}"))
+    }
+
+    fn svg(name: &str) -> String {
+        let file = file();
+        let ir = to_ir(&file);
+        let mut draw = XdDraw::new(&file, Typesetter::new(FontLibrary::default()));
+        draw.frame(frame(&ir, name)).unwrap()
+    }
+
+    #[test]
+    fn xd_triggers() {
+        let ir = to_ir(&file());
+        let splash = &frame(&ir, "Splash").hotspots[0].interactions[0];
+        assert_eq!(splash.trigger, Trigger::AfterDelay { delay_ms: 1500 });
+        let open = &frame(&ir, "Home").hotspots[0].interactions[0];
+        assert_eq!(open.trigger, Trigger::Click);
+        assert!(matches!(
+            frame(&ir, "Details").hotspots[0].interactions[0].action,
+            Action::Back
+        ));
+    }
+
+    #[test]
+    fn xd_auto_animate() {
+        let ir = to_ir(&file());
+        let open = &frame(&ir, "Home").hotspots[0].interactions[0];
+        assert!(matches!(
+            &open.action,
+            Action::Navigate { transition, .. } if transition.kind == TransitionKind::SmartAnimate
+        ));
+    }
+
+    #[test]
+    fn xd_draws_shapes() {
+        let svg = svg("Home");
+        assert!(
+            svg.contains("<image") && svg.contains("data:image/png;base64,"),
+            "image fill"
+        );
+        assert!(svg.contains("<clipPath"), "clip path");
+        assert!(svg.contains("feDropShadow"), "shadow");
+        folioscope::bake::rasterize(&svg, 1.0).unwrap();
+    }
+
+    #[test]
+    fn xd_gradients() {
+        let svg = svg("Home");
+        assert!(svg.contains("<linearGradient"), "linear");
+        assert!(svg.contains("<radialGradient"), "radial");
+    }
+}
