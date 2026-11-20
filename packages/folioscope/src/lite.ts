@@ -158,10 +158,25 @@ function renderComponent(
   });
   let current = component.initial;
   const held: string[] = [];
+  let timers: ReturnType<typeof setTimeout>[] = [];
   const show = (variant: string, transition?: Transition) => {
     const state = component.states.find((s) => s.variant === variant);
     if (!state) return;
     current = variant;
+    // "After delay" inside a state starts counting when the state shows.
+    timers.forEach(clearTimeout);
+    timers = state.hotspots.flatMap((h) =>
+      h.interactions.flatMap(({ trigger, action }) =>
+        trigger.type === "afterDelay"
+          ? [
+              setTimeout(
+                () => zone.isConnected && handlers.action(action, h.bounds),
+                trigger.delayMs,
+              ),
+            ]
+          : [],
+      ),
+    );
     zone.dataset.state = state.name;
     zone.style.width = `${state.bounds.width}px`;
     zone.style.height = `${state.bounds.height}px`;
@@ -172,7 +187,9 @@ function renderComponent(
     place(img, state.layer.bounds);
     const before = zone.querySelector("img");
     const areas = state.hotspots.flatMap((h) => renderHotspot(h, handlers) ?? []);
-    zone.replaceChildren(...(before ? [before] : []), img, ...areas);
+    // Components nested in the state play on their own, over it; what else they do goes up.
+    const nested = (state.components ?? []).map((c) => renderComponent(c, layerUrl, handlers));
+    zone.replaceChildren(...(before ? [before] : []), img, ...nested, ...areas);
     const reduced = prefersReducedMotion();
     if (
       !before ||
