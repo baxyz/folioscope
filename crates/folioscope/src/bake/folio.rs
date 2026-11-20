@@ -16,7 +16,7 @@ use crate::sketch::{SketchFile, ir::to_ir as sketch_ir};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
-use crate::bake::draw::{Draw, FigmaDraw};
+use crate::bake::draw::{Draw, FigmaDraw, Part, PartShape};
 use crate::bake::fonts::FontLibrary;
 use crate::bake::image::{ImageFormat, encode, encode_best, gzipped_len, svg_eligible};
 use crate::bake::penpot::PenpotDraw;
@@ -149,12 +149,19 @@ struct FolioFrame<'a> {
     placeholder: String,
 }
 
-/// A part of a frame that smart animate moves: the background is named `""`.
+/// A part of a frame that smart animate moves: the background is named `""`, nested layers
+/// `Parent/Child`.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct FolioPart {
     name: String,
     layer: Layer,
+    /// Its transform in the frame, its image's top-left corner at the origin, when turned.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    matrix: Option<[f32; 6]>,
+    /// A plain rounded rectangle, animated as a box.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    shape: Option<PartShape>,
 }
 
 /// An interactive component, with one layer per state.
@@ -182,6 +189,9 @@ struct FolioState<'a> {
     /// Interactive components inside the state, drawn over its layer.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     components: Vec<FolioComponent<'a>>,
+    /// For smart animate between states.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    parts: Vec<FolioPart>,
 }
 
 /// An image drawn at `bounds` (frame coordinates); its files are
@@ -233,6 +243,13 @@ fn bake_component<'a>(
             states: component.states.len(),
         });
     }
+    // States changed with smart animate get their parts.
+    let smart = component.states.iter().any(|s| {
+        s.hotspots.iter().flat_map(|h| &h.interactions).any(|i| {
+            matches!(&i.action, ir::Action::ChangeTo { transition, .. }
+                if matches!(transition.kind, ir::TransitionKind::SmartAnimate))
+        })
+    });
     let mut states = Vec::new();
     for state in &component.states[..kept] {
         let markup = draw
@@ -250,7 +267,14 @@ fn bake_component<'a>(
         for inner in &state.components {
             nested.push(bake_component(draw, frame, inner, options, report, sink)?);
         }
+        let parts = if smart {
+            let drawn = draw.state_parts(component, state);
+            encode_parts(drawn, frame, options, report, sink)?
+        } else {
+            Vec::new()
+        };
         states.push(FolioState {
+            parts,
             variant: &state.variant,
             name: &state.name,
             bounds: state.bounds,
@@ -279,9 +303,13 @@ fn smart_animated(document: &Document) -> HashSet<&str> {
     let mut frames = HashSet::new();
     for frame in document.pages.iter().flat_map(|p| &p.frames) {
         for interaction in frame.hotspots.iter().flat_map(|h| &h.interactions) {
-            if let ir::Action::Navigate { to, transition } = &interaction.action
-                && matches!(transition.kind, ir::TransitionKind::SmartAnimate)
-            {
+            let (ir::Action::Navigate { to, transition }
+            | ir::Action::Overlay { to, transition, .. }
+            | ir::Action::SwapOverlay { to, transition, .. }) = &interaction.action
+            else {
+                continue;
+            };
+            if matches!(transition.kind, ir::TransitionKind::SmartAnimate) {
                 frames.insert(frame.id.as_str());
                 frames.insert(to.as_str());
             }
@@ -298,11 +326,23 @@ fn bake_parts(
     report: &mut BakeReport,
     sink: &mut Sink<'_>,
 ) -> Result<Vec<FolioPart>, BakeError> {
+    let drawn = draw.parts(frame);
+    encode_parts(drawn, frame, options, report, sink)
+}
+
+/// Encodes drawn parts, each as a layer.
+fn encode_parts(
+    drawn: Vec<Part>,
+    frame: &ir::Frame,
+    options: &BakeOptions,
+    report: &mut BakeReport,
+    sink: &mut Sink<'_>,
+) -> Result<Vec<FolioPart>, BakeError> {
     let densities = &sorted_densities(options);
     let mut parts = Vec::new();
-    for (name, markup, bounds) in draw.parts(frame) {
+    for part in drawn {
         let (src, format) =
-            encode_layer(&markup, densities, options, report, sink).map_err(|e| match e {
+            encode_layer(&part.markup, densities, options, report, sink).map_err(|e| match e {
                 LayerError::Render(source) => BakeError::Render {
                     frame: frame.id.clone(),
                     source,
@@ -310,11 +350,13 @@ fn bake_parts(
                 LayerError::Sink(e) => e,
             })?;
         parts.push(FolioPart {
-            name,
+            name: part.name,
+            matrix: part.matrix,
+            shape: part.shape,
             layer: Layer {
                 src,
                 format,
-                bounds,
+                bounds: part.bounds,
                 scrolls: false,
             },
         });
