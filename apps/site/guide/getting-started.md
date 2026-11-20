@@ -31,7 +31,10 @@ export default {
 
 `designs/app.fig` is then served as `/folio/app.folio/`. Options: `include` (globs, relative to
 the Vite root), `base` (URL folder, `folio` by default), `cacheDir`, `avif` (`false` keeps every
-screen in lossless WebP; by default, photo-heavy screens become AVIF when it is much lighter), `fonts` (font files or folders, for text the design file stores no glyphs for; a `.fig` file rarely needs any).
+screen in lossless WebP; by default, photo-heavy screens become AVIF when it is much lighter), `svg`
+(`false` keeps every screen an image; by default, a flat screen with no photo, blur or shadow is
+served as SVG when that is lighter: sharp at any zoom), `maxStates` (the most states drawn per
+interactive component, 16 by default; the build warns about a component that has more), `fonts` (font files or folders, for text the design file stores no glyphs for; a `.fig` file rarely needs any).
 
 ## 2. Add the player
 
