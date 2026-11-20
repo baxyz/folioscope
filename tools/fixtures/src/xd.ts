@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { zipSync } from "fflate";
 import type { Box } from "./figma.ts";
+import { solidPng } from "./png.ts";
 
 const FIXED_DATE = new Date("2026-01-01T00:00:00Z");
 
@@ -69,6 +70,8 @@ export class XdBuilder {
   private readonly interactions: Record<string, unknown[]> = {};
   private home?: string;
   private readonly name: string;
+  private readonly clipPaths: Record<string, unknown> = {};
+  private readonly images = new Map<string, Uint8Array>();
 
   constructor(name: string) {
     this.name = name;
@@ -166,6 +169,98 @@ export class XdBuilder {
     });
   }
 
+  /** Merges `style` into a node's style. */
+  style(node: Node, style: Record<string, unknown>): void {
+    node.style = { ...(node.style as object), ...style };
+  }
+
+  /** A gradient fill between two colours, as XD stores it. */
+  gradientFill(type: "linear" | "radial", from: string, to: string): Record<string, unknown> {
+    const geometry =
+      type === "linear"
+        ? { x1: 0, y1: 0.5, x2: 1, y2: 0.5 }
+        : { cx: 0.5, cy: 0.5, fx: 0.5, fy: 0.5, r: 0.5 };
+    return {
+      type: "gradient",
+      gradient: {
+        ...geometry,
+        units: "objectBoundingBox",
+        ref: this.id(),
+        meta: {
+          ux: {
+            gradientResources: {
+              type,
+              stops: [
+                { offset: 0, color: rgb(from) },
+                { offset: 1, color: rgb(to) },
+              ],
+            },
+          },
+        },
+      },
+    };
+  }
+
+  /** A drop shadow filter. */
+  dropShadow(dy: number, blur: number, hex: string, alpha: number): Record<string, unknown> {
+    return {
+      filters: [
+        {
+          type: "dropShadow",
+          visible: true,
+          params: { dropShadows: [{ dx: 0, dy, r: blur, color: { ...rgb(hex), alpha } }] },
+        },
+      ],
+    };
+  }
+
+  /** A rectangle filled with an image of one colour, stored in resources/. */
+  image(
+    artboard: Artboard,
+    name: string,
+    box: Box,
+    color: { r: number; g: number; b: number },
+  ): Node {
+    const uid = this.id().replaceAll("-", "");
+    this.images.set(uid, solidPng(8, 8, color));
+    const node = this.rect(artboard, name, box, "#FFFFFF");
+    this.style(node, {
+      fill: {
+        type: "pattern",
+        pattern: { width: 8, height: 8, meta: { ux: { uid, scaleBehavior: "cover" } } },
+      },
+    });
+    return node;
+  }
+
+  /** A group at the artboard's origin, clipped to a circle of `box`, holding a rectangle of `box`. */
+  clippedCircle(artboard: Artboard, name: string, box: Box, fill: string): Node {
+    const ref = this.id();
+    const r = Math.min(box.width, box.height) / 2;
+    const at = { a: 1, b: 0, c: 0, d: 1, tx: artboard.box.x + box.x, ty: artboard.box.y + box.y };
+    this.clipPaths[ref] = {
+      children: [
+        { type: "shape", id: this.id(), transform: at, shape: { type: "circle", cx: r, cy: r, r } },
+      ],
+    };
+    const square = {
+      type: "shape" as const,
+      name: "Square",
+      id: this.id(),
+      transform: at,
+      style: { fill: solid(fill), stroke: { type: "none", color: rgb("#707070"), width: 1 } },
+      shape: { type: "rect", x: 0, y: 0, width: box.width, height: box.height },
+    };
+    return this.add(artboard, {
+      type: "group",
+      name,
+      id: this.id(),
+      transform: { a: 1, b: 0, c: 0, d: 1, tx: 0, ty: 0 },
+      style: { clipPath: { ref } },
+      group: { children: [square] },
+    });
+  }
+
   /** Makes `node` a link to `to`. */
   link(node: Node | Artboard, to: Artboard, link: XdLink = {}): void {
     const action = link.action ?? "artboard-transition";
@@ -228,11 +323,12 @@ export class XdBuilder {
         json({
           version: "1.5.0",
           children: [],
-          resources: { gradients: {}, clipPaths: {}, meta: { ux: { symbols: [] } } },
+          resources: { gradients: {}, clipPaths: this.clipPaths, meta: { ux: { symbols: [] } } },
         }),
         stored,
       ],
     };
+    for (const [uid, png] of this.images) files[`resources/${uid}`] = [png, stored];
     for (const a of this.artboards) {
       files[`artwork/artboard-${a.id}/graphics/graphicContent.agc`] = [
         json({

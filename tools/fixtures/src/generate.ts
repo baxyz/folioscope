@@ -289,6 +289,51 @@ function sketchNavigation(): SketchBuilder {
 }
 
 /**
+ * Every Sketch scenario in one file: two pages, a start point on each, links with slides and back;
+ * and the drawing features: linear and radial gradients, a drop shadow, a bitmap, a mask.
+ */
+function sketchFeatures(): SketchBuilder {
+  const sketch = new SketchBuilder();
+  const page = sketch.page("Prototype");
+  const home = sketch.artboard(page, "Home", { x: 0, y: 0, ...PHONE });
+  const details = sketch.artboard(page, "Details", { x: 475, y: 0, ...PHONE }, "#F9FAFB");
+  sketch.flowHome(home);
+
+  const banner = sketch.rect(home, "Banner", { x: 0, y: 0, width: 375, height: 160 }, BLUE);
+  sketch.gradient(banner, 0, "#2563EB", "#7C3AED");
+  const glow = sketch.oval(home, "Glow", { x: 24, y: 184, width: 96, height: 96 }, "#F59E0B");
+  sketch.gradient(glow, 1, "#FDE68A", "#F59E0B");
+  const card = sketch.rect(home, "Card", { x: 144, y: 184, width: 207, height: 96 }, "#FFFFFF", 12);
+  sketch.shadow(card, 4, 12, "#00000040");
+  sketch.bitmap(
+    home,
+    "Photo",
+    { x: 24, y: 304, width: 120, height: 80 },
+    { r: 0.9, g: 0.3, b: 0.3 },
+  );
+  const avatar = sketch.group(home, "Avatar", { x: 168, y: 304, width: 64, height: 64 });
+  sketch.mask(sketch.oval(avatar, "Circle mask", { x: 0, y: 0, width: 64, height: 64 }, "#000000"));
+  sketch.rect(avatar, "Square", { x: 0, y: 0, width: 64, height: 64 }, "#EC4899");
+
+  const open = sketch.rect(
+    home,
+    "Open details",
+    { x: 88, y: 640, width: 200, height: 48 },
+    BLUE,
+    24,
+  );
+  sketch.link(open, details, "slideFromRight");
+  const back = sketch.rect(details, "Back", { x: 16, y: 56, width: 80, height: 32 }, GREY, 8);
+  sketch.link(back, "back", "slideFromLeft");
+
+  const second = sketch.page("Second page");
+  const about = sketch.artboard(second, "About", { x: 0, y: 0, ...PHONE });
+  sketch.flowHome(about);
+  sketch.rect(about, "Logo", { x: 138, y: 300, width: 100, height: 100 }, BLUE, 50);
+  return sketch;
+}
+
+/**
  * Text in two fonts, neither stored in the file: Inter, and a brand font that only a rule can
  * stand in for. Sketch stores no glyphs, so a bake draws nothing without the fonts.
  */
@@ -337,6 +382,275 @@ function penpotNavigation(): PenpotBuilder {
   );
   penpot.back(back);
 
+  return penpot;
+}
+
+/**
+ * Every Penpot scenario in one file: two pages and three flows; a splash that leaves after a
+ * delay; click, press and hover (mouse enter and leave); overlays centred, manual and toggled,
+ * closed from inside; a link; and the drawing features: linear and radial gradients, a drop
+ * shadow, a path, an image, a masked group, dashed strokes, and text in two weights.
+ */
+function penpotFeatures(): PenpotBuilder {
+  const penpot = new PenpotBuilder("Features");
+  const page = penpot.page("Prototype");
+  const splash = penpot.board(page, "Splash", { x: 0, y: 0, ...PHONE }, "#1E3A8A");
+  const home = penpot.board(page, "Home", { x: 475, y: 0, ...PHONE });
+  const details = penpot.board(page, "Details", { x: 950, y: 0, ...PHONE }, "#F9FAFB");
+  const menu = penpot.board(page, "Menu", { x: 1425, y: 0, width: 280, height: 320 });
+  const tip = penpot.board(page, "Tip", { x: 1425, y: 400, width: 200, height: 80 }, "#111827");
+  penpot.flow(page, splash, "Main flow");
+  penpot.flow(page, home, "Skip the splash");
+
+  penpot.interact(splash, {
+    eventType: "after-delay",
+    delay: 1500,
+    actionType: "navigate",
+    destination: home.id,
+    animation: { animationType: "dissolve", duration: 300, easing: "ease-in-out" },
+  });
+
+  // Drawing.
+  penpot.shape(
+    page,
+    home,
+    "Banner",
+    "rect",
+    { x: 475, y: 0, width: 375, height: 160 },
+    {
+      fills: [
+        {
+          fillOpacity: 1,
+          fillColorGradient: {
+            type: "linear",
+            startX: 0,
+            startY: 0.5,
+            endX: 1,
+            endY: 0.5,
+            width: 1,
+            stops: [
+              { color: "#2563EB", opacity: 1, offset: 0 },
+              { color: "#7C3AED", opacity: 1, offset: 1 },
+            ],
+          },
+        },
+      ],
+    },
+  );
+  penpot.shape(
+    page,
+    home,
+    "Glow",
+    "circle",
+    { x: 499, y: 184, width: 96, height: 96 },
+    {
+      fills: [
+        {
+          fillOpacity: 1,
+          fillColorGradient: {
+            type: "radial",
+            startX: 0.5,
+            startY: 0.5,
+            endX: 1,
+            endY: 0.5,
+            width: 1,
+            stops: [
+              { color: "#FDE68A", opacity: 1, offset: 0 },
+              { color: "#F59E0B", opacity: 1, offset: 1 },
+            ],
+          },
+        },
+      ],
+    },
+  );
+  penpot.shape(
+    page,
+    home,
+    "Card",
+    "rect",
+    { x: 619, y: 184, width: 207, height: 96 },
+    {
+      r1: 12,
+      r2: 12,
+      r3: 12,
+      r4: 12,
+      shadow: [
+        {
+          id: "s",
+          style: "drop-shadow",
+          offsetX: 0,
+          offsetY: 4,
+          blur: 12,
+          spread: 0,
+          hidden: false,
+          color: { color: "#000000", opacity: 0.25 },
+        },
+      ],
+      strokes: [
+        {
+          strokeColor: "#9CA3AF",
+          strokeOpacity: 1,
+          strokeWidth: 2,
+          strokeStyle: "dashed",
+          strokeAlignment: "center",
+        },
+      ],
+    },
+  );
+  penpot.shape(
+    page,
+    home,
+    "Arrow",
+    "path",
+    { x: 499, y: 304, width: 48, height: 48 },
+    {
+      content: [
+        { command: "move-to", params: { x: 499, y: 304 } },
+        { command: "line-to", params: { x: 547, y: 328 } },
+        { command: "line-to", params: { x: 499, y: 352 } },
+        { command: "close-path", params: {} },
+      ],
+      fills: [{ fillColor: "#10B981", fillOpacity: 1 }],
+    },
+  );
+  penpot.image(
+    page,
+    home,
+    "Photo",
+    { x: 571, y: 304, width: 120, height: 80 },
+    { r: 0.9, g: 0.3, b: 0.3 },
+  );
+  const masked = penpot.shape(
+    page,
+    home,
+    "Avatar",
+    "group",
+    { x: 715, y: 304, width: 64, height: 64 },
+    {
+      maskedGroup: true,
+      fills: [],
+    },
+  );
+  // The mask is the group's first shape, at the bottom of the list: added last.
+  penpot.shape(
+    page,
+    masked,
+    "Square",
+    "rect",
+    { x: 715, y: 304, width: 64, height: 64 },
+    {
+      fills: [{ fillColor: "#EC4899", fillOpacity: 1 }],
+    },
+  );
+  penpot.shape(page, masked, "Circle mask", "circle", { x: 715, y: 304, width: 64, height: 64 });
+  penpot.text(page, home, "Title", { x: 499, y: 400, width: 327, height: 80 }, [
+    { text: "Hello Inter", family: "Inter", size: 24, color: "#111827" },
+    { text: "Bold and blue", family: '"Inter"', weight: 700, size: 18, color: "#2563EB" },
+  ]);
+
+  // Prototype.
+  const open = penpot.rect(
+    page,
+    home,
+    "Open details",
+    { x: 563, y: 560, width: 200, height: 48 },
+    BLUE,
+    24,
+  );
+  penpot.navigate(open, details, {
+    animationType: "slide",
+    duration: 300,
+    easing: "ease-out",
+    way: "in",
+    direction: "left",
+  });
+  const hold = penpot.rect(
+    page,
+    home,
+    "Hold me",
+    { x: 563, y: 624, width: 200, height: 48 },
+    GREY,
+    24,
+  );
+  penpot.interact(hold, {
+    eventType: "mouse-press",
+    actionType: "navigate",
+    destination: details.id,
+  });
+  const hover = penpot.rect(
+    page,
+    home,
+    "Hover me",
+    { x: 563, y: 688, width: 200, height: 48 },
+    GREY,
+    24,
+  );
+  penpot.interact(hover, {
+    eventType: "mouse-enter",
+    actionType: "open-overlay",
+    destination: tip.id,
+    overlayPosType: "manual",
+    overlayPosition: { x: 0, y: -96 },
+    closeClickOutside: false,
+    positionRelativeTo: hover.id,
+  });
+  penpot.interact(hover, {
+    eventType: "mouse-leave",
+    actionType: "close-overlay",
+    destination: tip.id,
+  });
+  const more = penpot.rect(
+    page,
+    home,
+    "Menu button",
+    { x: 795, y: 40, width: 40, height: 40 },
+    GREY,
+    20,
+  );
+  penpot.interact(more, {
+    eventType: "click",
+    actionType: "toggle-overlay",
+    destination: menu.id,
+    overlayPosType: "center",
+    closeClickOutside: true,
+    backgroundOverlay: true,
+  });
+  const site = penpot.rect(
+    page,
+    home,
+    "Website",
+    { x: 563, y: 752, width: 200, height: 32 },
+    GREY,
+    8,
+  );
+  penpot.interact(site, {
+    eventType: "click",
+    actionType: "open-url",
+    url: "https://folioscope.baxyz.dev",
+  });
+  const close = penpot.rect(
+    page,
+    menu,
+    "Close",
+    { x: 1449, y: 248, width: 232, height: 48 },
+    BLUE,
+    24,
+  );
+  penpot.interact(close, { eventType: "click", actionType: "close-overlay", destination: menu.id });
+  const back = penpot.rect(
+    page,
+    details,
+    "Back",
+    { x: 966, y: 56, width: 80, height: 32 },
+    GREY,
+    8,
+  );
+  penpot.back(back);
+
+  const second = penpot.page("Second page");
+  const about = penpot.board(second, "About", { x: 0, y: 0, ...PHONE });
+  penpot.flow(second, about, "About flow");
+  penpot.rect(second, about, "Logo", { x: 138, y: 300, width: 100, height: 100 }, BLUE, 50);
   return penpot;
 }
 
@@ -397,6 +711,35 @@ function xdOverlay(): XdBuilder {
   return xd;
 }
 
+/**
+ * Every XD scenario in one file: a splash that leaves after a delay, taps with slides and
+ * auto-animate, an overlay; and the drawing features: linear and radial gradients, a drop
+ * shadow, an image fill, a clip path.
+ */
+function xdFeatures(): XdBuilder {
+  const xd = new XdBuilder("Features");
+  const splash = xd.artboard("Splash", { x: 0, y: 0, ...PHONE }, "#1E3A8A");
+  const home = xd.artboard("Home", { x: 475, y: 0, ...PHONE });
+  const details = xd.artboard("Details", { x: 950, y: 0, ...PHONE }, "#F9FAFB");
+  xd.start(splash);
+  xd.link(splash, home, { trigger: "time", delay: 1.5, transition: "dissolve" });
+
+  const banner = xd.rect(home, "Banner", { x: 0, y: 0, width: 375, height: 160 }, BLUE);
+  xd.style(banner, { fill: xd.gradientFill("linear", "#2563EB", "#7C3AED") });
+  const glow = xd.circle(home, "Glow", { x: 24, y: 184, width: 96, height: 96 }, "#F59E0B");
+  xd.style(glow, { fill: xd.gradientFill("radial", "#FDE68A", "#F59E0B") });
+  const card = xd.rect(home, "Card", { x: 144, y: 184, width: 207, height: 96 }, "#FFFFFF", 12);
+  xd.style(card, xd.dropShadow(4, 12, "#000000", 0.25));
+  xd.image(home, "Photo", { x: 24, y: 304, width: 120, height: 80 }, { r: 0.9, g: 0.3, b: 0.3 });
+  xd.clippedCircle(home, "Avatar", { x: 168, y: 304, width: 64, height: 64 }, "#EC4899");
+
+  const open = xd.rect(home, "Open details", { x: 88, y: 640, width: 200, height: 48 }, BLUE, 24);
+  xd.link(open, details, { action: "auto-animate", easing: "ease-in-out", duration: 0.4 });
+  const back = xd.rect(details, "Back", { x: 16, y: 56, width: 80, height: 32 }, GREY, 8);
+  xd.link(back, home, { action: "previous-artboard" });
+  return xd;
+}
+
 /** Text in Inter, which an `.xd` does not carry: a bake draws nothing without the font. */
 function xdText(): XdBuilder {
   const xd = new XdBuilder("Text");
@@ -420,11 +763,14 @@ const fixtures: Record<string, () => { toBytes(): Uint8Array }> = {
   "figma/flows-and-pages.fig": flowsAndPages,
   "sketch/navigation.sketch": sketchNavigation,
   "sketch/text.sketch": sketchText,
+  "sketch/features.sketch": sketchFeatures,
   "penpot/navigation.penpot": penpotNavigation,
+  "penpot/features.penpot": penpotFeatures,
   "xd/navigation.xd": xdNavigation,
   "xd/overlay.xd": xdOverlay,
   "xd/scroll.xd": xdScroll,
   "xd/text.xd": xdText,
+  "xd/features.xd": xdFeatures,
 };
 
 for (const [path, build] of Object.entries(fixtures)) {

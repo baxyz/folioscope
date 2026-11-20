@@ -2,6 +2,7 @@
 import { readFileSync } from "node:fs";
 import { zipSync } from "fflate";
 import type { Box } from "./figma.ts";
+import { solidPng } from "./png.ts";
 
 // What a Penpot 2.18 export declares about its file: format version, features and the schema
 // migrations already applied, so an import does not replay them.
@@ -37,6 +38,13 @@ export class PenpotBuilder {
   private nextId = 1;
   private readonly fileId = this.id();
   private readonly pages: PenpotPage[] = [];
+  private readonly media: {
+    id: string;
+    mediaId: string;
+    width: number;
+    height: number;
+    png: Uint8Array;
+  }[] = [];
 
   private readonly name: string;
 
@@ -68,6 +76,76 @@ export class PenpotBuilder {
 
   rect(page: PenpotPage, board: Shape, name: string, box: Box, fill: string, radius = 0): Shape {
     return this.add(page, board.id, { name, type: "rect" }, box, fill, radius);
+  }
+
+  /** Any shape under `parent` (a board or a group), with extra fields merged in. */
+  shape(
+    page: PenpotPage,
+    parent: Shape,
+    name: string,
+    type: string,
+    box: Box,
+    extra: Record<string, unknown> = {},
+  ): Shape {
+    const shape = this.add(page, parent.id, { name, type }, box, "#FFFFFF");
+    Object.assign(shape, extra);
+    if (type === "group" || type === "frame") shape.shapes ??= [];
+    return shape;
+  }
+
+  /** A text of one line per run, as Penpot lays it out (`y` is the bottom of each run's box). */
+  text(
+    page: PenpotPage,
+    parent: Shape,
+    name: string,
+    box: Box,
+    runs: { text: string; family: string; weight?: number; size: number; color: string }[],
+  ): Shape {
+    let bottom = box.y;
+    const positionData = runs.map((run) => {
+      bottom += run.size * 1.2;
+      return {
+        text: run.text,
+        x: box.x,
+        y: bottom,
+        width: box.width,
+        height: run.size * 1.2,
+        fontFamily: run.family,
+        fontWeight: String(run.weight ?? 400),
+        fontSize: `${run.size}px`,
+        fontStyle: "normal",
+        fills: [{ fillColor: run.color, fillOpacity: 1 }],
+      };
+    });
+    return this.shape(page, parent, name, "text", box, { positionData, fills: [] });
+  }
+
+  /** An image shape showing a PNG of one colour, stored as a media of the file. */
+  image(
+    page: PenpotPage,
+    parent: Shape,
+    name: string,
+    box: Box,
+    color: { r: number; g: number; b: number },
+  ): Shape {
+    const id = this.id();
+    const mediaId = this.id();
+    this.media.push({
+      id,
+      mediaId,
+      width: box.width,
+      height: box.height,
+      png: solidPng(8, 8, color),
+    });
+    return this.shape(page, parent, name, "image", box, {
+      metadata: { id, width: box.width, height: box.height, mtype: "image/png" },
+      fills: [],
+    });
+  }
+
+  /** Any interaction, as Penpot stores it. */
+  interact(shape: Shape, interaction: Record<string, unknown>): void {
+    (shape.interactions ??= []).push(interaction);
   }
 
   flow(page: PenpotPage, board: Shape, name: string): void {
@@ -124,6 +202,29 @@ export class PenpotBuilder {
       ];
       for (const [id, shape] of page.shapes) files[`${dir}/${id}.json`] = [json(shape), stored];
     });
+    for (const m of this.media) {
+      files[`files/${this.fileId}/media/${m.id}.json`] = [
+        json({
+          id: m.id,
+          name: "image",
+          width: m.width,
+          height: m.height,
+          mtype: "image/png",
+          mediaId: m.mediaId,
+        }),
+        stored,
+      ];
+      files[`objects/${m.mediaId}.json`] = [
+        json({
+          id: m.mediaId,
+          size: m.png.length,
+          contentType: "image/png",
+          bucket: "file-media-object",
+        }),
+        stored,
+      ];
+      files[`objects/${m.mediaId}.png`] = [m.png, stored];
+    }
     return zipSync(files);
   }
 
