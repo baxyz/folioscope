@@ -8,8 +8,8 @@ use std::collections::HashMap;
 use serde_json::Value;
 
 use crate::ir::{
-    Action, Document, Easing, Flow, Frame, Hotspot, Interaction, Page, Rect, Side, SourceFormat,
-    Transition, TransitionKind, Trigger,
+    Action, Document, Easing, Flow, Frame, Hotspot, Interaction, Page, Rect, Scroll,
+    ScrollDirection, Side, SourceFormat, Transition, TransitionKind, Trigger,
 };
 use crate::sketch::SketchFile;
 
@@ -48,13 +48,32 @@ pub fn to_ir(file: &SketchFile) -> Document {
                             let fixed = child["isFixedToViewport"] == true;
                             collect(child, (0.0, 0.0), fixed, &masters, &mut hotspots);
                         }
+                        let whole = rect(&artboard["frame"]);
+                        // An artboard taller than its prototype's viewport scrolls under it.
+                        let visible =
+                            viewport_height(artboard).filter(|&h| h > 0.0 && h < whole.height);
                         Frame {
                             id: string(artboard, "do_objectID"),
                             name: string(artboard, "name"),
-                            bounds: rect(&artboard["frame"]),
+                            bounds: Rect {
+                                height: visible.unwrap_or(whole.height),
+                                ..whole
+                            },
                             hotspots,
                             overlay: None,
-                            scroll: None,
+                            scroll: visible.map(|_| Scroll {
+                                direction: ScrollDirection::Vertical,
+                                content: Rect {
+                                    x: 0.0,
+                                    y: 0.0,
+                                    width: whole.width,
+                                    height: whole.height,
+                                },
+                                fixed: layers(artboard)
+                                    .filter(|l| l["isFixedToViewport"] == true)
+                                    .map(|l| string(l, "do_objectID"))
+                                    .collect(),
+                            }),
                             components: Vec::new(),
                         }
                     })
@@ -66,6 +85,13 @@ pub fn to_ir(file: &SketchFile) -> Document {
         source: SourceFormat::Sketch,
         pages,
     }
+}
+
+/// The height of an artboard's prototype viewport (`prototypeViewport.size`, `"{375, 812}"`).
+fn viewport_height(artboard: &Value) -> Option<f32> {
+    let size = artboard["prototypeViewport"]["size"].as_str()?;
+    let (_, height) = size.trim_matches(['{', '}']).split_once(',')?;
+    height.trim().parse().ok()
 }
 
 /// Symbol masters by `symbolID`, from the pages and from libraries (`foreignSymbols`).
