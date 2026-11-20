@@ -19,7 +19,13 @@ export interface Box {
   height: number;
 }
 
-export type Trigger = "ON_CLICK" | "ON_HOVER" | "ON_PRESS" | "AFTER_TIMEOUT";
+export type Trigger =
+  | "ON_CLICK"
+  | "ON_HOVER"
+  | "ON_PRESS"
+  | "AFTER_TIMEOUT"
+  | "DRAG"
+  | "ON_KEY_DOWN";
 
 export type Action =
   | { kind: "navigate"; to: FigGuid; transition?: Transition }
@@ -246,7 +252,14 @@ export class FigmaBuilder {
     };
   }
 
-  on(node: FigGuid, trigger: Trigger, action: Action, timeoutMs = 0): void {
+  /** An interaction; `keyCodes` (browser key codes) for `ON_KEY_DOWN`. */
+  on(
+    node: FigGuid,
+    trigger: Trigger,
+    action: Action,
+    timeoutMs = 0,
+    keyCodes: number[] = [],
+  ): void {
     const target = this.node(node);
     target.prototypeInteractions ??= [];
     target.prototypeInteractions.push({
@@ -254,6 +267,9 @@ export class FigmaBuilder {
       event: {
         interactionType: trigger,
         ...(trigger === "AFTER_TIMEOUT" ? { transitionTimeout: timeoutMs / 1000 } : {}),
+        ...(trigger === "ON_KEY_DOWN"
+          ? { keyTrigger: { keyCodes, triggerDevice: "KEYBOARD" } }
+          : {}),
       },
       actions: [prototypeAction(action)],
       isDeleted: false,

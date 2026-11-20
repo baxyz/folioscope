@@ -1,5 +1,5 @@
 ---
-source: crates/folioscope-core/tests/fig.rs
+source: crates/folioscope/tests/figma.rs
 expression: summarize(&file).to_string()
 ---
 fig-kiwi v101
@@ -7,8 +7,12 @@ page "Prototype" (0:1)
   frame "Splash" (1:1) 375x812 at 0,0, starts flow "Triggers flow"
     "Splash" (1:1) AFTER_TIMEOUT 1500ms -> navigate "Home" (1:2) with DISSOLVE 500ms OUT_CUBIC
   frame "Home" (1:2) 375x812 at 475,0
+    "Home" (1:2) ON_KEY_DOWN -> navigate "Details" (1:12) with SLIDE_FROM_RIGHT 300ms OUT_CUBIC
     "Button" (1:6) ON_HOVER -> navigate "Home, button hovered" (1:3) with INSTANT_TRANSITION OUT_CUBIC
     "Button" (1:6) ON_PRESS -> navigate "Home, button pressed" (1:4) with INSTANT_TRANSITION OUT_CUBIC
+    "Swipe card" (1:14) DRAG -> navigate "Details" (1:12) with SLIDE_FROM_RIGHT 300ms OUT_CUBIC
   frame "Home, button hovered" (1:3) 375x812 at 950,0
     "Button" (1:9) ON_PRESS -> navigate "Home, button pressed" (1:4) with INSTANT_TRANSITION OUT_CUBIC
   frame "Home, button pressed" (1:4) 375x812 at 1425,0
+  frame "Details" (1:12) 375x812 at 1900,0
+    "Back" (1:16) ON_CLICK -> back
