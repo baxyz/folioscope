@@ -178,3 +178,78 @@ mod features {
         );
     }
 }
+
+mod effects {
+    //! The effects of `fixtures/penpot/features.penpot`.
+    use folioscope::bake::draw::Draw;
+    use folioscope::bake::fonts::FontLibrary;
+    use folioscope::bake::penpot::PenpotDraw;
+    use folioscope::bake::text::Typesetter;
+    use folioscope::penpot::{decode, ir::to_ir};
+
+    fn svg() -> String {
+        let root = format!("{}/../../fixtures", env!("CARGO_MANIFEST_DIR"));
+        let file =
+            decode(&std::fs::read(format!("{root}/penpot/features.penpot")).unwrap()).unwrap();
+        let ir = to_ir(&file);
+        let mut fonts = FontLibrary::default();
+        let inter = std::fs::read(format!("{root}/fonts/Inter-Latin.ttf")).unwrap();
+        fonts.add("Inter-Latin.ttf", &inter).unwrap();
+        let mut draw = PenpotDraw::new(&file, Typesetter::new(fonts));
+        let home = ir.pages[0]
+            .frames
+            .iter()
+            .find(|f| f.name == "Home")
+            .unwrap();
+        let svg = draw.frame(home).unwrap();
+        assert!(draw.missing_fonts().is_empty());
+        folioscope::bake::rasterize(&svg, 1.0).unwrap();
+        svg
+    }
+
+    #[test]
+    fn penpot_effects() {
+        let svg = svg();
+        assert!(
+            svg.contains(r#"operator="arithmetic" k1="-1""#),
+            "inner shadow"
+        );
+        assert!(
+            svg.contains("<feGaussianBlur stdDeviation=\"4\"/>"),
+            "layer blur"
+        );
+        assert!(svg.contains("mix-blend-mode:screen"), "blend mode");
+    }
+
+    #[test]
+    fn penpot_strokes_and_paths() {
+        let svg = svg();
+        assert!(
+            svg.contains(r#"stroke-width="8""#),
+            "inside and outside strokes"
+        );
+        assert!(
+            svg.contains("M803.0,492.0L813.0,502.0L835.0,480.0"),
+            "a path as SVG data"
+        );
+        assert!(svg.contains(r#"stroke-linecap="round""#), "round caps");
+    }
+
+    #[test]
+    fn penpot_svg_raw() {
+        let svg = svg();
+        assert!(
+            svg.contains(
+                r##"<rect fill="#EC4899" height="16" rx="4" width="40" x="300" y="536"/>"##
+            )
+        );
+        // The imported text, laid out with Inter, in its colour.
+        assert!(svg.contains(r##"fill="#6B7280""##));
+    }
+
+    #[test]
+    fn penpot_text_decoration() {
+        // The underlined run ends with a rectangle as wide as itself.
+        assert!(svg().contains("v1.2857143h-"), "underline");
+    }
+}

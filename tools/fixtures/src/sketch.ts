@@ -188,7 +188,8 @@ export class SketchBuilder {
       curveMode: 2,
       point: p,
     });
-    const k = 0.22385762510000001;
+    // The Bézier handle length of a quarter circle, as a share of the diameter.
+    const k = 0.27614237490000004;
     const oval: FileFormat.Oval = {
       ...this.base(name, box),
       _class: "oval",
@@ -251,8 +252,8 @@ export class SketchBuilder {
     (layer as FileFormat.Rectangle).hasClippingMask = true;
   }
 
-  /** Replaces a layer's first fill with a linear (0) or radial (1) gradient between two colours. */
-  gradient(layer: Layer, type: 0 | 1, from: string, to: string): void {
+  /** Replaces a layer's first fill with a linear (0), radial (1) or angular (2) gradient. */
+  gradient(layer: Layer, type: 0 | 1 | 2, from: string, to: string): void {
     const fill = (layer as FileFormat.Rectangle).style!.fills![0]!;
     fill.fillType = 1 as FileFormat.FillType;
     fill.gradient = {
@@ -268,6 +269,59 @@ export class SketchBuilder {
     };
   }
 
+  /** Adds an inner shadow. */
+  innerShadow(layer: Layer, offsetY: number, blur: number, hex: string): void {
+    (layer as FileFormat.Rectangle).style!.innerShadows!.push({
+      _class: "innerShadow",
+      isEnabled: true,
+      blurRadius: blur,
+      color: color(hex),
+      contextSettings: { _class: "graphicsContextSettings", blendMode: 0, opacity: 1 },
+      offsetX: 0,
+      offsetY,
+      spread: 0,
+    });
+  }
+
+  /** A blur: 0 Gaussian (the layer), 3 background. */
+  blur(layer: Layer, type: 0 | 3, radius: number): void {
+    const style = (layer as FileFormat.Rectangle).style!;
+    style.blur = { ...style.blur!, isEnabled: true, type: type as FileFormat.BlurType, radius };
+  }
+
+  /** A blend mode, as Sketch numbers them (2 multiply). */
+  blend(layer: Layer, mode: number): void {
+    (layer as FileFormat.Rectangle).style!.contextSettings!.blendMode =
+      mode as FileFormat.BlendMode;
+  }
+
+  /** A border: position 0 centre, 1 inside, 2 outside. */
+  border(layer: Layer, hex: string, thickness: number, position: 0 | 1 | 2): void {
+    (layer as FileFormat.Rectangle).style!.borders!.push({
+      _class: "border",
+      isEnabled: true,
+      color: color(hex),
+      fillType: 0 as FileFormat.FillType,
+      position: position as FileFormat.BorderPosition,
+      thickness,
+      contextSettings: { _class: "graphicsContextSettings", blendMode: 0, opacity: 1 },
+      gradient: {
+        _class: "gradient",
+        gradientType: 0,
+        elipseLength: 0,
+        from: "{0.5, 0}",
+        to: "{0.5, 1}",
+        stops: [],
+      },
+    });
+  }
+
+  /** Makes `layer` an alpha mask: its transparency masks the layers after it in its group. */
+  alphaMask(layer: Layer): void {
+    (layer as FileFormat.Rectangle).hasClippingMask = true;
+    (layer as FileFormat.Rectangle).clippingMaskMode = 1;
+  }
+
   /** Adds a drop shadow. */
   shadow(layer: Layer, offsetY: number, blur: number, hex: string): void {
     (layer as FileFormat.Rectangle).style!.shadows!.push({
@@ -280,6 +334,50 @@ export class SketchBuilder {
       offsetY,
       spread: 0,
     });
+  }
+
+  /**
+   * A text of several runs, each in its own font, colour and decorations; `width` makes it wrap.
+   */
+  richText(
+    artboard: FileFormat.Artboard,
+    name: string,
+    box: Box,
+    runs: {
+      text: string;
+      font: string;
+      size: number;
+      fill: string;
+      underline?: boolean;
+      strike?: boolean;
+    }[],
+  ): FileFormat.Text {
+    const text = this.text(artboard, name, box, runs.map((r) => r.text).join(""), {
+      name: runs[0]!.font,
+      size: runs[0]!.size,
+    });
+    let location = 0;
+    text.attributedString.attributes = runs.map((run) => {
+      const attribute: FileFormat.StringAttribute = {
+        _class: "stringAttribute",
+        location,
+        length: run.text.length,
+        attributes: {
+          MSAttributedStringFontAttribute: {
+            _class: "fontDescriptor",
+            attributes: { name: run.font, size: run.size },
+          },
+          MSAttributedStringColorAttribute: color(run.fill),
+          paragraphStyle: { _class: "paragraphStyle", alignment: 0 },
+          kerning: 0,
+          ...(run.underline ? { underlineStyle: 1 } : {}),
+          ...(run.strike ? { strikethroughStyle: 1 } : {}),
+        },
+      };
+      location += run.text.length;
+      return attribute;
+    });
+    return text;
   }
 
   /** An invisible clickable area, Sketch's way to add a link without a visible layer. */
