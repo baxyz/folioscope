@@ -316,6 +316,20 @@ export class SketchBuilder {
     });
   }
 
+  /** The device the artboard is prototyped on: a viewport smaller than it makes it scroll. */
+  viewport(artboard: FileFormat.Artboard, name: string, width: number, height: number): void {
+    artboard.prototypeViewport = {
+      _class: "MSImmutablePrototypeViewport",
+      name,
+      size: `{${width}, ${height}}`,
+    };
+  }
+
+  /** Keeps a layer in place while its artboard scrolls. */
+  fixed(layer: Layer): void {
+    (layer as FileFormat.Rectangle).isFixedToViewport = true;
+  }
+
   /** Makes `layer` an alpha mask: its transparency masks the layers after it in its group. */
   alphaMask(layer: Layer): void {
     (layer as FileFormat.Rectangle).hasClippingMask = true;

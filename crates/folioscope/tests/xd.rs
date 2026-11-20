@@ -188,6 +188,12 @@ mod features {
         assert_eq!(splash.trigger, Trigger::AfterDelay { delay_ms: 1500 });
         let open = &frame(&ir, "Home").hotspots[0].interactions[0];
         assert_eq!(open.trigger, Trigger::Click);
+        let peek = frame(&ir, "Home")
+            .hotspots
+            .iter()
+            .find(|h| h.name == "Peek")
+            .unwrap();
+        assert_eq!(peek.interactions[0].trigger, Trigger::Hover);
         assert!(matches!(
             frame(&ir, "Details").hotspots[0].interactions[0].action,
             Action::Back

@@ -22,6 +22,7 @@ const site = bakeFixtures([
   "penpot/navigation.penpot",
   "xd/navigation.xd",
   "xd/scroll.xd",
+  "sketch/scroll.sketch",
   "xd/overlay.xd",
 ]);
 // Raw design files for the full player: one alone, one next to its baked .folio.
@@ -342,6 +343,26 @@ try {
   await tab.locator('folioscope-player .content button[aria-label="Open details"]').click();
   await settledOn("Details");
   console.log("✓ xd: an artboard taller than its viewport scrolls");
+
+  // The same with a .sketch prototype viewport, under a header fixed in place.
+  await tab.goto(`${server.origin}/?folio=sketch-scroll`);
+  await settledOn("Feed");
+  const sketchScroller = tab.locator("folioscope-player .frame .scroll");
+  const viewport = (await sketchScroller.boundingBox())!;
+  assert.ok(Math.abs(viewport.height - 812) < 1, "the frame is as tall as the prototype viewport");
+  const sketchLayers = await tab.evaluate(
+    () =>
+      document.querySelector("folioscope-player")!.shadowRoot!.querySelectorAll(".frame img")
+        .length,
+  );
+  assert.equal(sketchLayers, 3, "background, scrolling content, fixed header");
+  await tab.mouse.move(viewport.x + viewport.width / 2, viewport.y + viewport.height / 2);
+  await tab.mouse.wheel(0, 2000);
+  await tab.locator('folioscope-player .content button[aria-label="Open details"]').click();
+  await settledOn("Details");
+  console.log(
+    "✓ sketch: an artboard taller than its prototype viewport scrolls under fixed layers",
+  );
 
   // An .xd overlay opens where XD puts it (a bottom sheet) and "previous artboard" closes it.
   await tab.goto(`${server.origin}/?folio=xd-overlay`);
