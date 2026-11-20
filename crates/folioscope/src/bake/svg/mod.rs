@@ -17,7 +17,9 @@ use crate::kiwi::Value;
 use path::path_commands;
 
 use crate::bake::fonts::weight_of_style;
+use crate::bake::fx;
 use crate::bake::text::{Align, Paragraph, Typesetter};
+use helpers4::geometry::Matrix;
 
 mod paint;
 pub(crate) use paint::mime;
@@ -121,6 +123,7 @@ pub fn render_component_state<'t>(
         typesetter,
         missing_fonts: BTreeSet::new(),
         shifts: HashMap::new(),
+        backdrop: Backdrop::default(),
     };
     ctx.node(root, true);
     Some(svg(&ctx, size))
@@ -207,6 +210,10 @@ fn render(
         typesetter: None,
         missing_fonts: BTreeSet::new(),
         shifts: HashMap::new(),
+        backdrop: Backdrop {
+            root: Some(node.id),
+            ..Backdrop::default()
+        },
     };
     ctx.node(node, true);
     svg(&ctx, (width, height))
@@ -255,12 +262,30 @@ struct Ctx<'t, 'a> {
     missing_fonts: BTreeSet<String>,
     /// How far auto layout moves a node of an instance from where its component has it: `(x, y)`.
     shifts: HashMap<NodeId, (f32, f32)>,
+    /// What background blurs need: see [`Backdrop`].
+    backdrop: Backdrop,
+}
+
+/// A background blur shows what is drawn behind its node, blurred, inside the node's outline. SVG
+/// cannot read what is behind an element, so the frame is drawn a second time, up to that node,
+/// into `defs`, and used there.
+#[derive(Default)]
+struct Backdrop {
+    /// The frame drawn, when a second drawing of it is possible (not for a component's state).
+    root: Option<NodeId>,
+    /// Prefix of the ids of a second drawing, unique in the document.
+    prefix: String,
+    /// In a second drawing: the node to stop before, and whether it was reached.
+    stop_at: Option<NodeId>,
+    stopped: bool,
+    /// Each open node's transform from the frame, the innermost last.
+    matrices: Vec<Matrix>,
 }
 
 impl Ctx<'_, '_> {
     fn id(&mut self, prefix: &str) -> String {
         self.next_id += 1;
-        format!("{prefix}{}", self.next_id)
+        format!("{}{prefix}{}", self.backdrop.prefix, self.next_id)
     }
 
     fn node(&mut self, node: &Node<'_>, root: bool) {
@@ -275,12 +300,31 @@ impl Ctx<'_, '_> {
         if matches!(v.get("visible"), Some(Value::Bool(false))) || self.hidden.contains(&node.id) {
             return;
         }
+        if self.backdrop.stopped || self.backdrop.stop_at == Some(node.id) {
+            self.backdrop.stopped = true;
+            return;
+        }
 
         let mut open = 0;
         let mut attrs = String::new();
+        let parent = self
+            .backdrop
+            .matrices
+            .last()
+            .copied()
+            .unwrap_or(Matrix::IDENTITY);
+        let mut local = Matrix::IDENTITY;
         if !root && let Some(m) = v.get("transform") {
             let f = |k: &str| m.get(k).and_then(Value::as_f32).unwrap_or(0.0);
             let (dx, dy) = self.shifts.get(&node.id).copied().unwrap_or((0.0, 0.0));
+            local = Matrix::new(
+                f64::from(f("m00")),
+                f64::from(f("m10")),
+                f64::from(f("m01")),
+                f64::from(f("m11")),
+                f64::from(f("m02") + dx),
+                f64::from(f("m12") + dy),
+            );
             // SVG's matrix(a b c d e f) is column-major: Figma's m00 m10 m01 m11 m02 m12.
             let _ = write!(
                 attrs,
@@ -298,22 +342,23 @@ impl Ctx<'_, '_> {
         {
             let _ = write!(attrs, r#" opacity="{opacity}""#);
         }
+        if !root {
+            attrs.push_str(&fx::blend_style(
+                v.get("blendMode")
+                    .and_then(Value::as_str)
+                    .and_then(fx::blend),
+            ));
+        }
         let _ = write!(self.body, "<g{attrs}>");
         open += 1;
 
+        self.backdrop.matrices.push(parent.multiply(local));
         let paint = !root || self.root.paint;
-        for effect in v
-            .get("effects")
-            .map_or(&[][..], Value::as_array)
-            .iter()
-            .filter(|_| paint)
-        {
-            if effect.get("type").and_then(Value::as_str) == Some("DROP_SHADOW") && visible(effect)
-            {
-                let filter = self.drop_shadow(effect);
-                let _ = write!(self.body, r#"<g filter="url(#{filter})">"#);
-                open += 1;
-            }
+        if paint && !root {
+            self.background_blur(node);
+        }
+        if paint {
+            open += self.effects(v);
         }
 
         if node.kind == "TEXT" {
@@ -333,6 +378,64 @@ impl Ctx<'_, '_> {
         for _ in 0..open {
             self.body.push_str("</g>");
         }
+        self.backdrop.matrices.pop();
+    }
+
+    /// Draws what is behind `node`, blurred, inside its outline, when it has a background blur.
+    fn background_blur(&mut self, node: &Node<'_>) {
+        let Some(radius) = node
+            .value
+            .get("effects")
+            .map_or(&[][..], Value::as_array)
+            .iter()
+            .find(|e| {
+                visible(e) && e.get("type").and_then(Value::as_str) == Some("BACKGROUND_BLUR")
+            })
+            .and_then(|e| e.get("radius").and_then(Value::as_f32))
+        else {
+            return;
+        };
+        let Some(root) = self.backdrop.root.and_then(|id| self.tree.get(id)) else {
+            return;
+        };
+        // The frame again, up to this node, with ids of its own.
+        let prefix = format!("{}b{}_", self.backdrop.prefix, self.next_id + 1);
+        self.next_id += 1;
+        let mut behind = Ctx {
+            tree: self.tree,
+            defs: String::new(),
+            body: String::new(),
+            next_id: 0,
+            hidden: self.hidden.clone(),
+            root: self.root,
+            overrides: Overrides::default(),
+            typesetter: None,
+            missing_fonts: BTreeSet::new(),
+            shifts: HashMap::new(),
+            backdrop: Backdrop {
+                root: None,
+                prefix: prefix.clone(),
+                stop_at: Some(node.id),
+                ..Backdrop::default()
+            },
+        };
+        behind.node(root, true);
+        let Some(to_node) = self.backdrop.matrices.last().and_then(|m| m.invert()) else {
+            return;
+        };
+        let (clip, blur) = (self.id("c"), self.id("f"));
+        let outline = self.outline(node.value);
+        let _ = write!(
+            self.defs,
+            r#"{}<g id="{prefix}frame">{}</g><clipPath id="{clip}">{outline}</clipPath>"#,
+            behind.defs, behind.body
+        );
+        fx::layer_blur(&mut self.defs, &blur, f64::from(radius));
+        let _ = write!(
+            self.body,
+            r##"<g clip-path="url(#{clip})"><g transform="matrix({} {} {} {} {} {})"><g filter="url(#{blur})"><use href="#{prefix}frame"/></g></g></g>"##,
+            to_node.a, to_node.b, to_node.c, to_node.d, to_node.e, to_node.f
+        );
     }
 
     fn children(&mut self, node: &Node<'_>, root: bool) {
@@ -496,8 +599,18 @@ impl Ctx<'_, '_> {
         // Files written by other tools may omit the cached geometry of simple shapes.
         if shapes.is_empty() && fallback_to_bounds {
             let (w, h) = size(v);
-            let r = v.get("cornerRadius").and_then(Value::as_f32).unwrap_or(0.0);
-            shapes.push(format!(r#"<rect width="{w}" height="{h}" rx="{r}""#));
+            if v.get("type").and_then(Value::as_str) == Some("ELLIPSE") {
+                shapes.push(format!(
+                    r#"<ellipse cx="{}" cy="{}" rx="{}" ry="{}""#,
+                    w / 2.0,
+                    h / 2.0,
+                    w / 2.0,
+                    h / 2.0
+                ));
+            } else {
+                let r = v.get("cornerRadius").and_then(Value::as_f32).unwrap_or(0.0);
+                shapes.push(format!(r#"<rect width="{w}" height="{h}" rx="{r}""#));
+            }
         }
         let (w, h) = size(v);
         for paint in paints {
