@@ -50,8 +50,8 @@ pub struct BakeOptions {
     pub densities: Vec<u8>,
     /// Encode large, photo-like layers as AVIF when it beats lossless WebP (see `image`).
     pub avif: bool,
-    /// Serve a layer as its SVG when it holds no image or filter and weighs less than its densest
-    /// raster (ADR 0006).
+    /// Serve a layer as its SVG when it holds no image or filter and weighs less than its lightest
+    /// image (ADR 0006).
     pub svg: bool,
     /// The most states baked per interactive component (ADR 0007); the others stay unreachable,
     /// and the report lists the component.
@@ -318,35 +318,41 @@ fn encode_layer(
 ) -> Result<(String, ImageFormat), LayerError> {
     let src = hash(markup);
     let mut format = None;
+    let mut files = Vec::with_capacity(densities.len());
     for &density in densities {
         let pixmap = render_pixmap(markup, f32::from(density)).map_err(LayerError::Render)?;
         let (chosen, bytes) = match format {
             None => encode_best(&pixmap, options.avif).map_err(LayerError::Render)?,
             Some(f) => (f, encode(&pixmap, f).map_err(LayerError::Render)?),
         };
-        // The densest raster against the SVG, both as a server sends them (WebP and AVIF do not
-        // shrink when gzipped): the SVG is one file for every density, and sharp at any zoom.
-        if format.is_none()
-            && options.svg
-            && svg_eligible(markup)
-            && gzipped_len(markup) < bytes.len()
-        {
-            report.bytes += markup.len();
-            report.layers += 1;
-            report.svg_layers += 1;
-            sink(&format!("layers/{src}.svg"), markup.as_bytes()).map_err(LayerError::Sink)?;
-            return Ok((src, ImageFormat::Svg));
-        }
         format = Some(chosen);
+        files.push((density, bytes));
+    }
+    // The SVG against the lightest image, both as a server sends them (WebP and AVIF do not
+    // shrink when gzipped): served as SVG, the layer is never heavier for any visitor, and it is
+    // one file for every density, sharp at any zoom.
+    let lightest = files.iter().map(|(_, bytes)| bytes.len()).min();
+    if options.svg
+        && svg_eligible(markup)
+        && lightest.is_some_and(|lightest| gzipped_len(markup) < lightest)
+    {
+        report.bytes += markup.len();
+        report.layers += 1;
+        report.svg_layers += 1;
+        sink(&format!("layers/{src}.svg"), markup.as_bytes()).map_err(LayerError::Sink)?;
+        return Ok((src, ImageFormat::Svg));
+    }
+    let format = format.unwrap_or(ImageFormat::Webp);
+    for (density, bytes) in files {
         report.bytes += bytes.len();
         report.layers += 1;
         sink(
-            &format!("layers/{src}@{density}x.{}", chosen.extension()),
+            &format!("layers/{src}@{density}x.{}", format.extension()),
             bytes.as_slice(),
         )
         .map_err(LayerError::Sink)?;
     }
-    Ok((src, format.unwrap_or(ImageFormat::Webp)))
+    Ok((src, format))
 }
 
 /// Receives each baked file: its path inside the `.folio` folder, and its bytes.

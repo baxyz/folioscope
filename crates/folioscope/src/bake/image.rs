@@ -2,7 +2,7 @@
 
 //! Layer image formats (ADR 0004, ADR 0006): lossless WebP by default, AVIF when it is much
 //! smaller (photos), and the layer's SVG itself when it holds no image or filter and weighs less
-//! than its densest raster.
+//! than its lightest image.
 
 use resvg::tiny_skia::Pixmap;
 use serde::Serialize;
