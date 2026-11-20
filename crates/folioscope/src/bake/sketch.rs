@@ -12,6 +12,7 @@ use std::fmt::Write as _;
 
 use crate::ir::{self, Rect};
 use crate::sketch::SketchFile;
+use helpers4::color::Rgba;
 use serde_json::Value;
 
 use crate::bake::draw::Draw;
@@ -81,7 +82,7 @@ impl Draw for SketchDraw<'_> {
         let background = if artboard["hasBackgroundColor"] == true {
             color(&artboard["backgroundColor"])
         } else {
-            ("rgb(255,255,255)".to_owned(), 1.0)
+            ("rgb(255 255 255)".to_owned(), 1.0)
         };
         let _ = write!(
             svg.body,
@@ -512,10 +513,11 @@ fn n(value: &Value, key: &str) -> f32 {
 
 /// `(css rgb, alpha)` from a Sketch colour with 0–1 channels.
 fn color(c: &Value) -> (String, f64) {
-    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-    let byte = |k: &str| (c[k].as_f64().unwrap_or(0.0).clamp(0.0, 1.0) * 255.0).round() as u8;
+    let unit = |k: &str| c[k].as_f64().unwrap_or(0.0);
     (
-        format!("rgb({},{},{})", byte("red"), byte("green"), byte("blue")),
+        Rgba::from_unit(unit("red"), unit("green"), unit("blue"), 1.0)
+            .to_rgb()
+            .to_css(),
         c["alpha"].as_f64().unwrap_or(1.0),
     )
 }
