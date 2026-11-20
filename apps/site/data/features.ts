@@ -94,7 +94,7 @@ export const FEATURES: Feature[] = [
       fig: works("e2e: hover and press: a frame while they last, then back"),
       sketch: na,
       penpot: works("rust: penpot_triggers"),
-      xd: todo("XD has hover triggers; none of our files uses one"),
+      xd: unverified("rust: xd_triggers", XD_CHECK, "hover"),
     },
   },
   {
@@ -127,11 +127,16 @@ export const FEATURES: Feature[] = [
       fig: works(
         "e2e: scroll: the content scrolls under fixed layers, scroll to reaches its target",
       ),
-      sketch: todo("Sketch's prototypeViewport is not read yet"),
-      penpot: todo("scrolling boards are not read yet"),
+      sketch: unverified(
+        "e2e: sketch: an artboard taller than its prototype viewport scrolls under fixed layers",
+        SKETCH_CHECK,
+      ),
+      penpot: todo(
+        "Penpot shows a board at its size and the browser scrolls the page; a player that keeps a device's height would scroll it",
+      ),
       xd: works(
         "e2e: xd: an artboard taller than its viewport scrolls",
-        "elements fixed while the artboard scrolls are not read yet",
+        "elements fixed while it scrolls are not read: an .xd file with one would show how XD stores them",
       ),
     },
   },
@@ -182,7 +187,7 @@ export const FEATURES: Feature[] = [
       fig: works("rust: figma_ir_reads_open_url"),
       sketch: na,
       penpot: works("rust: penpot_triggers"),
-      xd: todo("not read yet"),
+      xd: na,
     },
   },
   {
