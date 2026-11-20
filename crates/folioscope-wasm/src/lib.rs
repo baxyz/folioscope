@@ -24,7 +24,10 @@ struct DeclaredFont {
 /// Returns `{ files, missingFonts }`: a `Map` from paths inside the `.folio` folder (`index.json`,
 /// `poster.webp`, `layers/…`) to their bytes, and the fonts some text needed and was not given
 /// (`Family Style`), plus the given files that are not fonts. `densities` (1x and 2x when absent)
-/// lets the browser bake only the one its screen needs.
+/// lets the browser bake only the one its screen needs. `svg` (true when absent) serves a layer as
+/// its SVG when it holds no image or filter and is lighter (ADR 0006); `max_states` (16 when
+/// absent) caps the states baked per interactive component (ADR 0007), and the result's
+/// `cappedComponents` lists those it cut, as `Component (frame): 16 of 40 states`.
 ///
 /// # Errors
 ///
@@ -37,6 +40,8 @@ pub fn bake(
     fonts: &Map,
     densities: Option<Vec<u8>>,
     hints: Option<String>,
+    svg: Option<bool>,
+    max_states: Option<u32>,
 ) -> Result<Object, JsError> {
     let declared: Vec<DeclaredFont> = match hints.as_deref().filter(|h| !h.is_empty()) {
         Some(json) => {
@@ -62,9 +67,13 @@ pub fn bake(
     let files = Map::new();
     let mut options = BakeOptions {
         avif,
+        svg: svg.unwrap_or(true),
         fonts: library,
         ..BakeOptions::default()
     };
+    if let Some(max) = max_states.filter(|&m| m > 0) {
+        options.max_states = max as usize;
+    }
     if let Some(densities) = densities.filter(|d| !d.is_empty()) {
         options.densities = densities;
     }
@@ -77,7 +86,19 @@ pub fn bake(
         .chain(&report.missing_fonts)
         .map(|font| JsValue::from(font.as_str()))
         .collect();
+    let capped: Array = report
+        .capped_components
+        .iter()
+        .map(|c| {
+            JsValue::from(format!(
+                "{} ({}): {} of {} states",
+                c.name, c.frame, c.kept, c.states
+            ))
+        })
+        .collect();
     let result = Object::new();
+    Reflect::set(&result, &"cappedComponents".into(), &capped)
+        .map_err(|_| JsError::new("result"))?;
     Reflect::set(&result, &"files".into(), &files).map_err(|_| JsError::new("result"))?;
     Reflect::set(&result, &"missingFonts".into(), &missing).map_err(|_| JsError::new("result"))?;
     Ok(result)
