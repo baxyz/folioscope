@@ -12,6 +12,7 @@ import {
 } from "./folio.ts";
 import { CONTROLS_STYLE, Controls } from "./controls.ts";
 import { mediaTypeOfPath } from "helpers4/binary";
+import { fetchJson } from "helpers4/fetch";
 import { contains, fitContain } from "helpers4/geometry";
 import { thumbHashToDataURL } from "thumbhash";
 import {
@@ -258,9 +259,8 @@ export class FolioscopePlayer extends BaseElement {
       : src.endsWith("/")
         ? src
         : `${src}/`;
-    const response = await fetch(`${this.base}index.json`);
-    if (!response.ok) throw new Error(`${this.base}index.json: HTTP ${response.status}`);
-    return (await response.json()) as FolioIndex;
+    // Retried on a network error or a 5xx; a 404 fails at once.
+    return fetchJson<FolioIndex>(`${this.base}index.json`);
   }
 
   /**

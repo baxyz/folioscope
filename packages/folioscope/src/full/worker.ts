@@ -2,6 +2,7 @@
 // The bake worker: fetches a design file, bakes it with the WebAssembly bake, and caches the result
 // by the file's hash (Cache API), so a second visit skips the bake.
 import { createFileStore, sha256Hex } from "helpers4/browser";
+import { fetchOrThrow } from "helpers4/fetch";
 import type { BakeMessage, BakeRequest, FontDeclaration } from "./index.ts";
 
 interface Glue {
@@ -16,7 +17,7 @@ interface Glue {
 }
 
 /** Bumped when the bake's output changes, so stale entries are not reused. */
-const CACHE_VERSION = "3";
+const CACHE_VERSION = "4";
 const store = createFileStore("folioscope");
 /** Where the cache keeps the fonts the bake lacked, with the files. */
 const MISSING_FONTS = "missing-fonts.json";
@@ -70,9 +71,8 @@ async function loadFonts(declared: FontDeclaration[]) {
 
 async function bake({ url, density, fonts: declared }: BakeRequest): Promise<void> {
   post({ type: "progress", value: "download" });
-  const [response, loaded] = await Promise.all([fetch(url), loadFonts(declared)]);
+  const [response, loaded] = await Promise.all([fetchOrThrow(url), loadFonts(declared)]);
   if (declared.length) post({ type: "progress", value: "fonts" });
-  if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
   const source = new Uint8Array(await response.arrayBuffer());
   // What decides the bake: the file, and the fonts with what is said about them.
   const hintsJson = JSON.stringify(loaded.hints);
