@@ -6,6 +6,7 @@
 pub mod draw;
 pub mod folio;
 pub mod fonts;
+pub mod fx;
 pub mod image;
 pub mod penpot;
 pub mod sketch;
