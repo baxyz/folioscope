@@ -123,7 +123,9 @@ export interface Interaction {
 export type Trigger =
   | { type: "click" | "hover" | "press" | "mouseEnter" | "mouseLeave" | "mouseDown" | "mouseUp" }
   | { type: "afterDelay"; delayMs: number }
-  | { type: "drag" | "key" }
+  | { type: "drag" }
+  /** Browser key codes pressed together; any key when absent. */
+  | { type: "key"; codes?: number[] }
   | { type: "other"; name: string };
 
 export type Action =

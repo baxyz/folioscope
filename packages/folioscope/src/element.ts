@@ -159,7 +159,12 @@ export class FolioscopePlayer extends BaseElement {
       this.release((hold) => hold.kind === "hover"),
     );
     this.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && this.runtime?.canGoBack) {
+      const top = this.runtime?.top;
+      const action = top && keyAction(top, event);
+      if (action) {
+        event.preventDefault();
+        void this.show(this.runtime?.run(action));
+      } else if (event.key === "Escape" && this.runtime?.canGoBack) {
         event.preventDefault();
         void this.show(this.runtime.back());
       }
@@ -647,6 +652,31 @@ export class FolioscopePlayer extends BaseElement {
   private emit(type: string, detail: object): void {
     this.dispatchEvent(new CustomEvent(type, { detail, bubbles: true, composed: true }));
   }
+}
+
+/** Key codes of the modifier keys, which a key trigger lists with the key they go with. */
+const MODIFIERS: Record<number, (event: KeyboardEvent) => boolean> = {
+  16: (e) => e.shiftKey,
+  17: (e) => e.ctrlKey,
+  18: (e) => e.altKey,
+  91: (e) => e.metaKey,
+  93: (e) => e.metaKey,
+};
+
+/** The action of the frame's key trigger the key press matches, if any. */
+function keyAction(frame: FolioFrame, event: KeyboardEvent): Action | undefined {
+  for (const hotspot of frame.hotspots) {
+    for (const { trigger, action } of hotspot.interactions) {
+      if (trigger.type !== "key") continue;
+      const codes = trigger.codes ?? [];
+      if (codes.length === 0) return action;
+      const keys = codes.filter((c) => !(c in MODIFIERS));
+      const held = codes.filter((c) => c in MODIFIERS);
+      // oxlint-disable-next-line typescript/no-deprecated -- the file stores key codes
+      if (keys.includes(event.keyCode) && held.every((c) => MODIFIERS[c]!(event))) return action;
+    }
+  }
+  return undefined;
 }
 
 /** Top-left corner of an overlay in the screen's coordinates. */
