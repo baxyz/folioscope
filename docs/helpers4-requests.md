@@ -1,21 +1,19 @@
 # helpers4: what is left
 
-Folioscope uses helpers4 for everything generic (npm `helpers4` 3.1.11, crate 0.0.11). Only what
-is still pending is listed here.
+Folioscope uses helpers4 for everything generic (npm `helpers4` 3.1.12, crate 0.0.11). No request
+to helpers4 is pending: what it lacks is handled in Folioscope, and listed here.
 
-## Waiting on helpers4
+## Handled in Folioscope
 
-- **WOFF2 in `font`** (Rust): `read_font_at`, `font_count` and `to_sfnt` read collections and
-  WOFF; only WOFF2 is missing (no Brotli, helpers4/rust#36). The bake opens WOFF2 with `wuff` and
-  hands the rest to helpers4.
+- **WOFF2** (Rust `font`): `read_font_at`, `font_count` and `to_sfnt` read collections and WOFF,
+  not WOFF2 (no Brotli decoder). The bake opens WOFF2 with `wuff` and hands the rest to helpers4.
 - **`/regex/` font rules** (Rust `string::parse_pattern`): same recognition as the TS
-  `parsePatternOrRegExp`, but it does not validate the regex source (helpers4/rust#35). The bake
-  will validate it when the rule lands.
+  `parsePatternOrRegExp`, but it does not validate the regex source. The bake will validate it
+  when the rule lands.
+- **The prototype's state machine** stays in `runtime.ts`, on helpers4's `createBackStack`: there
+  is no `fsm` module, and none is asked for. DOM needs are covered by `helpers4/browser`.
 
 ## Not adopted yet
 
-- **Rust `color`** (`Rgba::from_unit`, `to_css`): `to_css` writes `rgb(r g b)` on purpose, which
-  changes the SVG text and so the hash of every baked layer. Adopt it with the next change that
-  rebakes the demos anyway; no `to_css_legacy()` needed.
-- **TS** `animation`, `color`, `fetch`, `string` (`matchGlob`, `parsePatternOrRegExp`) and the rest of
-  `browser`: no need yet.
+- **TS** `animation` (beyond `spring` and `toCssLinear`), `color`, `string` (`matchGlob`,
+  `parsePatternOrRegExp`) and the rest of `browser`: no need yet.
