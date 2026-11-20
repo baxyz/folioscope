@@ -232,10 +232,53 @@ function components(): FigmaBuilder {
   figma.on(off, "ON_CLICK", { kind: "changeTo", to: on, transition: toggle });
   figma.on(on, "ON_CLICK", { kind: "changeTo", to: off, transition: toggle });
 
+  // A card that expands on click, with a switch inside its expanded state: an interactive
+  // component nested in another's state.
+  const card = { width: 327, height: 120 };
+  const cards = figma.componentSet(
+    library,
+    "Card",
+    { x: 0, y: 240, width: 375, height: 312 },
+    "Open",
+    ["false", "true"],
+  );
+  const closed = figma.variant(cards, "Open=false", { x: 24, y: 24, ...card }, GREY, 16);
+  const opened = figma.variant(cards, "Open=true", { x: 24, y: 168, ...card }, "#DBEAFE", 16);
+  figma.on(closed, "ON_CLICK", { kind: "changeTo", to: opened, transition: toggle });
+  const fold = figma.rect(opened, "Fold", { x: 16, y: 16, width: 120, height: 32 }, BLUE, 8);
+  figma.on(fold, "ON_CLICK", { kind: "changeTo", to: closed, transition: toggle });
+  figma.instance(opened, off, "Inner switch", { x: 247, y: 68, ...track });
+
+  // A toast that hides itself after a delay: "after delay" inside a state.
+  const toasts = figma.componentSet(
+    library,
+    "Toast",
+    { x: 400, y: 240, width: 280, height: 168 },
+    "Shown",
+    ["true", "false"],
+  );
+  const shown = figma.variant(
+    toasts,
+    "Shown=true",
+    { x: 24, y: 24, width: 232, height: 48 },
+    "#111827",
+    12,
+  );
+  const hidden = figma.variant(
+    toasts,
+    "Shown=false",
+    { x: 24, y: 96, width: 232, height: 48 },
+    "#FFFFFF",
+    12,
+  );
+  figma.on(shown, "AFTER_TIMEOUT", { kind: "changeTo", to: hidden, transition: toggle }, 1000);
+
   const home = figma.frame(page, "Home", { x: 0, y: 0, ...PHONE });
   figma.flowStart(home, "Components flow");
   figma.instance(home, idle, "Button", { x: 88, y: 640, ...size });
   figma.instance(home, off, "Switch", { x: 156, y: 400, ...track });
+  figma.instance(home, closed, "Card", { x: 24, y: 120, ...card });
+  figma.instance(home, shown, "Toast", { x: 72, y: 720, width: 232, height: 48 });
 
   return figma;
 }

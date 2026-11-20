@@ -341,6 +341,7 @@ fn states_past_the_cap_are_left_out_and_reported() {
                 name: v.to_owned(),
                 bounds,
                 hotspots: Vec::new(),
+                components: Vec::new(),
             })
             .to_vec(),
     });

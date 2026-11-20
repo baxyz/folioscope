@@ -278,6 +278,24 @@ try {
   assert.equal(await stateOf(toggleSwitch), "On=false");
   console.log("✓ components: variants change while hovering, while pressing and on click");
 
+  // A component nested in another's state plays on its own; "after delay" works in a state.
+  const cardZone = tab.locator('folioscope-player .component[data-state^="Open="]').first();
+  await cardZone.locator(":scope > button").first().click();
+  assert.equal(await cardZone.getAttribute("data-state"), "Open=true");
+  const inner = cardZone.locator(".component");
+  assert.equal(await inner.getAttribute("data-state"), "On=false");
+  await inner.locator("button").click();
+  assert.equal(await inner.getAttribute("data-state"), "On=true");
+  assert.equal(await cardZone.getAttribute("data-state"), "Open=true", "the card stays open");
+  await cardZone.locator(':scope > button[aria-label="Fold"]').click();
+  assert.equal(await cardZone.getAttribute("data-state"), "Open=false");
+  await tab.waitForFunction(() =>
+    [
+      ...document.querySelector("folioscope-player")!.shadowRoot!.querySelectorAll(".component"),
+    ].some((c) => c.getAttribute("data-state") === "Shown=false"),
+  );
+  console.log("✓ nested components: a component in another's state, and after delay in a state");
+
   // Smart animate: the parts of both frames, paired by name, move and fade; then the new frame.
   await tab.goto(`${server.origin}/?folio=smart-animate`);
   await settledOn("Home");
