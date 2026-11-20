@@ -16,7 +16,7 @@ use helpers4::font::is_italic;
 use helpers4::geometry::{Matrix, Rect as Box64, ellipse_path, rounded_rect_path};
 use serde_json::Value;
 
-use crate::bake::draw::Draw;
+use crate::bake::draw::{Draw, Part};
 use crate::bake::folio::BakeError;
 use crate::bake::fonts::weight_of_style;
 use crate::bake::fx;
@@ -158,7 +158,7 @@ impl Draw for XdDraw<'_> {
     }
 
     /// XD's auto-animate pairs layers by name: the background, then each child of the artboard.
-    fn parts(&mut self, frame: &ir::Frame) -> Vec<(String, String, Rect)> {
+    fn parts(&mut self, frame: &ir::Frame) -> Vec<Part> {
         let Some(artboard) = self.artboards.get(frame.id.as_str()).copied() else {
             return Vec::new();
         };
@@ -170,7 +170,13 @@ impl Draw for XdDraw<'_> {
         };
         let mut parts = Vec::new();
         if let Some(markup) = self.svg(frame, What::Background) {
-            parts.push((String::new(), markup, whole));
+            parts.push(Part {
+                name: String::new(),
+                markup,
+                bounds: whole,
+                matrix: None,
+                shape: None,
+            });
         }
         for child in children(artboard) {
             if child["visible"] == false {
@@ -189,11 +195,13 @@ impl Draw for XdDraw<'_> {
                 width: canvas.width as f32,
                 height: canvas.height as f32,
             };
-            parts.push((
-                child["name"].as_str().unwrap_or("").to_owned(),
+            parts.push(Part {
+                name: child["name"].as_str().unwrap_or("").to_owned(),
                 markup,
                 bounds,
-            ));
+                matrix: None,
+                shape: None,
+            });
         }
         parts
     }
