@@ -20,7 +20,8 @@ app.folio/
 ├─ poster.webp         # the first frame, for the poster attribute
 └─ layers/
    ├─ <hash>@1x.webp   # one file per layer and density, named by content hash
-   └─ <hash>@2x.avif   # WebP lossless, or AVIF for photo-like layers (below)
+   ├─ <hash>@2x.avif   # WebP lossless, or AVIF for photo-like layers (below)
+   └─ <hash>.svg       # or one SVG for every density, for flat layers (ADR 0006)
 ```
 
 - **A frame is a stack of layers** (background, scrolling content, fixed elements, overlays) plus
@@ -35,7 +36,7 @@ app.folio/
 - **An interactive component is one layer per state**, drawn through the overrides of the
   instances it sits in, and left out of its frame's layers. The player swaps its state in place;
   every state is fetched with the frame, so a change shows at once.
-- **Layers are named by a hash of their content** (SHA-256 of the pixels, 16 hex digits): an
+- **Layers are named by a hash of their content** (SHA-256 of the layer's SVG, 16 hex digits): an
   unchanged layer keeps its URL across bakes and stays in the HTTP cache. Identical layers in two
   frames are stored once.
 - **Layers are WebP lossless**, or **AVIF** (quality 80) when the WebP weighs 64 KB or more and
@@ -84,4 +85,4 @@ with Playwright: the delay, hover and press all swap images with no re-render.
   costs little while the lighter layers are downloaded by every visitor. The bake is
   deterministic, so the site demos are checked in CI.
 
-- Still open: SVG layers for simple shapes (D6).
+- A flat layer (no image, no filter) is served as its SVG when that is lighter: ADR 0006.
