@@ -470,6 +470,32 @@ function sketchFeatures(): SketchBuilder {
   return sketch;
 }
 
+/** An artboard taller than its viewport: it scrolls under a fixed header; a link at the bottom. */
+function sketchScroll(): SketchBuilder {
+  const sketch = new SketchBuilder();
+  const page = sketch.page("Prototype");
+  const feed = sketch.artboard(page, "Feed", { x: 0, y: 0, width: 375, height: 1600 }, "#F9FAFB");
+  const details = sketch.artboard(page, "Details", { x: 475, y: 0, ...PHONE });
+  sketch.viewport(feed, "iPhone", 375, 812);
+  sketch.flowHome(feed);
+  for (let i = 0; i < 6; i++) {
+    const card = { x: 16, y: 112 + i * 240, width: 343, height: 216 };
+    sketch.rect(feed, `Card ${i + 1}`, card, i % 2 ? GREY : "#DBEAFE", 16);
+  }
+  sketch.fixed(sketch.rect(feed, "Header", { x: 0, y: 0, width: 375, height: 96 }, BLUE));
+  const open = sketch.rect(
+    feed,
+    "Open details",
+    { x: 88, y: 1520, width: 200, height: 48 },
+    BLUE,
+    24,
+  );
+  sketch.link(open, details, "slideFromRight");
+  const back = sketch.rect(details, "Back", { x: 16, y: 56, width: 80, height: 32 }, GREY, 8);
+  sketch.link(back, "back", "slideFromLeft");
+  return sketch;
+}
+
 /**
  * Text in two fonts, neither stored in the file: Inter, and a brand font that only a rule can
  * stand in for. Sketch stores no glyphs, so a bake draws nothing without the fonts.
@@ -1075,6 +1101,8 @@ function xdFeatures(): XdBuilder {
 
   const open = xd.rect(home, "Open details", { x: 88, y: 640, width: 200, height: 48 }, BLUE, 24);
   xd.link(open, details, { action: "auto-animate", easing: "ease-in-out", duration: 0.4 });
+  const peek = xd.rect(home, "Peek", { x: 88, y: 720, width: 200, height: 32 }, GREY, 16);
+  xd.link(peek, details, { trigger: "hover", transition: "dissolve" });
   const back = xd.rect(details, "Back", { x: 16, y: 56, width: 80, height: 32 }, GREY, 8);
   xd.link(back, home, { action: "previous-artboard" });
   return xd;
@@ -1105,6 +1133,7 @@ const fixtures: Record<string, () => { toBytes(): Uint8Array }> = {
   "sketch/navigation.sketch": sketchNavigation,
   "sketch/text.sketch": sketchText,
   "sketch/features.sketch": sketchFeatures,
+  "sketch/scroll.sketch": sketchScroll,
   "penpot/navigation.penpot": penpotNavigation,
   "penpot/features.penpot": penpotFeatures,
   "xd/navigation.xd": xdNavigation,

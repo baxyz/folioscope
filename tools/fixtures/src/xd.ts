@@ -21,7 +21,7 @@ export interface XdLink {
   action?: "artboard-transition" | "auto-animate" | "overlay-transition" | "previous-artboard";
   /** Where an overlay's top-left corner goes, from the screen's. */
   position?: { x: number; y: number };
-  trigger?: "tap" | "time";
+  trigger?: "tap" | "time" | "hover" | "drag";
   transition?: XdTransition;
   /** Seconds. */
   duration?: number;
