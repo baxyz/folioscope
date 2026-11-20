@@ -31,6 +31,16 @@ export interface FolioscopeOptions {
    */
   avif?: boolean;
   /**
+   * Serve a flat screen (no image, no blur or shadow) as its SVG when it is lighter than its
+   * images: sharp at any zoom. Defaults to `true`.
+   */
+  svg?: boolean;
+  /**
+   * The most states drawn per interactive component; the others cannot be reached, and the build
+   * warns. Defaults to `16`.
+   */
+  maxStates?: number;
+  /**
    * Fonts for text the design file stores no glyphs for: font files, folders of them, or globs,
    * relative to the Vite root (TTF, OTF, TTC, WOFF, WOFF2). A `.fig` file rarely needs any. An
    * object says more about the fonts it names than their files do.
@@ -71,11 +81,13 @@ interface Wasm {
     fonts: Map<string, Uint8Array>,
     densities?: Uint8Array,
     hints?: string,
-  ): { files: Map<string, Uint8Array>; missingFonts: string[] };
+    svg?: boolean,
+    maxStates?: number,
+  ): { files: Map<string, Uint8Array>; missingFonts: string[]; cappedComponents: string[] };
 }
 
 /** Bumped when the bake's output changes, so stale cache entries are not reused. */
-const CACHE_VERSION = "4";
+const CACHE_VERSION = "5";
 
 const FONT_FILE = /\.(ttf|otf|ttc|woff2?)$/i;
 
@@ -155,10 +167,26 @@ export function folioscope(options: FolioscopeOptions = {}): Plugin {
   const bake = (path: string): Promise<Folio> => {
     let folio = baked.get(path);
     if (!folio) {
-      folio = bakeCached(path, cacheDir, options.avif ?? true, loadFonts(), (font) =>
-        config.logger.warn(
-          `folioscope: ${relative(config.root, path)}: no font for ${font}; its text is left out or keeps another style (fonts option)`,
-        ),
+      const file = relative(config.root, path);
+      folio = bakeCached(
+        path,
+        cacheDir,
+        {
+          avif: options.avif ?? true,
+          svg: options.svg ?? true,
+          maxStates: options.maxStates,
+        },
+        loadFonts(),
+        {
+          font: (font) =>
+            config.logger.warn(
+              `folioscope: ${file}: no font for ${font}; its text is left out or keeps another style (fonts option)`,
+            ),
+          capped: (component) =>
+            config.logger.warn(
+              `folioscope: ${file}: component ${component}; the others cannot be reached (maxStates option)`,
+            ),
+        },
       );
       baked.set(path, folio);
     }
@@ -220,26 +248,35 @@ export function folioscope(options: FolioscopeOptions = {}): Plugin {
 async function bakeCached(
   path: string,
   cacheDir: string,
-  avif: boolean,
+  bake: { avif: boolean; svg: boolean; maxStates?: number },
   fonts: Fonts,
-  warn: (font: string) => void,
+  warn: { font: (font: string) => void; capped: (component: string) => void },
 ): Promise<Folio> {
   const source = readFileSync(path);
-  const hash = createHash("sha256").update(`${CACHE_VERSION}:${avif}`).update(source);
+  const hash = createHash("sha256")
+    .update(`${CACHE_VERSION}:${bake.avif}:${bake.svg}:${bake.maxStates ?? ""}`)
+    .update(source);
   for (const [name, bytes] of fonts.files) hash.update(name).update(bytes);
   hash.update(fonts.hints ?? "");
   const key = hash.digest("hex").slice(0, 32);
   const dir = join(cacheDir, key);
   if (existsSync(join(dir, "index.json"))) return readFolder(dir);
 
-  const { files: folio, missingFonts } = (await loadWasm()).bake(
+  const {
+    files: folio,
+    missingFonts,
+    cappedComponents,
+  } = (await loadWasm()).bake(
     source,
-    avif,
+    bake.avif,
     fonts.files,
     undefined,
     fonts.hints,
+    bake.svg,
+    bake.maxStates,
   );
-  missingFonts.forEach(warn);
+  missingFonts.forEach(warn.font);
+  cappedComponents.forEach(warn.capped);
   for (const [file, bytes] of folio) {
     mkdirSync(dirname(join(dir, file)), { recursive: true });
     writeFileSync(join(dir, file), bytes);

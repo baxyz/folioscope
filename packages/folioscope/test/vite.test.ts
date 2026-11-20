@@ -40,14 +40,29 @@ describe.skipIf(!wasmBuilt)("folioscope/vite", () => {
     const raw = readFileSync(indexPath, "utf8");
     const index = JSON.parse(raw);
     expect(index.pages[0].frames.map((f: { name: string }) => f.name)).toEqual(["Home", "Details"]);
-    const layer = index.pages[0].frames[0].layers[0].src;
-    expect(existsSync(join(root, `dist/folio/app.folio/layers/${layer}@2x.webp`))).toBe(true);
+    // A flat screen is served as its SVG (ADR 0006).
+    const layer = index.pages[0].frames[0].layers[0];
+    expect(layer.format).toBe("svg");
+    expect(existsSync(join(root, `dist/folio/app.folio/layers/${layer.src}.svg`))).toBe(true);
 
     // The second build reads the cache instead of baking again.
     const started = performance.now();
     await build(config);
     expect(performance.now() - started).toBeLessThan(2000);
     expect(readFileSync(indexPath, "utf8")).toBe(raw);
+  });
+
+  test("keeps every layer a raster image with svg: false", async () => {
+    const root = site();
+    await build({
+      root,
+      logLevel: "silent",
+      plugins: [folioscope({ include: "designs/*.fig", svg: false })],
+    });
+    const index = JSON.parse(readFileSync(join(root, "dist/folio/app.folio/index.json"), "utf8"));
+    const layer = index.pages[0].frames[0].layers[0];
+    expect(layer.format).toBe("webp");
+    expect(existsSync(join(root, `dist/folio/app.folio/layers/${layer.src}@2x.webp`))).toBe(true);
   });
 
   test("serves baked files in dev", async () => {
