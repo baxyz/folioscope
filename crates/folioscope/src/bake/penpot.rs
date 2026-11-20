@@ -14,10 +14,12 @@ use std::fmt::Write as _;
 
 use crate::ir::{self, Rect};
 use crate::penpot::{PenpotFile, PenpotPage};
+use helpers4::color::Rgba;
 use serde_json::Value;
 
 use crate::bake::draw::Draw;
 use crate::bake::folio::BakeError;
+use crate::bake::fx;
 use crate::bake::svg::mime;
 use crate::bake::text::{Align, Paragraph, Typesetter};
 
@@ -120,15 +122,13 @@ impl Svg<'_, '_> {
             return;
         }
         let opacity = shape["opacity"].as_f64().unwrap_or(1.0);
+        let blend = fx::blend_style(shape["blendMode"].as_str().and_then(fx::blend));
         let _ = write!(
             self.body,
-            r#"<g transform="{}" opacity="{opacity}">"#,
+            r#"<g transform="{}" opacity="{opacity}"{blend}>"#,
             transform(shape)
         );
-        let shadow = self.shadow(shape);
-        if let Some(filter) = &shadow {
-            let _ = write!(self.body, r#"<g filter="url(#{filter})">"#);
-        }
+        let open = self.effects(shape);
         match shape["type"].as_str().unwrap_or("") {
             "frame" => {
                 let outline = rect_path(shape);
@@ -178,13 +178,180 @@ impl Svg<'_, '_> {
                 }
             }
             "text" => self.text(shape),
-            // svg-raw and anything unknown draw nothing yet.
+            "svg-raw" => self.svg_raw(shape, true),
             _ => {}
         }
-        if shadow.is_some() {
+        for _ in 0..open {
             self.body.push_str("</g>");
         }
         self.body.push_str("</g>");
+    }
+
+    /// Opens the groups that draw a shape's visible shadows (drop and inner) and its layer blur.
+    /// Returns how many it opened.
+    fn effects(&mut self, shape: &Value) -> usize {
+        let shadows = |style: &str| -> Vec<fx::Shadow> {
+            list(&shape["shadow"])
+                .filter(|s| s["style"] == style && s["hidden"] != true)
+                .map(|s| fx::Shadow {
+                    dx: f64::from(n(s, "offsetX")),
+                    dy: f64::from(n(s, "offsetY")),
+                    blur: f64::from(n(s, "blur")),
+                    spread: f64::from(n(s, "spread")),
+                    color: css_color(
+                        s["color"]["color"].as_str().unwrap_or("#000000"),
+                        s["color"]["opacity"].as_f64().unwrap_or(0.2),
+                    ),
+                })
+                .collect()
+        };
+        let mut open = 0;
+        let drops = shadows("drop-shadow");
+        if !drops.is_empty() {
+            let id = self.id("s");
+            fx::drop_shadows(&mut self.defs, &id, &drops);
+            let _ = write!(self.body, r#"<g filter="url(#{id})">"#);
+            open += 1;
+        }
+        let blur = &shape["blur"];
+        if blur["type"] == "layer-blur" && blur["hidden"] != true && n(blur, "value") > 0.0 {
+            let id = self.id("b");
+            fx::layer_blur(&mut self.defs, &id, f64::from(n(blur, "value")) * 2.0);
+            let _ = write!(self.body, r#"<g filter="url(#{id})">"#);
+            open += 1;
+        }
+        let inner = shadows("inner-shadow");
+        if !inner.is_empty() {
+            let id = self.id("i");
+            fx::inner_shadows(&mut self.defs, &id, &inner);
+            let _ = write!(self.body, r#"<g filter="url(#{id})">"#);
+            open += 1;
+        }
+        open
+    }
+
+    /// A shape imported from an SVG: its element (`content`: `{ tag, attrs }`) and its children.
+    /// Its coordinates are its `svgViewbox`'s, placed on the shape's box. Text elements are laid
+    /// out with the fonts given; other elements are written as they are.
+    fn svg_raw(&mut self, shape: &Value, outermost: bool) {
+        let content = &shape["content"];
+        let Some(tag) = content["tag"].as_str() else {
+            return;
+        };
+        let mut opened = 0;
+        if outermost && let Some(view) = shape.get("svgViewbox").filter(|v| v.is_object()) {
+            let (x, y, w, h) = boxed(shape);
+            let (vw, vh) = (
+                n(view, "width").max(f32::EPSILON),
+                n(view, "height").max(f32::EPSILON),
+            );
+            let _ = write!(
+                self.body,
+                r#"<g transform="translate({x} {y}) scale({} {}) translate({} {})">"#,
+                w / vw,
+                h / vh,
+                -n(view, "x"),
+                -n(view, "y")
+            );
+            opened += 1;
+        }
+        let attrs = &content["attrs"];
+        if tag == "text" {
+            self.svg_text(shape, attrs);
+        } else if matches!(
+            tag,
+            "path" | "rect" | "circle" | "ellipse" | "line" | "polyline" | "polygon" | "g"
+        ) {
+            let mut element = format!("<{tag}");
+            for (name, value) in attrs.as_object().into_iter().flatten() {
+                let Some(value) = value.as_str() else {
+                    continue;
+                };
+                if name == "style" || name.starts_with("on") {
+                    continue;
+                }
+                let _ = write!(element, r#" {}="{}""#, kebab(name), escape(value));
+            }
+            if tag == "g" {
+                let _ = write!(self.body, "{element}>");
+                let page = self.page;
+                let children = shape["shapes"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|id| page.shapes.get(id.as_str()?));
+                for child in children {
+                    if child["type"] == "svg-raw" {
+                        self.svg_raw(child, false);
+                    } else {
+                        self.shape(child);
+                    }
+                }
+                let _ = write!(self.body, "</{tag}>");
+            } else {
+                let _ = write!(self.body, "{element}/>");
+            }
+        }
+        for _ in 0..opened {
+            self.body.push_str("</g>");
+        }
+    }
+
+    /// An SVG `<text>` of an imported SVG: its text, from its baseline at `x`, `y`.
+    fn svg_text(&mut self, shape: &Value, attrs: &Value) {
+        let text: String = list(&shape["content"]["content"])
+            .filter_map(Value::as_str)
+            .collect();
+        if text.trim().is_empty() {
+            return;
+        }
+        let attribute = |name: &str| attrs[name].as_str().unwrap_or("");
+        let family = css_family(attribute("fontFamily"));
+        let size = attribute("fontSize")
+            .trim_end_matches("px")
+            .parse()
+            .unwrap_or(16.0);
+        let weight = attribute("fontWeight").parse().unwrap_or(400.0);
+        let italic = attribute("fontStyle") == "italic";
+        let Some(set) = self.typesetter.set(&Paragraph {
+            text: &text,
+            family,
+            weight,
+            italic,
+            size,
+            line_height: None,
+            letter_spacing: 0.0,
+            align: Align::Left,
+            width: None,
+        }) else {
+            let style = if italic { "Italic" } else { "" };
+            self.missing_fonts
+                .insert(format!("{family} {weight}{style}"));
+            return;
+        };
+        let fill = Some(attribute("fill"))
+            .filter(|f| !f.is_empty())
+            .or_else(|| {
+                list(&shape["fills"])
+                    .next()
+                    .and_then(|f| f["fillColor"].as_str())
+            })
+            .unwrap_or("#000000");
+        let x: f32 = attribute("x").parse().unwrap_or(0.0);
+        let y: f32 = attribute("y").parse().unwrap_or(0.0);
+        let anchor = match attribute("textAnchor") {
+            "middle" => set.width / 2.0,
+            "end" => set.width,
+            _ => 0.0,
+        };
+        let _ = write!(
+            self.body,
+            r#"<path transform="translate({} {})" d="{}" fill="{}"/>"#,
+            x - anchor,
+            y - set.baseline,
+            set.path,
+            escape(fill)
+        );
     }
 
     /// A shape's children, bottom of the layer list first, as they are drawn.
@@ -255,10 +422,30 @@ impl Svg<'_, '_> {
                 Some("dotted") => format!(r#" stroke-dasharray="{width} {width}""#),
                 _ => String::new(),
             };
-            // Inner and outer strokes are drawn centred.
-            let _ = write!(
-                self.body,
-                r#"<path d="{path}" fill="none" stroke="{color}" stroke-opacity="{opacity}" stroke-width="{width}"{dashes}/>"#
+            let cap = match (
+                stroke["strokeCapStart"].as_str(),
+                stroke["strokeCapEnd"].as_str(),
+            ) {
+                (Some("round"), _) | (_, Some("round")) => {
+                    r#" stroke-linecap="round" stroke-linejoin="round""#
+                }
+                (Some("square"), _) | (_, Some("square")) => r#" stroke-linecap="square""#,
+                _ => "",
+            };
+            let align = match stroke["strokeAlignment"].as_str() {
+                Some("inner") => fx::StrokeAlign::Inside,
+                Some("outer") => fx::StrokeAlign::Outside,
+                _ => fx::StrokeAlign::Center,
+            };
+            let clip = self.id("k");
+            fx::stroke(
+                &mut self.defs,
+                &mut self.body,
+                &clip,
+                path,
+                &format!(r#"stroke="{color}" stroke-opacity="{opacity}"{dashes}{cap}"#),
+                width,
+                align,
             );
         }
     }
@@ -319,23 +506,6 @@ impl Svg<'_, '_> {
         ))
     }
 
-    /// The first visible drop shadow, as a filter in `defs`.
-    fn shadow(&mut self, shape: &Value) -> Option<String> {
-        let shadow =
-            list(&shape["shadow"]).find(|s| s["style"] == "drop-shadow" && s["hidden"] != true)?;
-        let id = self.id("s");
-        let _ = write!(
-            self.defs,
-            r#"<filter id="{id}" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="{}" dy="{}" stdDeviation="{}" flood-color="{}" flood-opacity="{}"/></filter>"#,
-            n(shadow, "offsetX"),
-            n(shadow, "offsetY"),
-            n(shadow, "blur") / 2.0,
-            shadow["color"]["color"].as_str().unwrap_or("#000000"),
-            shadow["color"]["opacity"].as_f64().unwrap_or(0.2)
-        );
-        Some(id)
-    }
-
     /// Text from the runs Penpot laid out (`positionData`): each run on its own line, in its box.
     fn text(&mut self, shape: &Value) {
         for run in list(&shape["positionData"]) {
@@ -374,16 +544,62 @@ impl Svg<'_, '_> {
                 .and_then(|f| f["fillColor"].as_str())
                 .unwrap_or("#000000");
             let opacity = fill.and_then(|f| f["fillOpacity"].as_f64()).unwrap_or(1.0);
+            // Underline and strikethrough: a CSS shorthand (`underline rgba(…)`).
+            let decoration = run["textDecoration"].as_str().unwrap_or("");
+            let mut path = set.path;
+            let thickness = (size / 14.0).max(1.0);
+            if decoration.contains("underline") {
+                let top = set.baseline + size * 0.1;
+                let _ = write!(path, "M0 {top}h{}v{thickness}h{}Z", set.width, -set.width);
+            }
+            if decoration.contains("line-through") {
+                let top = set.baseline - size * 0.3;
+                let _ = write!(path, "M0 {top}h{}v{thickness}h{}Z", set.width, -set.width);
+            }
             // A run's `y` is the bottom of its box.
             let _ = write!(
                 self.body,
-                r#"<path transform="translate({} {})" d="{}" fill="{color}" fill-opacity="{opacity}"/>"#,
+                r#"<path transform="translate({} {})" d="{path}" fill="{color}" fill-opacity="{opacity}"/>"#,
                 n(run, "x"),
                 n(run, "y") - height,
-                set.path
             );
         }
     }
+}
+
+/// A CSS colour (`#rrggbb`) with an opacity.
+fn css_color(hex: &str, opacity: f64) -> Rgba {
+    let color = Rgba::parse(hex).unwrap_or(Rgba::new(0, 0, 0, 255));
+    let [r, g, b, _] = color.to_unit();
+    Rgba::from_unit(r, g, b, opacity)
+}
+
+/// An SVG attribute name from its camelCase spelling (`strokeWidth` → `stroke-width`).
+fn kebab(name: &str) -> String {
+    if matches!(
+        name,
+        "viewBox" | "preserveAspectRatio" | "gradientUnits" | "gradientTransform"
+    ) {
+        return name.to_owned();
+    }
+    let mut out = String::new();
+    for c in name.chars() {
+        if c.is_ascii_uppercase() {
+            out.push('-');
+            out.push(c.to_ascii_lowercase());
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
+/// A value escaped for an XML attribute.
+fn escape(value: &str) -> String {
+    value
+        .replace('&', "&amp;")
+        .replace('"', "&quot;")
+        .replace('<', "&lt;")
 }
 
 fn list(value: &Value) -> impl Iterator<Item = &Value> {
@@ -498,6 +714,10 @@ fn bounds(shape: &Value) -> helpers4::geometry::Rect {
 /// A path's `content` as SVG path data: `move-to`, `line-to`, `curve-to` and `close-path`
 /// commands, in page coordinates.
 fn content_path(content: &Value) -> Option<String> {
+    // Newer files store the path as SVG path data, in page coordinates.
+    if let Some(d) = content.as_str() {
+        return (!d.trim().is_empty()).then(|| d.to_owned());
+    }
     let commands = content.as_array()?;
     let mut path = String::new();
     for command in commands {
