@@ -231,6 +231,8 @@ fn interactions_of(list: &Value, hotspot: Rect) -> Vec<Interaction> {
 fn trigger(interaction: &Value) -> Trigger {
     match interaction["triggerEvent"].as_str().unwrap_or("") {
         "tap" => Trigger::Click,
+        // XD's hover (desktop prototypes): the link is followed while the pointer is over it.
+        "hover" => Trigger::Hover,
         "time" => Trigger::AfterDelay {
             delay_ms: millis(&interaction["properties"]["delay"]),
         },
