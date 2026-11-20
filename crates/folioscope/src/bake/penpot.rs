@@ -19,6 +19,7 @@ use serde_json::Value;
 
 use crate::bake::draw::Draw;
 use crate::bake::folio::BakeError;
+use crate::bake::fonts::FontLibrary;
 use crate::bake::fx;
 use crate::bake::svg::mime;
 use crate::bake::text::{Align, Paragraph, Typesetter};
@@ -518,7 +519,10 @@ impl Svg<'_, '_> {
                 Some("lowercase") => text.to_lowercase(),
                 _ => text.to_owned(),
             };
-            let family = css_family(run["fontFamily"].as_str().unwrap_or(""));
+            let family = penpot_family(
+                css_family(run["fontFamily"].as_str().unwrap_or("")),
+                self.typesetter.library(),
+            );
             let weight = css_number(&run["fontWeight"]).unwrap_or(400.0);
             let italic = run["fontStyle"] == "italic";
             let size = css_number(&run["fontSize"]).unwrap_or(14.0);
@@ -621,6 +625,18 @@ fn css_number(value: &Value) -> Option<f32> {
         Value::String(s) => s.trim_end_matches("px").trim().parse().ok(),
         _ => None,
     }
+}
+
+/// Penpot's default font is named `sourcesanspro` in files: the family a Source Sans font file
+/// says it is, Source Sans Pro or its successor Source Sans 3, whichever was given.
+fn penpot_family<'a>(family: &'a str, library: &FontLibrary) -> &'a str {
+    if !family.eq_ignore_ascii_case("sourcesanspro") {
+        return family;
+    }
+    ["Source Sans Pro", "Source Sans 3"]
+        .into_iter()
+        .find(|name| library.resolve(name, 400.0, false).is_some())
+        .unwrap_or(family)
 }
 
 /// The first family of a CSS `font-family` value, unquoted: Penpot stores `Roboto` in some files
