@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Layer image formats: lossless WebP by default, AVIF when it is much smaller (photos).
+//! Layer image formats (ADR 0004, ADR 0006): lossless WebP by default, AVIF when it is much
+//! smaller (photos), and the layer's SVG itself when it holds no image or filter and weighs less
+//! than its densest raster.
 
 use resvg::tiny_skia::Pixmap;
 use serde::Serialize;
@@ -21,6 +23,8 @@ const AVIF_SPEED: u8 = 6;
 pub enum ImageFormat {
     Webp,
     Avif,
+    /// The layer's SVG, one file for every density.
+    Svg,
 }
 
 impl ImageFormat {
@@ -29,6 +33,7 @@ impl ImageFormat {
         match self {
             ImageFormat::Webp => "webp",
             ImageFormat::Avif => "avif",
+            ImageFormat::Svg => "svg",
         }
     }
 }
@@ -57,11 +62,29 @@ pub fn encode_best(
     })
 }
 
-/// Encodes `pixmap` in `format`.
+/// Whether a layer may be served as its SVG (ADR 0006): it holds no image, which an SVG shown
+/// by `<img>` can only carry inlined (no AVIF, no cache of its own), and no filter (blurs,
+/// shadows), which browsers draw slowly and not quite as `resvg` does.
+#[must_use]
+pub fn svg_eligible(markup: &str) -> bool {
+    !markup.contains("<image") && !markup.contains("<filter")
+}
+
+/// The size of `markup` once gzipped, as a web server sends it.
+#[must_use]
+pub fn gzipped_len(markup: &str) -> usize {
+    use std::io::Write as _;
+    let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::best());
+    // Writing to a Vec cannot fail.
+    let _ = encoder.write_all(markup.as_bytes());
+    encoder.finish().map_or(markup.len(), |out| out.len())
+}
+
+/// Encodes `pixmap` in `format`, a raster one.
 ///
 /// # Errors
 ///
-/// Fails when the encoder fails.
+/// Fails when the encoder fails, or `format` is [`ImageFormat::Svg`].
 pub fn encode(pixmap: &Pixmap, format: ImageFormat) -> Result<Vec<u8>, RenderError> {
     let rgba = straight_rgba(pixmap);
     let error = |e: String| RenderError::Encode(e);
@@ -97,6 +120,7 @@ pub fn encode(pixmap: &Pixmap, format: ImageFormat) -> Result<Vec<u8>, RenderErr
                 .map(|encoded| encoded.avif_file)
                 .map_err(|e| error(e.to_string()))
         }
+        ImageFormat::Svg => Err(error("SVG is not a raster format".to_owned())),
     }
 }
 
