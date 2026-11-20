@@ -632,7 +632,10 @@ export class FolioscopePlayer extends BaseElement {
   }
 
   private layerUrl(layer: Layer): string {
-    const path = `layers/${layer.src}@${this.density}x.${layer.format}`;
+    const path =
+      layer.format === "svg"
+        ? `layers/${layer.src}.svg`
+        : `layers/${layer.src}@${this.density}x.${layer.format}`;
     return this.blobs.get(path) ?? `${this.base}${path}`;
   }
 

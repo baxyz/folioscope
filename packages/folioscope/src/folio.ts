@@ -93,11 +93,14 @@ export interface Point {
   y: number;
 }
 
-/** An image drawn at `bounds`; its files are `layers/<src>@<density>x.<format>`. */
+/**
+ * An image drawn at `bounds`; its files are `layers/<src>@<density>x.<format>`, or the single
+ * `layers/<src>.svg` for every density.
+ */
 export interface Layer {
   src: string;
-  /** File extension: `webp`, or `avif` for large, photo-like layers. */
-  format: "webp" | "avif";
+  /** File extension: `webp`; `avif` for large, photo-like layers; `svg` for flat ones (ADR 0006). */
+  format: "webp" | "avif" | "svg";
   bounds: Rect;
   /** The frame's scrolling content: moves with the scroll, under the layers that follow. */
   scrolls?: boolean;
