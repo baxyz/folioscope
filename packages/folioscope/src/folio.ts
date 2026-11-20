@@ -70,6 +70,8 @@ export interface FolioComponent {
     /** In the state's coordinates. */
     hotspots: Hotspot[];
     layer: Layer;
+    /** Interactive components inside this state, in its coordinates. */
+    components?: FolioComponent[];
   }[];
 }
 
