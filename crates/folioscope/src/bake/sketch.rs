@@ -66,10 +66,28 @@ impl<'f> SketchDraw<'f> {
     }
 }
 
-impl Draw for SketchDraw<'_> {
-    fn frame(&mut self, frame: &ir::Frame) -> Option<String> {
+/// What of an artboard to draw.
+#[derive(Clone, Copy)]
+enum Part {
+    Whole,
+    /// Its background, at the viewport's size.
+    Background,
+    /// Its layers but the fixed ones, at the artboard's whole size.
+    Content,
+    /// Its fixed layers only, at the viewport's size.
+    Fixed,
+}
+
+impl SketchDraw<'_> {
+    fn draw(&mut self, frame: &ir::Frame, part: Part) -> Option<String> {
         let artboard = *self.artboards.get(frame.id.as_str())?;
-        let (width, height) = (frame.bounds.width, frame.bounds.height);
+        let (width, height) = match (part, &frame.scroll) {
+            (Part::Content | Part::Whole, Some(scroll)) => {
+                (scroll.content.width, scroll.content.height)
+            }
+            _ => (frame.bounds.width, frame.bounds.height),
+        };
+        let fixed: &[String] = frame.scroll.as_ref().map_or(&[], |s| &s.fixed);
         let mut svg = Svg {
             file: self.file,
             masters: &self.masters,
@@ -81,6 +99,12 @@ impl Draw for SketchDraw<'_> {
             overrides: Vec::new(),
             artboard: Some(artboard),
             backdrop: fx::Backdrop::default(),
+            top: match part {
+                Part::Whole => None,
+                Part::Background => Some((true, Vec::new())),
+                Part::Content => Some((false, fixed.to_vec())),
+                Part::Fixed => Some((true, fixed.to_vec())),
+            },
         };
         // An artboard without a background color shows white, as in Sketch's player.
         let background = if artboard["hasBackgroundColor"] == true {
@@ -88,16 +112,24 @@ impl Draw for SketchDraw<'_> {
         } else {
             ("rgb(255 255 255)".to_owned(), 1.0)
         };
-        let _ = write!(
-            svg.body,
-            r#"<rect width="{width}" height="{height}" fill="{}" fill-opacity="{}"/>"#,
-            background.0, background.1
-        );
+        if matches!(part, Part::Whole | Part::Background) {
+            let _ = write!(
+                svg.body,
+                r#"<rect width="{width}" height="{height}" fill="{}" fill-opacity="{}"/>"#,
+                background.0, background.1
+            );
+        }
         svg.children(artboard);
         Some(format!(
             r#"<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}"><defs>{}</defs>{}</svg>"#,
             svg.defs, svg.body
         ))
+    }
+}
+
+impl Draw for SketchDraw<'_> {
+    fn frame(&mut self, frame: &ir::Frame) -> Option<String> {
+        self.draw(frame, Part::Whole)
     }
 
     fn layers(
@@ -111,7 +143,30 @@ impl Draw for SketchDraw<'_> {
             width: frame.bounds.width,
             height: frame.bounds.height,
         };
-        Ok(vec![(whole.to_owned(), bounds, false)])
+        let Some(scroll) = &frame.scroll else {
+            return Ok(vec![(whole.to_owned(), bounds, false)]);
+        };
+        let missing = || BakeError::MissingFrame(frame.id.clone());
+        let mut layers = vec![
+            (
+                self.draw(frame, Part::Background).ok_or_else(missing)?,
+                bounds,
+                false,
+            ),
+            (
+                self.draw(frame, Part::Content).ok_or_else(missing)?,
+                scroll.content,
+                true,
+            ),
+        ];
+        if !scroll.fixed.is_empty() {
+            layers.push((
+                self.draw(frame, Part::Fixed).ok_or_else(missing)?,
+                bounds,
+                false,
+            ));
+        }
+        Ok(layers)
     }
 
     fn state(&mut self, _: &ir::Component, _: &ir::ComponentState) -> Option<String> {
@@ -139,6 +194,9 @@ struct Svg<'d, 'f> {
     /// The artboard drawn, for background blurs (none in a second drawing).
     artboard: Option<&'f Value>,
     backdrop: fx::Backdrop,
+    /// Which of the artboard's own layers to draw: `(true, ids)` only those, `(false, ids)` all
+    /// but those; all when absent.
+    top: Option<(bool, Vec<String>)>,
 }
 
 impl<'f> Svg<'_, 'f> {
@@ -269,6 +327,7 @@ impl<'f> Svg<'_, 'f> {
             next_id: 0,
             overrides: Vec::new(),
             artboard: None,
+            top: self.top.clone(),
             backdrop: fx::Backdrop {
                 prefix: prefix.clone(),
                 stop_at: layer["do_objectID"].as_str().map(str::to_owned),
@@ -293,7 +352,18 @@ impl<'f> Svg<'_, 'f> {
     /// its outline, up to the end of the group or a layer that breaks the mask chain.
     fn children(&mut self, parent: &'f Value) {
         let mut masked = false;
+        let top = if parent["_class"] == "artboard" {
+            self.top.clone()
+        } else {
+            None
+        };
         for child in children(parent) {
+            if let Some((only, ids)) = &top {
+                let listed = ids.iter().any(|id| child["do_objectID"] == id.as_str());
+                if listed != *only {
+                    continue;
+                }
+            }
             let mask = child["hasClippingMask"] == true && child["isVisible"] != false;
             if masked && (mask || child["shouldBreakMaskChain"] == true) {
                 self.body.push_str("</g>");
