@@ -5,6 +5,7 @@
 use std::fmt::Write;
 
 use crate::kiwi::Value;
+use helpers4::color::Rgba;
 use helpers4::geometry::{Matrix, Point};
 
 use super::Ctx;
@@ -97,10 +98,11 @@ impl Ctx<'_, '_> {
 /// `(css rgb, alpha)` from a Figma color with 0–1 channels.
 fn color(c: &Value) -> (String, f32) {
     let ch = |k: &str| c.get(k).and_then(Value::as_f32).unwrap_or(0.0);
-    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
-    let byte = |x: f32| (x.clamp(0.0, 1.0) * 255.0).round() as u8;
+    let unit = |k: &str| f64::from(ch(k));
     (
-        format!("rgb({},{},{})", byte(ch("r")), byte(ch("g")), byte(ch("b"))),
+        Rgba::from_unit(unit("r"), unit("g"), unit("b"), 1.0)
+            .to_rgb()
+            .to_css(),
         ch("a"),
     )
 }

@@ -11,6 +11,7 @@
 use std::collections::{BTreeSet, HashMap};
 use std::fmt::Write as _;
 
+use helpers4::color::{Rgb, Rgba};
 use helpers4::font::is_italic;
 use helpers4::geometry::{Rect as Box64, ellipse_path, rounded_rect_path};
 use serde_json::Value;
@@ -209,7 +210,7 @@ impl Svg<'_, '_> {
             }
             Some("none") => return,
             Some("gradient") => self.gradient(&fill["gradient"]).unwrap_or_default(),
-            _ => r#"fill="rgb(255,255,255)""#.to_owned(),
+            _ => r#"fill="rgb(255 255 255)""#.to_owned(),
         };
         let _ = write!(
             self.body,
@@ -519,7 +520,7 @@ impl Svg<'_, '_> {
                                 (default_fill["type"] == "solid")
                                     .then(|| color(&default_fill["color"]))
                             })
-                            .unwrap_or_else(|| ("rgb(0,0,0)".to_owned(), 1.0));
+                            .unwrap_or_else(|| ("rgb(0 0 0)".to_owned(), 1.0));
                         let _ = write!(
                             self.body,
                             r#"<path transform="translate({x} {})" d="{}" fill="{color}" fill-opacity="{opacity}"/>"#,
@@ -604,27 +605,19 @@ fn index(value: &Value) -> usize {
 
 /// `(css rgb, alpha)` from XD's `0xAARRGGBB` integer.
 fn argb(value: u64) -> (String, f64) {
-    let channel = |shift: u32| (value >> shift) & 0xff;
-    (
-        format!("rgb({},{},{})", channel(16), channel(8), channel(0)),
-        #[allow(clippy::cast_precision_loss)]
-        {
-            channel(24) as f64 / 255.0
-        },
-    )
+    let [a, r, g, b] = u32::try_from(value & 0xffff_ffff)
+        .unwrap_or(0)
+        .to_be_bytes();
+    (Rgb::new(r, g, b).to_css(), f64::from(a) / 255.0)
 }
 
 /// `(css rgb, alpha)` from an XD colour (`{ mode: "RGB", value: { r, g, b }, alpha }`).
 fn color(color: &Value) -> (String, f64) {
-    let channel = |k: &str| {
-        color["value"][k]
-            .as_f64()
-            .unwrap_or(0.0)
-            .clamp(0.0, 255.0)
-            .round()
-    };
+    let unit = |k: &str| color["value"][k].as_f64().unwrap_or(0.0) / 255.0;
     (
-        format!("rgb({},{},{})", channel("r"), channel("g"), channel("b")),
+        Rgba::from_unit(unit("r"), unit("g"), unit("b"), 1.0)
+            .to_rgb()
+            .to_css(),
         color["alpha"].as_f64().unwrap_or(1.0),
     )
 }
@@ -684,9 +677,9 @@ mod tests {
 
     #[test]
     fn colours_come_from_both_encodings() {
-        assert_eq!(argb(0xFFD2_0808), ("rgb(210,8,8)".to_owned(), 1.0));
+        assert_eq!(argb(0xFFD2_0808), ("rgb(210 8 8)".to_owned(), 1.0));
         let c = json!({ "mode": "RGB", "value": { "r": 1, "g": 2, "b": 3 }, "alpha": 0.5 });
-        assert_eq!(color(&c), ("rgb(1,2,3)".to_owned(), 0.5));
+        assert_eq!(color(&c), ("rgb(1 2 3)".to_owned(), 0.5));
     }
 
     #[test]
@@ -751,11 +744,11 @@ mod tests {
             svg.defs,
             concat!(
                 r#"<linearGradient id="g1" gradientUnits="objectBoundingBox" x1="0.5" y1="0" x2="0.5" y2="1">"#,
-                r#"<stop offset="0" stop-color="rgb(2,2,2)" stop-opacity="0"/>"#,
-                r#"<stop offset="1" stop-color="rgb(0,0,0)" stop-opacity="1"/></linearGradient>"#,
+                r#"<stop offset="0" stop-color="rgb(2 2 2)" stop-opacity="0"/>"#,
+                r#"<stop offset="1" stop-color="rgb(0 0 0)" stop-opacity="1"/></linearGradient>"#,
                 r#"<radialGradient id="g2" gradientUnits="objectBoundingBox" cx="0.5" cy="0.5" fx="0.5" fy="0.5" r="0.4">"#,
-                r#"<stop offset="0" stop-color="rgb(2,2,2)" stop-opacity="0"/>"#,
-                r#"<stop offset="1" stop-color="rgb(0,0,0)" stop-opacity="1"/></radialGradient>"#
+                r#"<stop offset="0" stop-color="rgb(2 2 2)" stop-opacity="0"/>"#,
+                r#"<stop offset="1" stop-color="rgb(0 0 0)" stop-opacity="1"/></radialGradient>"#
             )
         );
         let unknown = json!({ "meta": { "ux": { "gradientResources": { "type": "angular" } } } });
