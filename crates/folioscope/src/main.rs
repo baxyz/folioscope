@@ -11,7 +11,8 @@ use folioscope::figma::{self, tree::Tree};
 const USAGE: &str = "usage:
   folioscope inspect <file.fig|.sketch|.xd|.penpot>
   folioscope render <file.fig> <node-id> <out.png> [scale]   (also writes <out>.svg)
-  folioscope bake <file.fig|.sketch|.xd|.penpot> <out.folio> [--no-avif] [--all-pages] [--fonts <file or folder>
+  folioscope bake <file.fig|.sketch|.xd|.penpot> <out.folio> [--no-avif] [--no-svg] [--max-states <n>]
+      [--all-pages] [--fonts <file or folder>
       [--family <name>] [--match <name or pattern>]... [--weight <100-900>] [--italic]]...
   folioscope fonts <folder>   (writes <folder>/folioscope-fonts.json)";
 
@@ -88,13 +89,15 @@ fn render(path: &str, node: &str, out: &str, scale: &str) -> Result<(), String> 
     Ok(())
 }
 
-/// `<file> [-o] <out> [--no-avif] [--fonts <path> [--family <name>] [--match <pattern>]...
+/// `<file> [-o] <out> [--no-avif] [--no-svg] [--max-states <n>] [--fonts <path> [--family <name>] [--match <pattern>]...
 /// [--weight <n>] [--italic]]...`, in any order after the file. What follows a `--fonts` says
 /// something about that font (or every font of that folder) instead of what the file says.
 fn bake_args<'a>(args: &[&'a str]) -> Option<(&'a str, &'a str, BakeArgs<'a>)> {
     let mut positional = Vec::new();
     let mut options = BakeArgs {
         avif: true,
+        svg: true,
+        max_states: folioscope::bake::folio::DEFAULT_MAX_STATES,
         all_pages: false,
         fonts: Vec::new(),
     };
@@ -102,6 +105,8 @@ fn bake_args<'a>(args: &[&'a str]) -> Option<(&'a str, &'a str, BakeArgs<'a>)> {
     while let Some(&arg) = args.next() {
         match arg {
             "--no-avif" => options.avif = false,
+            "--no-svg" => options.svg = false,
+            "--max-states" => options.max_states = args.next()?.parse().ok().filter(|&n| n > 0)?,
             "--all-pages" => options.all_pages = true,
             "--fonts" => options.fonts.push((*args.next()?, FontHints::default())),
             "--family" => options.fonts.last_mut()?.1.family = Some((*args.next()?).to_owned()),
@@ -126,6 +131,8 @@ fn bake_args<'a>(args: &[&'a str]) -> Option<(&'a str, &'a str, BakeArgs<'a>)> {
 
 struct BakeArgs<'a> {
     avif: bool,
+    svg: bool,
+    max_states: usize,
     all_pages: bool,
     /// Each font path with what was said about it.
     fonts: Vec<(&'a str, FontHints)>,
@@ -143,6 +150,8 @@ fn bake(path: &str, out: &str, args: &BakeArgs<'_>) -> Result<(), String> {
         Path::new(out),
         &folioscope::bake::folio::BakeOptions {
             avif: args.avif,
+            svg: args.svg,
+            max_states: args.max_states,
             all_pages: args.all_pages,
             fonts,
             ..Default::default()
@@ -150,9 +159,10 @@ fn bake(path: &str, out: &str, args: &BakeArgs<'_>) -> Result<(), String> {
     )
     .map_err(|e| e.to_string())?;
     eprintln!(
-        "{out}: {} frames, {} layer files, {} KB, in {} ms",
+        "{out}: {} frames, {} layer files ({} SVG), {} KB, in {} ms",
         report.frames,
         report.layers,
+        report.svg_layers,
         report.bytes / 1024,
         started.elapsed().as_millis()
     );
@@ -165,6 +175,12 @@ fn bake(path: &str, out: &str, args: &BakeArgs<'_>) -> Result<(), String> {
     }
     for frame in &report.skipped_frames {
         eprintln!("warning: frame {frame} is too large to be an image: left out");
+    }
+    for c in &report.capped_components {
+        eprintln!(
+            "warning: component {} in frame {} has {} states: only the first {} are baked (--max-states)",
+            c.name, c.frame, c.states, c.kept
+        );
     }
     for font in &report.missing_fonts {
         eprintln!(
