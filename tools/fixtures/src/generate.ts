@@ -2,7 +2,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { FigmaBuilder } from "./figma.ts";
+import { effect, FigmaBuilder, gradient } from "./figma.ts";
 import { PenpotBuilder } from "./penpot.ts";
 import { SketchBuilder } from "./sketch.ts";
 import { XdBuilder } from "./xd.ts";
@@ -261,6 +261,67 @@ function flowsAndPages(): FigmaBuilder {
   const done = figma.rect(settings, "Done", { x: 16, y: 56, width: 80, height: 32 }, GREY, 8);
   figma.on(done, "ON_CLICK", { kind: "back" });
 
+  return figma;
+}
+
+/**
+ * The `.fig` drawing features, and an "open link" action: linear, radial, angular and diamond
+ * gradients, drop and inner shadows, a layer blur, a background blur, a blend mode.
+ */
+function figmaFeatures(): FigmaBuilder {
+  const figma = new FigmaBuilder();
+  const page = figma.page("Prototype");
+  const home = figma.frame(page, "Home", { x: 0, y: 0, ...PHONE });
+  figma.flowStart(home, "Features");
+
+  const kinds = ["GRADIENT_LINEAR", "GRADIENT_RADIAL", "GRADIENT_ANGULAR", "GRADIENT_DIAMOND"];
+  kinds.forEach((kind, i) => {
+    const node = figma.rect(home, kind, { x: 16 + i * 88, y: 24, width: 80, height: 80 }, BLUE, 8);
+    figma.set(node, { fillPaints: [gradient(kind, "#2563EB", "#F59E0B")] });
+  });
+  const drop = figma.rect(
+    home,
+    "Drop shadow",
+    { x: 16, y: 136, width: 160, height: 96 },
+    "#FFFFFF",
+    12,
+  );
+  figma.set(drop, {
+    effects: [effect("DROP_SHADOW", 12, 4), effect("DROP_SHADOW", 2, 1, "#0000001A")],
+  });
+  const inner = figma.rect(
+    home,
+    "Inner shadow",
+    { x: 199, y: 136, width: 160, height: 96 },
+    GREY,
+    12,
+  );
+  figma.set(inner, { effects: [effect("INNER_SHADOW", 8, 4, "#00000066")] });
+  const blurred = figma.ellipse(home, "Layer blur", { x: 16, y: 264, width: 96, height: 96 }, BLUE);
+  figma.set(blurred, { effects: [effect("FOREGROUND_BLUR", 8)] });
+  for (let i = 0; i < 9; i++) {
+    const color = i % 2 ? "#F59E0B" : "#1E3A8A";
+    figma.rect(home, `Stripe ${i + 1}`, { x: 136 + i * 25, y: 264, width: 25, height: 96 }, color);
+  }
+  const glass = figma.rect(
+    home,
+    "Frosted glass",
+    { x: 160, y: 288, width: 176, height: 48 },
+    "#FFFFFF66",
+    12,
+  );
+  figma.set(glass, { effects: [effect("BACKGROUND_BLUR", 16)] });
+  figma.ellipse(home, "Under", { x: 100, y: 392, width: 120, height: 120 }, "#3B82F6");
+  const multiply = figma.ellipse(
+    home,
+    "Multiply",
+    { x: 40, y: 392, width: 120, height: 120 },
+    "#F59E0B",
+  );
+  figma.set(multiply, { blendMode: "MULTIPLY" });
+
+  const site = figma.rect(home, "Website", { x: 88, y: 640, width: 200, height: 48 }, BLUE, 24);
+  figma.on(site, "ON_CLICK", { kind: "url", url: "https://folioscope.baxyz.dev" });
   return figma;
 }
 
@@ -761,6 +822,7 @@ const fixtures: Record<string, () => { toBytes(): Uint8Array }> = {
   "figma/scroll.fig": scroll,
   "figma/triggers.fig": triggers,
   "figma/flows-and-pages.fig": flowsAndPages,
+  "figma/features.fig": figmaFeatures,
   "sketch/navigation.sketch": sketchNavigation,
   "sketch/text.sketch": sketchText,
   "sketch/features.sketch": sketchFeatures,

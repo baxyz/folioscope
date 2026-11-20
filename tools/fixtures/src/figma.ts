@@ -27,7 +27,8 @@ export type Action =
   | { kind: "scrollTo"; to: FigGuid; transition?: Transition }
   | { kind: "changeTo"; to: FigGuid; transition?: Transition }
   | { kind: "back" }
-  | { kind: "close" };
+  | { kind: "close" }
+  | { kind: "url"; url: string; newTab?: boolean };
 
 export interface OverlaySettings {
   position: "CENTER" | "TOP_CENTER" | "BOTTOM_CENTER";
@@ -218,6 +219,23 @@ export class FigmaBuilder {
     });
   }
 
+  /** Sets fields of a node as Figma stores them (paints, effects, blend mode…). */
+  set(node: FigGuid, fields: Partial<FigNode>): void {
+    Object.assign(this.node(node), fields);
+  }
+
+  /** An ellipse filling its box. */
+  ellipse(parent: FigGuid, name: string, box: Box, fill: string): FigGuid {
+    return this.add(parent, {
+      type: "ELLIPSE",
+      name,
+      size: { x: box.width, y: box.height },
+      transform: { m00: 1, m01: 0, m02: box.x, m10: 0, m11: 1, m12: box.y },
+      fillPaints: [solid(fill)],
+      strokeWeight: 0,
+    });
+  }
+
   /** Marks a top-level frame as the start of a prototype flow. */
   flowStart(frame: FigGuid, name: string, description = ""): void {
     const flows = this.doc.message.nodeChanges.filter((n: FigNode) => n.prototypeStartingPoint);
@@ -314,6 +332,41 @@ export class FigmaBuilder {
   }
 }
 
+/** A gradient paint: `type` `GRADIENT_LINEAR`, `_RADIAL`, `_ANGULAR` or `_DIAMOND`, across the box. */
+export function gradient(type: string, from: string, to: string) {
+  return {
+    type,
+    opacity: 1,
+    visible: true,
+    blendMode: "NORMAL",
+    // Node space (0–1) to gradient space: the identity, so the gradient spans the whole box.
+    transform: { m00: 1, m01: 0, m02: 0, m10: 0, m11: 1, m12: 0 },
+    stops: [
+      { color: hexToFigColor(from), position: 0 },
+      { color: hexToFigColor(to), position: 1 },
+    ],
+  };
+}
+
+/** An effect: a shadow (drop or inner) or a blur (foreground or background). */
+export function effect(
+  type: "DROP_SHADOW" | "INNER_SHADOW" | "FOREGROUND_BLUR" | "BACKGROUND_BLUR",
+  radius: number,
+  offsetY = 0,
+  color = "#00000040",
+) {
+  return {
+    type,
+    visible: true,
+    radius,
+    spread: 0,
+    offset: { x: 0, y: offsetY },
+    color: hexToFigColor(color),
+    blendMode: "NORMAL",
+    showShadowBehindNode: false,
+  };
+}
+
 function solid(hex: string) {
   return {
     type: "SOLID",
@@ -345,6 +398,12 @@ function prototypeAction(action: Action) {
       return { connectionType: "BACK" };
     case "close":
       return { connectionType: "CLOSE" };
+    case "url":
+      return {
+        connectionType: "URL",
+        connectionURL: action.url,
+        openUrlInNewTab: action.newTab ?? true,
+      };
   }
 }
 
