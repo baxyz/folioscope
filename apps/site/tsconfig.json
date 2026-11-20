@@ -10,5 +10,5 @@
     // Type-checks against the player's sources, so no build is needed first.
     "paths": { "folioscope": ["../../packages/folioscope/src/index.ts"] }
   },
-  "include": [".vitepress/**/*.ts", "scripts/**/*.ts"]
+  "include": [".vitepress/**/*.ts", "scripts/**/*.ts", "data/**/*.ts"]
 }
