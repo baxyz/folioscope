@@ -190,8 +190,14 @@ pub enum Trigger {
     AfterDelay {
         delay_ms: u32,
     },
+    /// A drag (a swipe) across the hotspot.
     Drag,
-    Key,
+    /// A key, or keys pressed together: browser key codes (`13` Enter, `37` to `40` arrows,
+    /// `16` Shift…); any key when empty.
+    Key {
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        codes: Vec<u32>,
+    },
     /// A trigger the player does not handle, by its source name.
     Other {
         name: String,
