@@ -348,7 +348,7 @@ impl Svg<'_, '_> {
                 Some("lowercase") => text.to_lowercase(),
                 _ => text.to_owned(),
             };
-            let family = run["fontFamily"].as_str().unwrap_or("");
+            let family = css_family(run["fontFamily"].as_str().unwrap_or(""));
             let weight = css_number(&run["fontWeight"]).unwrap_or(400.0);
             let italic = run["fontStyle"] == "italic";
             let size = css_number(&run["fontSize"]).unwrap_or(14.0);
@@ -405,6 +405,17 @@ fn css_number(value: &Value) -> Option<f32> {
         Value::String(s) => s.trim_end_matches("px").trim().parse().ok(),
         _ => None,
     }
+}
+
+/// The first family of a CSS `font-family` value, unquoted: Penpot stores `Roboto` in some files
+/// and `"Roboto"` in others.
+fn css_family(value: &str) -> &str {
+    let first = value.split(',').next().unwrap_or("").trim();
+    first
+        .strip_prefix('"')
+        .and_then(|f| f.strip_suffix('"'))
+        .or_else(|| first.strip_prefix('\'').and_then(|f| f.strip_suffix('\'')))
+        .unwrap_or(first)
 }
 
 /// `(x, y, width, height)` of a shape, in page coordinates, before its transform.
@@ -514,6 +525,14 @@ fn content_path(content: &Value) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reads_css_families() {
+        assert_eq!(css_family("Roboto"), "Roboto");
+        assert_eq!(css_family("\"DM Sans\""), "DM Sans");
+        assert_eq!(css_family("'Inter', sans-serif"), "Inter");
+        assert_eq!(css_family(""), "");
+    }
 
     #[test]
     fn reads_css_numbers() {

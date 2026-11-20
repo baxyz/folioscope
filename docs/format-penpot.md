@@ -71,6 +71,7 @@ the board's top-left corner:
 - **Images**: an `image` shape's `metadata.id`, or a `fillImage.id`, is a media:
   `files/<file>/media/<id>.json` gives its `mediaId`, whose bytes are `objects/<mediaId>.<ext>`.
 - **Text**: `positionData` holds every run as Penpot laid it out: `text`, `x`, `y` (the **bottom**
-  of the run's box), `height` (its line height), `fontFamily`, `fontWeight` and `fontSize` (CSS
+  of the run's box), `height` (its line height), `fontFamily` (`Roboto` in some files, `"Roboto"`
+  with CSS quotes in others; `sourcesanspro` is Penpot's default font), `fontWeight` and `fontSize` (CSS
   strings such as `"300"`, `"14px"`), `fontStyle`, `letterSpacing`, `textTransform`, `fills`. Each
   run is drawn on its own line with the fonts given (ADR 0011): no line breaking is needed.
