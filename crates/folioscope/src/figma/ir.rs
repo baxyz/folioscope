@@ -436,7 +436,15 @@ fn trigger(event: Option<&Value>) -> Trigger {
             delay_ms: seconds_to_ms(event.and_then(|e| e.get("transitionTimeout"))),
         },
         Some("DRAG") => Trigger::Drag,
-        Some("ON_KEY_DOWN") => Trigger::Key,
+        Some("ON_KEY_DOWN") => Trigger::Key {
+            codes: event
+                .and_then(|e| e.get("keyTrigger"))
+                .and_then(|k| k.get("keyCodes"))
+                .map_or(&[][..], Value::as_array)
+                .iter()
+                .filter_map(|code| u32::try_from(code.as_i32()?).ok())
+                .collect(),
+        },
         Some(other) => Trigger::Other {
             name: other.to_owned(),
         },

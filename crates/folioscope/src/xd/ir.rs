@@ -235,7 +235,10 @@ fn trigger(interaction: &Value) -> Trigger {
             delay_ms: millis(&interaction["properties"]["delay"]),
         },
         "drag" => Trigger::Drag,
-        "keys-gamepad" => Trigger::Key,
+        // Which keys is not read yet: an .xd file with one would show where XD keeps them.
+        "keys-gamepad" => Trigger::Other {
+            name: "keys-gamepad".to_owned(),
+        },
         other => Trigger::Other {
             name: other.to_owned(),
         },
