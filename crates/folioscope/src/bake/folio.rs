@@ -173,10 +173,15 @@ struct FolioComponent<'a> {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct FolioState<'a> {
-    #[serde(flatten)]
-    state: &'a ir::ComponentState,
+    variant: &'a str,
+    name: &'a str,
+    bounds: Rect,
+    hotspots: &'a [ir::Hotspot],
     /// Drawn at the state's bounds, from the component's top-left corner.
     layer: Layer,
+    /// Interactive components inside the state, drawn over its layer.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    components: Vec<FolioComponent<'a>>,
 }
 
 /// An image drawn at `bounds` (frame coordinates); its files are
@@ -200,51 +205,73 @@ fn bake_components<'a>(
     report: &mut BakeReport,
     sink: &mut Sink<'_>,
 ) -> Result<Vec<FolioComponent<'a>>, BakeError> {
-    let densities = &sorted_densities(options);
     let mut components = Vec::new();
     for component in &frame.components {
-        let kept = component.states.len().min(options.max_states.max(1));
-        if kept < component.states.len() {
-            report.capped_components.push(CappedComponent {
-                name: component.name.clone(),
-                frame: frame.name.clone(),
-                kept,
-                states: component.states.len(),
-            });
-        }
-        let mut states = Vec::new();
-        for state in &component.states[..kept] {
-            let markup = draw
-                .state(component, state)
-                .ok_or_else(|| BakeError::MissingFrame(state.variant.clone()))?;
-            let (src, format) =
-                encode_layer(&markup, densities, options, report, sink).map_err(|e| match e {
-                    LayerError::Render(source) => BakeError::Render {
-                        frame: frame.id.clone(),
-                        source,
-                    },
-                    LayerError::Sink(e) => e,
-                })?;
-            states.push(FolioState {
-                state,
-                layer: Layer {
-                    src,
-                    format,
-                    bounds: state.bounds,
-                    scrolls: false,
-                },
-            });
-        }
-        components.push(FolioComponent {
-            id: &component.id,
-            name: &component.name,
-            bounds: component.bounds,
-            initial: &component.initial,
-            fixed: component.fixed,
-            states,
-        });
+        components.push(bake_component(
+            draw, frame, component, options, report, sink,
+        )?);
     }
     Ok(components)
+}
+
+/// Renders one interactive component's states, and those of the components nested in them.
+fn bake_component<'a>(
+    draw: &mut dyn Draw,
+    frame: &'a ir::Frame,
+    component: &'a ir::Component,
+    options: &BakeOptions,
+    report: &mut BakeReport,
+    sink: &mut Sink<'_>,
+) -> Result<FolioComponent<'a>, BakeError> {
+    let densities = &sorted_densities(options);
+    let kept = component.states.len().min(options.max_states.max(1));
+    if kept < component.states.len() {
+        report.capped_components.push(CappedComponent {
+            name: component.name.clone(),
+            frame: frame.name.clone(),
+            kept,
+            states: component.states.len(),
+        });
+    }
+    let mut states = Vec::new();
+    for state in &component.states[..kept] {
+        let markup = draw
+            .state(component, state)
+            .ok_or_else(|| BakeError::MissingFrame(state.variant.clone()))?;
+        let (src, format) =
+            encode_layer(&markup, densities, options, report, sink).map_err(|e| match e {
+                LayerError::Render(source) => BakeError::Render {
+                    frame: frame.id.clone(),
+                    source,
+                },
+                LayerError::Sink(e) => e,
+            })?;
+        let mut nested = Vec::new();
+        for inner in &state.components {
+            nested.push(bake_component(draw, frame, inner, options, report, sink)?);
+        }
+        states.push(FolioState {
+            variant: &state.variant,
+            name: &state.name,
+            bounds: state.bounds,
+            hotspots: &state.hotspots,
+            layer: Layer {
+                src,
+                format,
+                bounds: state.bounds,
+                scrolls: false,
+            },
+            components: nested,
+        });
+    }
+    Ok(FolioComponent {
+        id: &component.id,
+        name: &component.name,
+        bounds: component.bounds,
+        initial: &component.initial,
+        fixed: component.fixed,
+        states,
+    })
 }
 
 /// Frames a smart animate leaves or reaches: they need their parts (docs/spec/player.md).

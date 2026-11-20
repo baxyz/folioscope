@@ -128,8 +128,19 @@ impl Draw for FigmaDraw<'_, '_> {
             .map(str::parse)
             .collect::<Result<_, _>>()
             .ok()?;
-        let svg =
-            svg::render_component_state(self.tree, &path, variant, Some(&mut self.typesetter))?;
+        // Components nested in the state are drawn on their own, over it.
+        let hidden: Vec<NodeId> = state
+            .components
+            .iter()
+            .filter_map(|c| c.id.rsplit(';').next()?.parse().ok())
+            .collect();
+        let svg = svg::render_component_state(
+            self.tree,
+            &path,
+            variant,
+            Some(&mut self.typesetter),
+            &hidden,
+        )?;
         self.missing_fonts.extend(svg.missing_fonts);
         Some(svg.markup)
     }
