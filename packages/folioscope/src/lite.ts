@@ -347,7 +347,9 @@ export async function play(
   };
   const kind = transition.kind;
   const animations: Animation[] = [];
-  const slide = (side: Side, sign: 1 | -1) => offset(side, sign);
+  const slide = (side: Side, sign: number) => offset(side, sign);
+  // Slides move the screen underneath a little too, the other way; moves leave it in place.
+  const parallax = kind.type === "slideIn" || kind.type === "slideOut" ? PARALLAX : 0;
   switch (kind.type) {
     case "slideIn":
     case "moveIn":
@@ -357,20 +359,31 @@ export async function play(
         animations.push(
           outgoing.animate([{ transform: "none" }, { transform: slide(kind.from, 1) }], options),
         );
+        if (parallax)
+          animations.push(
+            incoming.animate(
+              [{ transform: slide(kind.from, -parallax) }, { transform: "none" }],
+              options,
+            ),
+          );
       } else {
         animations.push(
           incoming.animate([{ transform: slide(kind.from, 1) }, { transform: "none" }], options),
         );
+        if (parallax)
+          animations.push(
+            outgoing.animate(
+              [{ transform: "none" }, { transform: slide(kind.from, -parallax) }],
+              options,
+            ),
+          );
       }
       break;
     case "push": {
       const sign = reverse ? -1 : 1;
       animations.push(
         incoming.animate([{ transform: slide(kind.from, sign) }, { transform: "none" }], options),
-        outgoing.animate(
-          [{ transform: "none" }, { transform: slide(kind.from, -sign as 1 | -1) }],
-          options,
-        ),
+        outgoing.animate([{ transform: "none" }, { transform: slide(kind.from, -sign) }], options),
       );
       break;
     }
@@ -380,6 +393,13 @@ export async function play(
       animations.push(
         outgoing.animate([{ transform: "none" }, { transform: slide(kind.to, 1) }], options),
       );
+      if (parallax)
+        animations.push(
+          incoming.animate(
+            [{ transform: slide(kind.to, -parallax) }, { transform: "none" }],
+            options,
+          ),
+        );
       break;
     default:
       // Dissolve; smart animate and unknown kinds fall back to it until they are supported.
@@ -400,8 +420,11 @@ function place(
   });
 }
 
-/** Where a screen sits off-stage on `side`. */
-function offset(side: Side, sign: 1 | -1): string {
+/** How far a slide moves the screen underneath, as a share of the screen. */
+const PARALLAX = 0.3;
+
+/** Where a screen sits off-stage on `side`, `sign` screens away (negative: the other side). */
+function offset(side: Side, sign: number): string {
   const axis = side === "left" || side === "right" ? "X" : "Y";
   const direction = side === "left" || side === "top" ? -1 : 1;
   return `translate${axis}(${direction * sign * 100}%)`;

@@ -90,6 +90,18 @@ try {
   assert.equal(await control("Flow").isHidden(), true);
   console.log("✓ controls: flow and page pickers, restart, back state");
 
+  // A slide moves the screen underneath a little too: both screens are animated.
+  await tab.locator('folioscope-player .frame button[aria-label="Settings button"]').click();
+  const animated = await tab.evaluate(() => {
+    const frames = document
+      .querySelector("folioscope-player")!
+      .shadowRoot!.querySelectorAll(".stage > .frame");
+    return [...frames].filter((f) => f.getAnimations().length > 0).length;
+  });
+  assert.equal(animated, 2, "the incoming and the outgoing screens both move");
+  await settledOn("Settings");
+  console.log("✓ slide in: the screen underneath moves a little too");
+
   // A framework builds the element, sets `controls`, then inserts it.
   await tab.goto(`${server.origin}/?folio=navigation`);
   await tab.evaluate(() => {
