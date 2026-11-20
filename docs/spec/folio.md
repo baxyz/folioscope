@@ -125,10 +125,11 @@ An instance whose variant holds a "change to" is a **component** of its frame:
   out does nothing. Real variant sets cross design properties (size, theme, type: up to 81
   variants in Penpot's examples), but a prototype changes one of them, the state: 2 to 8 values
   there, 11 for a carousel.
-- **Nested interactive components** (a component inside a state) are drawn, not interactive. When
-  they are, they will be one SVG sheet inlined in the page, each state a group the player shows or
-  hides (N + M groups rather than N × M images); a component whose look depends on its parent's
-  state still needs one group per combination, and the limit counts them.
+- **Nested interactive components**: a component inside a state is not drawn into it. The state
+  lists it in its own `components` (ids from the state's variant down to the instance), the state's
+  layer is drawn without it, and it gets its layers like any component, drawn over the state: N + M
+  images rather than N × M. Up to three levels deep. Each nested component is capped on its own.
+- **"After delay" inside a state** counts from when the state shows.
 
 ## Loading speed
 

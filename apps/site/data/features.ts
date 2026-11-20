@@ -158,8 +158,12 @@ export const FEATURES: Feature[] = [
     formats: {
       fig: works("e2e: components: variants change while hovering, while pressing and on click"),
       sketch: na,
-      penpot: todo("Penpot 2 variants are not read as interactive components yet"),
-      xd: todo("XD component states are not read yet"),
+      penpot: todo(
+        "Penpot's prototype has no action that changes a variant in the files we have; a file with one would show how it is stored",
+      ),
+      xd: todo(
+        "an .xd file with component states, to see how XD stores them and their state-transition links",
+      ),
     },
   },
   {
@@ -167,10 +171,27 @@ export const FEATURES: Feature[] = [
     group: "Prototype",
     name: "Interactive components inside a component's state",
     formats: {
-      fig: todo("drawn, not interactive yet"),
+      fig: unverified(
+        "e2e: nested components: a component in another's state, and after delay in a state",
+        FIG_CHECK,
+      ),
       sketch: na,
-      penpot: todo("needs variants first"),
-      xd: todo("needs states first"),
+      penpot: todo("needs interactive components first"),
+      xd: todo("needs component states first"),
+    },
+  },
+  {
+    id: "state-delay",
+    group: "Prototype",
+    name: "After delay inside a component's state",
+    formats: {
+      fig: unverified(
+        "e2e: nested components: a component in another's state, and after delay in a state",
+        FIG_CHECK,
+      ),
+      sketch: na,
+      penpot: na,
+      xd: todo("needs component states first"),
     },
   },
   {
