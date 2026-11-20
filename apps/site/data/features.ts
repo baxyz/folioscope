@@ -65,7 +65,9 @@ export const FEATURES: Feature[] = [
       fig: works("e2e: controls: flow and page pickers, restart, back state"),
       sketch: works("rust: sketch_flows_and_pages"),
       penpot: works("rust: penpot_flows_and_pages"),
-      xd: works("rust: xd_flows_and_pages"),
+      xd: todo(
+        "XD's named flows are not read, only its home artboard; an .xd file with several flows would show how they are stored",
+      ),
     },
   },
   {
@@ -483,7 +485,9 @@ export const FEATURES: Feature[] = [
     id: "first-frame",
     group: "Player",
     name: "First frame under 1 s on 4G",
-    formats: { all: works("e2e: first frame under 1000 ms on 4G with the documented setup") },
+    formats: {
+      all: works("e2e: first frame under ${BUDGET_MS} ms on 4G with the documented setup"),
+    },
   },
   {
     id: "placeholder",
