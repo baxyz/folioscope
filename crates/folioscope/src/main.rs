@@ -11,7 +11,7 @@ use folioscope::figma::{self, tree::Tree};
 const USAGE: &str = "usage:
   folioscope inspect <file.fig|.sketch|.xd|.penpot>
   folioscope render <file.fig> <node-id> <out.png> [scale]   (also writes <out>.svg)
-  folioscope bake <file.fig|.sketch|.xd|.penpot> <out.folio> [--no-avif] [--no-svg] [--max-states <n>]
+  folioscope bake <file.fig|.sketch|.xd|.penpot> <out.folio> [--config <file>] [--no-avif] [--no-svg] [--max-states <n>]
       [--all-pages] [--fonts <file or folder>
       [--family <name>] [--match <name or pattern>]... [--weight <100-900>] [--italic]]...
   folioscope fonts <folder>   (writes <folder>/folioscope-fonts.json)";
@@ -23,13 +23,14 @@ fn main() -> ExitCode {
         ["inspect", path] => inspect(path),
         ["render", path, node, out] => render(path, node, out, "1"),
         ["render", path, node, out, scale] => render(path, node, out, scale),
-        ["bake", rest @ ..] => {
-            let Some((path, out, options)) = bake_args(rest) else {
+        ["bake", rest @ ..] => match bake_args(rest) {
+            Ok((path, out, options)) => bake(path, out, &options),
+            Err(message) if message == USAGE => {
                 eprintln!("{USAGE}");
                 return ExitCode::from(2);
-            };
-            bake(path, out, &options)
-        }
+            }
+            Err(message) => Err(message),
+        },
         ["fonts", folder] => fonts(folder),
         ["--help" | "-h"] => {
             println!("{USAGE}");
@@ -89,56 +90,190 @@ fn render(path: &str, node: &str, out: &str, scale: &str) -> Result<(), String> 
     Ok(())
 }
 
-/// `<file> [-o] <out> [--no-avif] [--no-svg] [--max-states <n>] [--fonts <path> [--family <name>] [--match <pattern>]...
-/// [--weight <n>] [--italic]]...`, in any order after the file. What follows a `--fonts` says
-/// something about that font (or every font of that folder) instead of what the file says.
-fn bake_args<'a>(args: &[&'a str]) -> Option<(&'a str, &'a str, BakeArgs<'a>)> {
-    let mut positional = Vec::new();
+/// `<file> [-o] <out> [--config <file>] [--no-avif] [--no-svg] [--max-states <n>] [--fonts <path>
+/// [--family <name>] [--match <pattern>]... [--weight <n>] [--italic]]...`, in any order after the
+/// file. What follows a `--fonts` says something about that font (or every font of that folder)
+/// instead of what the file says. A configuration file gives defaults the flags override.
+fn bake_args<'a>(args: &[&'a str]) -> Result<(&'a str, &'a str, BakeArgs), String> {
+    let usage = || USAGE.to_owned();
+    // The configuration file first: `--config <file>`, else `folioscope.config.json` here.
+    let mut config_path = None;
+    let mut scan = args.iter();
+    while let Some(&arg) = scan.next() {
+        if arg == "--config" {
+            config_path = Some(Path::new(*scan.next().ok_or_else(usage)?).to_path_buf());
+        }
+    }
+    let config = Config::load(config_path.as_deref())?;
     let mut options = BakeArgs {
-        avif: true,
-        svg: true,
-        max_states: folioscope::bake::folio::DEFAULT_MAX_STATES,
-        all_pages: false,
-        fonts: Vec::new(),
+        avif: config.avif.unwrap_or(true),
+        svg: config.svg.unwrap_or(true),
+        max_states: config
+            .max_states
+            .unwrap_or(folioscope::bake::folio::DEFAULT_MAX_STATES),
+        all_pages: config.all_pages.unwrap_or(false),
+        fonts: config.fonts,
     };
+    let mut positional = Vec::new();
     let mut args = args.iter();
+    let next = |args: &mut std::slice::Iter<'_, &'a str>| args.next().copied().ok_or_else(usage);
     while let Some(&arg) = args.next() {
         match arg {
+            "--config" => {
+                next(&mut args)?;
+            }
             "--no-avif" => options.avif = false,
             "--no-svg" => options.svg = false,
-            "--max-states" => options.max_states = args.next()?.parse().ok().filter(|&n| n > 0)?,
+            "--max-states" => {
+                options.max_states = next(&mut args)?
+                    .parse()
+                    .ok()
+                    .filter(|&n| n > 0)
+                    .ok_or_else(usage)?;
+            }
             "--all-pages" => options.all_pages = true,
-            "--fonts" => options.fonts.push((*args.next()?, FontHints::default())),
-            "--family" => options.fonts.last_mut()?.1.family = Some((*args.next()?).to_owned()),
-            "--match" => options
+            "--fonts" => options
                 .fonts
-                .last_mut()?
-                .1
-                .matches
-                .push((*args.next()?).to_owned()),
-            "--weight" => options.fonts.last_mut()?.1.weight = Some(args.next()?.parse().ok()?),
-            "--italic" => options.fonts.last_mut()?.1.italic = Some(true),
+                .push((next(&mut args)?.to_owned(), FontHints::default())),
+            "--family" | "--match" | "--weight" | "--italic" => {
+                let (_, hints) = options.fonts.last_mut().ok_or_else(usage)?;
+                match arg {
+                    "--family" => hints.family = Some(next(&mut args)?.to_owned()),
+                    "--match" => hints.matches.push(next(&mut args)?.to_owned()),
+                    "--weight" => {
+                        hints.weight = Some(next(&mut args)?.parse().map_err(|_| usage())?);
+                    }
+                    _ => hints.italic = Some(true),
+                }
+            }
             "-o" => {}
-            _ if arg.starts_with('-') => return None,
+            _ if arg.starts_with('-') => return Err(usage()),
             _ => positional.push(arg),
         }
     }
     match positional.as_slice() {
-        [path, out] => Some((path, out, options)),
-        _ => None,
+        [path, out] => Ok((path, out, options)),
+        _ => Err(usage()),
     }
 }
 
-struct BakeArgs<'a> {
+struct BakeArgs {
     avif: bool,
     svg: bool,
     max_states: usize,
     all_pages: bool,
-    /// Each font path with what was said about it.
-    fonts: Vec<(&'a str, FontHints)>,
+    /// Each font path with what was said about it: the configuration's, then the command line's.
+    fonts: Vec<(String, FontHints)>,
 }
 
-fn bake(path: &str, out: &str, args: &BakeArgs<'_>) -> Result<(), String> {
+/// `folioscope.config.json`: the options of `folioscope bake`, as `folioscope/vite` takes them.
+/// Paths are relative to the file.
+#[derive(Default, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ConfigFile {
+    avif: Option<bool>,
+    svg: Option<bool>,
+    max_states: Option<usize>,
+    all_pages: Option<bool>,
+    #[serde(default)]
+    fonts: Vec<ConfigFont>,
+}
+
+/// A font source: a path, or paths with what to say about them.
+#[derive(serde::Deserialize)]
+#[serde(untagged)]
+enum ConfigFont {
+    Path(String),
+    Hinted {
+        src: OneOrMany,
+        family: Option<String>,
+        #[serde(rename = "match")]
+        matches: Option<OneOrMany>,
+        weight: Option<f32>,
+        italic: Option<bool>,
+    },
+}
+
+#[derive(serde::Deserialize)]
+#[serde(untagged)]
+enum OneOrMany {
+    One(String),
+    Many(Vec<String>),
+}
+
+impl OneOrMany {
+    fn into_vec(self) -> Vec<String> {
+        match self {
+            OneOrMany::One(one) => vec![one],
+            OneOrMany::Many(many) => many,
+        }
+    }
+}
+
+/// The configuration, read: options and fonts with their paths resolved.
+struct Config {
+    avif: Option<bool>,
+    svg: Option<bool>,
+    max_states: Option<usize>,
+    all_pages: Option<bool>,
+    fonts: Vec<(String, FontHints)>,
+}
+
+impl Config {
+    /// Reads `path`, or `folioscope.config.json` in the current folder when it exists.
+    fn load(path: Option<&Path>) -> Result<Self, String> {
+        let default = Path::new(CONFIG_FILE);
+        let path = match path {
+            Some(path) => path,
+            None if default.is_file() => default,
+            None => return Ok(Self::from(ConfigFile::default(), Path::new("."))),
+        };
+        let text = std::fs::read_to_string(path)
+            .map_err(|e| format!("cannot read {}: {e}", path.display()))?;
+        let file: ConfigFile =
+            serde_json::from_str(&text).map_err(|e| format!("{}: {e}", path.display()))?;
+        Ok(Self::from(file, path.parent().unwrap_or(Path::new("."))))
+    }
+
+    fn from(file: ConfigFile, base: &Path) -> Self {
+        let resolve = |p: &str| base.join(p).to_string_lossy().into_owned();
+        let mut fonts = Vec::new();
+        for font in file.fonts {
+            match font {
+                ConfigFont::Path(path) => fonts.push((resolve(&path), FontHints::default())),
+                ConfigFont::Hinted {
+                    src,
+                    family,
+                    matches,
+                    weight,
+                    italic,
+                } => {
+                    let hints = FontHints {
+                        family,
+                        matches: matches.map(OneOrMany::into_vec).unwrap_or_default(),
+                        weight,
+                        italic,
+                    };
+                    for path in src.into_vec() {
+                        fonts.push((resolve(&path), hints.clone()));
+                    }
+                }
+            }
+        }
+        Self {
+            avif: file.avif,
+            svg: file.svg,
+            max_states: file.max_states,
+            all_pages: file.all_pages,
+            fonts,
+        }
+    }
+}
+
+/// The configuration file `folioscope bake` reads in the current folder.
+const CONFIG_FILE: &str = "folioscope.config.json";
+
+fn bake(path: &str, out: &str, args: &BakeArgs) -> Result<(), String> {
     let bytes = std::fs::read(path).map_err(|e| format!("cannot read {path}: {e}"))?;
     let mut fonts = FontLibrary::default();
     for (source, hints) in &args.fonts {
@@ -251,6 +386,43 @@ mod tests {
     use super::*;
 
     #[test]
+    fn a_configuration_file_gives_defaults_the_flags_override() {
+        let dir = std::env::temp_dir().join(format!("folioscope-config-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("folioscope.config.json");
+        std::fs::write(
+            &path,
+            r#"{ "svg": false, "maxStates": 4, "fonts": ["fonts/", { "src": ["inter.ttf"], "match": "/^SF Pro/i", "weight": 500 }] }"#,
+        )
+        .unwrap();
+        let config = path.to_string_lossy().into_owned();
+        let args = [
+            "app.fig",
+            "--config",
+            &config,
+            "--max-states",
+            "8",
+            "out.folio",
+        ];
+        let (_, _, options) = bake_args(&args).unwrap();
+        assert!(!options.svg && options.avif);
+        assert_eq!(options.max_states, 8, "the flag wins");
+        let [(folder, _), (inter, hints)] = options.fonts.as_slice() else {
+            panic!("two fonts expected");
+        };
+        assert_eq!(Path::new(folder), dir.join("fonts/"));
+        assert_eq!(Path::new(inter), dir.join("inter.ttf"));
+        assert_eq!(
+            (hints.matches.as_slice(), hints.weight),
+            (&["/^SF Pro/i".to_owned()][..], Some(500.0))
+        );
+        // An unknown option is a mistake, not ignored.
+        std::fs::write(&path, r#"{ "colour": true }"#).unwrap();
+        assert!(bake_args(&args).is_err());
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
     fn what_follows_a_font_says_something_about_it() {
         let args = [
             "app.fig",
@@ -274,7 +446,7 @@ mod tests {
         let [(first, hints), (second, other)] = options.fonts.as_slice() else {
             panic!("two fonts expected");
         };
-        assert_eq!((*first, *second), ("a.ttf", "b/"));
+        assert_eq!((first.as_str(), second.as_str()), ("a.ttf", "b/"));
         assert_eq!(hints.family.as_deref(), Some("Brand"));
         assert_eq!(hints.matches, ["SF Pro*", "Helvetica"]);
         assert_eq!((hints.weight, hints.italic), (Some(500.0), Some(true)));
@@ -283,8 +455,8 @@ mod tests {
 
     #[test]
     fn a_hint_needs_a_font_and_a_value() {
-        assert!(bake_args(&["app.fig", "out", "--family", "Brand"]).is_none());
-        assert!(bake_args(&["app.fig", "out", "--fonts", "a.ttf", "--weight", "bold"]).is_none());
-        assert!(bake_args(&["app.fig", "out", "--fonts", "a.ttf", "--match"]).is_none());
+        assert!(bake_args(&["app.fig", "out", "--family", "Brand"]).is_err());
+        assert!(bake_args(&["app.fig", "out", "--fonts", "a.ttf", "--weight", "bold"]).is_err());
+        assert!(bake_args(&["app.fig", "out", "--fonts", "a.ttf", "--match"]).is_err());
     }
 }
