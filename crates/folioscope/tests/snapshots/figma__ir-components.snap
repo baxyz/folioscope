@@ -174,7 +174,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                             "to": "1:11",
                             "transition": {
                               "kind": {
-                                "type": "dissolve"
+                                "type": "smartAnimate"
                               },
                               "durationMs": 200,
                               "easing": {
@@ -216,7 +216,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                             "to": "1:9",
                             "transition": {
                               "kind": {
-                                "type": "dissolve"
+                                "type": "smartAnimate"
                               },
                               "durationMs": 200,
                               "easing": {
@@ -366,7 +366,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                                     "to": "1:11",
                                     "transition": {
                                       "kind": {
-                                        "type": "dissolve"
+                                        "type": "smartAnimate"
                                       },
                                       "durationMs": 200,
                                       "easing": {
@@ -408,7 +408,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                                     "to": "1:9",
                                     "transition": {
                                       "kind": {
-                                        "type": "dissolve"
+                                        "type": "smartAnimate"
                                       },
                                       "durationMs": 200,
                                       "easing": {
@@ -604,7 +604,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                     "to": "1:11",
                     "transition": {
                       "kind": {
-                        "type": "dissolve"
+                        "type": "smartAnimate"
                       },
                       "durationMs": 200,
                       "easing": {
@@ -634,7 +634,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                     "to": "1:9",
                     "transition": {
                       "kind": {
-                        "type": "dissolve"
+                        "type": "smartAnimate"
                       },
                       "durationMs": 200,
                       "easing": {
@@ -759,7 +759,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                             "to": "1:11",
                             "transition": {
                               "kind": {
-                                "type": "dissolve"
+                                "type": "smartAnimate"
                               },
                               "durationMs": 200,
                               "easing": {
@@ -801,7 +801,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                             "to": "1:9",
                             "transition": {
                               "kind": {
-                                "type": "dissolve"
+                                "type": "smartAnimate"
                               },
                               "durationMs": 200,
                               "easing": {

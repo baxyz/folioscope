@@ -62,6 +62,23 @@ function smartAnimate(): FigmaBuilder {
     transition: { type: "SMART_ANIMATE", durationMs: 400, easing: "INOUT_CUBIC" },
   });
 
+  // A frame whose children move on their own, and an arrow that turns a quarter.
+  const panel = figma.frame(home, "Panel", { x: 24, y: 300, width: 200, height: 120 }, GREY);
+  figma.rect(panel, "Label", { x: 16, y: 16, width: 120, height: 24 }, "#FFFFFF", 4);
+  figma.ellipse(panel, "Dot", { x: 150, y: 60, width: 24, height: 24 }, "#16A34A");
+  figma.rect(home, "Arrow", { x: 280, y: 140, width: 48, height: 8 }, "#111827", 4);
+  const panel2 = figma.frame(details, "Panel", { x: 24, y: 620, width: 327, height: 80 }, GREY);
+  figma.rect(panel2, "Label", { x: 180, y: 28, width: 120, height: 24 }, "#FFFFFF", 4);
+  figma.ellipse(panel2, "Dot", { x: 16, y: 28, width: 24, height: 24 }, "#16A34A");
+  const arrow = figma.rect(
+    details,
+    "Arrow",
+    { x: 340, y: 360, width: 48, height: 8 },
+    "#111827",
+    4,
+  );
+  figma.set(arrow, { transform: { m00: 0, m01: -1, m02: 340, m10: 1, m11: 0, m12: 360 } });
+
   figma.rect(details, "Card", { x: 0, y: 0, width: 375, height: 320 }, BLUE, 0);
   figma.rect(details, "Body", { x: 24, y: 352, width: 327, height: 240 }, GREY, 12);
   const back = figma.rect(details, "Back", { x: 16, y: 56, width: 80, height: 32 }, "#FFFFFF", 16);
@@ -91,6 +108,26 @@ function overlay(): FigmaBuilder {
   }
   const close = figma.rect(menu, "Close", { x: 24, y: 248, width: 232, height: 48 }, BLUE, 24);
   figma.on(close, "ON_CLICK", { kind: "close" });
+
+  // "More" swaps the menu for a taller one, with smart animate: the shared items move.
+  const more = figma.frame(
+    page,
+    "Menu, more",
+    { x: 800, y: 0, width: 280, height: 448 },
+    "#FFFFFF",
+  );
+  figma.overlay(more, { position: "CENTER", closeOnClickOutside: true, backdrop: "#00000066" });
+  for (let i = 0; i < 5; i++) {
+    figma.rect(more, `Item ${i + 1}`, { x: 24, y: 24 + i * 64, width: 232, height: 48 }, GREY, 8);
+  }
+  const less = figma.rect(more, "Close", { x: 24, y: 376, width: 232, height: 48 }, BLUE, 24);
+  figma.on(less, "ON_CLICK", { kind: "close" });
+  const expand = figma.rect(menu, "More", { x: 200, y: 200, width: 56, height: 32 }, "#DBEAFE", 8);
+  figma.on(expand, "ON_CLICK", {
+    kind: "swap",
+    to: more,
+    transition: { type: "SMART_ANIMATE", durationMs: 300 },
+  });
 
   return figma;
 }
@@ -229,8 +266,10 @@ function components(): FigmaBuilder {
   const on = figma.variant(switches, "On=true", { x: 24, y: 72, ...track }, "#16A34A", 18);
   figma.rect(on, "Knob", knob(32), "#FFFFFF", 14);
   const toggle = { type: "DISSOLVE", durationMs: 200 } as const;
-  figma.on(off, "ON_CLICK", { kind: "changeTo", to: on, transition: toggle });
-  figma.on(on, "ON_CLICK", { kind: "changeTo", to: off, transition: toggle });
+  // The switch's knob slides from one state to the other: smart animate between states.
+  const slide = { type: "SMART_ANIMATE", durationMs: 200 } as const;
+  figma.on(off, "ON_CLICK", { kind: "changeTo", to: on, transition: slide });
+  figma.on(on, "ON_CLICK", { kind: "changeTo", to: off, transition: slide });
 
   // A card that expands on click, with a switch inside its expanded state: an interactive
   // component nested in another's state.

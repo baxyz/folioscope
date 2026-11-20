@@ -32,6 +32,7 @@ export type Action =
   | { kind: "overlay"; to: FigGuid; transition?: Transition }
   | { kind: "scrollTo"; to: FigGuid; transition?: Transition }
   | { kind: "changeTo"; to: FigGuid; transition?: Transition }
+  | { kind: "swap"; to: FigGuid; transition?: Transition }
   | { kind: "back" }
   | { kind: "close" }
   | { kind: "url"; url: string; newTab?: boolean };
@@ -399,6 +400,7 @@ function prototypeAction(action: Action) {
     case "overlay":
     case "scrollTo":
     case "changeTo":
+    case "swap":
       return {
         connectionType: "INTERNAL_NODE",
         transitionNodeID: action.to,
@@ -407,6 +409,7 @@ function prototypeAction(action: Action) {
           overlay: "OVERLAY",
           scrollTo: "SCROLL_TO",
           changeTo: "SWAP_STATE",
+          swap: "SWAP",
         }[action.kind],
         ...transition(action.transition),
       };
