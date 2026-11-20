@@ -67,6 +67,7 @@ pub fn render_component_state<'t>(
     path: &[NodeId],
     variant: NodeId,
     typesetter: Option<&'t mut Typesetter>,
+    hidden: &[NodeId],
 ) -> Option<Svg> {
     let (last, outer) = path.split_last()?;
     let mut overrides = Overrides::default();
@@ -117,7 +118,7 @@ pub fn render_component_state<'t>(
         defs: String::new(),
         body: String::new(),
         next_id: 0,
-        hidden: Vec::new(),
+        hidden: hidden.to_vec(),
         root: Root::WHOLE,
         overrides,
         typesetter,

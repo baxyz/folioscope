@@ -98,6 +98,10 @@ pub struct ComponentState {
     pub bounds: Rect,
     /// In the state's coordinates.
     pub hotspots: Vec<Hotspot>,
+    /// Interactive components inside this state, in its coordinates; their ids are the instances
+    /// from the state's variant down to them.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub components: Vec<Component>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

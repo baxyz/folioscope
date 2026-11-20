@@ -77,7 +77,7 @@ fn page(tree: &Tree<'_>, canvas: &Node<'_>) -> Page {
         .iter()
         .map(|frame| {
             let mut walk = Walk::new(tree);
-            walk.node(frame, Affine::IDENTITY, false, &mut Vec::new(), false);
+            walk.node(frame, Affine::IDENTITY, false, &mut Vec::new(), 0);
             let (mut hotspots, components) = (walk.hotspots, walk.components);
             resolve_scroll_targets(tree, frame, &mut hotspots);
             let (x, y) = translation(frame.value);
@@ -107,6 +107,9 @@ fn page(tree: &Tree<'_>, canvas: &Node<'_>) -> Page {
     }
 }
 
+/// How deep interactive components nest inside each other's states.
+const MAX_NESTING: u8 = 3;
+
 /// Hotspots and interactive components of one frame.
 struct Walk<'t, 'a> {
     tree: &'t Tree<'a>,
@@ -132,14 +135,15 @@ impl<'t, 'a> Walk<'t, 'a> {
     /// Walks `node`'s subtree; `to_frame` maps the node's own coordinates to the frame's (or the
     /// component state's), `fixed` says the node is in a fixed child of a scrolling frame, `path`
     /// lists the instances above it. Instances are walked through their component's children;
-    /// interactive ones become components, unless `in_state` (no nesting).
+    /// interactive ones become components, nested in a component's state up to
+    /// [`MAX_NESTING`] deep (`in_state` counts how deep).
     fn node(
         &mut self,
         node: &Node<'a>,
         to_frame: Affine,
         fixed: bool,
         path: &mut Vec<String>,
-        in_state: bool,
+        in_state: u8,
     ) {
         // Inside instances, the node as the instances above it show it.
         let resolved = self.overrides.resolve(node);
@@ -154,10 +158,10 @@ impl<'t, 'a> Walk<'t, 'a> {
         }
         let symbol = symbol_of(node).and_then(|id| self.tree.get(id));
         if let Some(symbol) = symbol
-            && !in_state
+            && in_state < MAX_NESTING
             && (has_change_to(&interactions(node)) || self.changes_state(symbol))
         {
-            let component = self.component(node, symbol, to_frame, fixed, path);
+            let component = self.component(node, symbol, to_frame, fixed, path, in_state);
             self.components.push(component);
             return;
         }
@@ -205,6 +209,7 @@ impl<'t, 'a> Walk<'t, 'a> {
         to_frame: Affine,
         fixed: bool,
         path: &[String],
+        depth: u8,
     ) -> Component {
         let (width, height) = size(instance.value);
         let mut states: Vec<ComponentState> = Vec::new();
@@ -218,8 +223,9 @@ impl<'t, 'a> Walk<'t, 'a> {
                 continue;
             };
             let mut walk = Walk::new(self.tree);
-            walk.node(variant, Affine::IDENTITY, false, &mut Vec::new(), true);
+            walk.node(variant, Affine::IDENTITY, false, &mut Vec::new(), depth + 1);
             let mut hotspots = walk.hotspots;
+            let nested = walk.components;
             // The instance's own interactions replace its first variant's.
             let overrides = interactions(instance);
             if variant.id == symbol.id && !overrides.is_empty() {
@@ -256,6 +262,7 @@ impl<'t, 'a> Walk<'t, 'a> {
                 name: variant.name.to_owned(),
                 bounds: Affine::IDENTITY.bounding_box(w, h),
                 hotspots,
+                components: nested,
             });
         }
         let mut id = path.to_vec();
