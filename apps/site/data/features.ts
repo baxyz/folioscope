@@ -234,11 +234,14 @@ export const FEATURES: Feature[] = [
   {
     id: "slide-in",
     group: "Transitions",
-    name: "Slide in moves the screen below a little; move in does not",
+    name: "Slide in moves the screen underneath a little; move in does not",
     formats: {
-      fig: todo("both slide the new screen only"),
+      fig: unverified(
+        "e2e: slide in: the screen underneath moves a little too",
+        "a side-by-side with Figma's own player, to match how far the screen underneath moves",
+      ),
       sketch: na,
-      penpot: todo("both slide the new screen only"),
+      penpot: unverified("rust: penpot_slides", PENPOT_CHECK),
       xd: na,
     },
   },
