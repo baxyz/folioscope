@@ -1001,6 +1001,33 @@ function xdFeatures(): XdBuilder {
   xd.style(card, xd.dropShadow(4, 12, "#000000", 0.25));
   xd.image(home, "Photo", { x: 24, y: 304, width: 120, height: 80 }, { r: 0.9, g: 0.3, b: 0.3 });
   xd.clippedCircle(home, "Avatar", { x: 168, y: 304, width: 64, height: 64 }, "#EC4899");
+  // Effects: an object blur, a background blur over stripes, a blend mode, an image fit whole,
+  // and underlined text.
+  const blurred = xd.circle(home, "Object blur", { x: 256, y: 304, width: 64, height: 64 }, BLUE);
+  xd.style(blurred, { filters: [{ type: "uxdesign#blur", visible: true, params: { blurAmount: 4, backgroundEffect: false } }] });
+  for (let i = 0; i < 6; i++) {
+    const stripe = { x: 24 + i * 22, y: 400, width: 22, height: 64 };
+    xd.rect(home, `Stripe ${i + 1}`, stripe, i % 2 ? "#F59E0B" : "#1E3A8A");
+  }
+  const glass = xd.rect(home, "Frosted glass", { x: 36, y: 412, width: 108, height: 40 }, "#FFFFFF", 8);
+  xd.style(glass, {
+    opacity: 0.6,
+    filters: [{ type: "uxdesign#blur", visible: true,
+      params: { blurAmount: 8, brightnessAmount: 0, fillOpacity: 0.4, backgroundEffect: true } }],
+  });
+  xd.rect(home, "Under", { x: 176, y: 400, width: 64, height: 64 }, "#3B82F6");
+  const multiply = xd.circle(home, "Multiply", { x: 208, y: 400, width: 64, height: 64 }, "#F59E0B");
+  xd.style(multiply, { blendMode: "multiply" });
+  const fit = xd.image(home, "Fit", { x: 288, y: 400, width: 64, height: 32 }, { r: 0.2, g: 0.6, b: 0.3 });
+  const fill = (fit.style as { fill: { pattern: { meta: { ux: Record<string, unknown> } } } }).fill;
+  fill.pattern.meta.ux.scaleBehavior = "fit";
+  const label = xd.text(home, "Underlined", { x: 24, y: 520 }, "Underlined Inter", {
+    family: "Inter",
+    style: "Regular",
+    size: 18,
+  });
+  const ranged = (label.meta as { ux: { rangedStyles: Record<string, unknown>[] } }).ux.rangedStyles;
+  ranged[0]!.underline = true;
 
   const open = xd.rect(home, "Open details", { x: 88, y: 640, width: 200, height: 48 }, BLUE, 24);
   xd.link(open, details, { action: "auto-animate", easing: "ease-in-out", duration: 0.4 });
