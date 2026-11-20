@@ -165,6 +165,24 @@ function triggers(): FigmaBuilder {
   figma.on(hoveredButton, "ON_PRESS", { kind: "navigate", to: pressed });
   figma.rect(pressed, "Button", button, "#1E3A8A", 24);
 
+  // Shift + right arrow, or a swipe on the card, opens the details; Escape-free back.
+  const details = figma.frame(page, "Details", { x: 1900, y: 0, ...PHONE }, "#F9FAFB");
+  figma.on(
+    home,
+    "ON_KEY_DOWN",
+    { kind: "navigate", to: details, transition: { type: "SLIDE_FROM_RIGHT", durationMs: 300 } },
+    0,
+    [16, 39],
+  );
+  const card = figma.rect(home, "Swipe card", { x: 24, y: 160, width: 327, height: 200 }, GREY, 16);
+  figma.on(card, "DRAG", {
+    kind: "navigate",
+    to: details,
+    transition: { type: "SLIDE_FROM_RIGHT", durationMs: 300 },
+  });
+  const back = figma.rect(details, "Back", { x: 16, y: 56, width: 80, height: 32 }, GREY, 8);
+  figma.on(back, "ON_CLICK", { kind: "back" });
+
   return figma;
 }
 
@@ -1004,21 +1022,46 @@ function xdFeatures(): XdBuilder {
   // Effects: an object blur, a background blur over stripes, a blend mode, an image fit whole,
   // and underlined text.
   const blurred = xd.circle(home, "Object blur", { x: 256, y: 304, width: 64, height: 64 }, BLUE);
-  xd.style(blurred, { filters: [{ type: "uxdesign#blur", visible: true, params: { blurAmount: 4, backgroundEffect: false } }] });
+  xd.style(blurred, {
+    filters: [
+      { type: "uxdesign#blur", visible: true, params: { blurAmount: 4, backgroundEffect: false } },
+    ],
+  });
   for (let i = 0; i < 6; i++) {
     const stripe = { x: 24 + i * 22, y: 400, width: 22, height: 64 };
     xd.rect(home, `Stripe ${i + 1}`, stripe, i % 2 ? "#F59E0B" : "#1E3A8A");
   }
-  const glass = xd.rect(home, "Frosted glass", { x: 36, y: 412, width: 108, height: 40 }, "#FFFFFF", 8);
+  const glass = xd.rect(
+    home,
+    "Frosted glass",
+    { x: 36, y: 412, width: 108, height: 40 },
+    "#FFFFFF",
+    8,
+  );
   xd.style(glass, {
     opacity: 0.6,
-    filters: [{ type: "uxdesign#blur", visible: true,
-      params: { blurAmount: 8, brightnessAmount: 0, fillOpacity: 0.4, backgroundEffect: true } }],
+    filters: [
+      {
+        type: "uxdesign#blur",
+        visible: true,
+        params: { blurAmount: 8, brightnessAmount: 0, fillOpacity: 0.4, backgroundEffect: true },
+      },
+    ],
   });
   xd.rect(home, "Under", { x: 176, y: 400, width: 64, height: 64 }, "#3B82F6");
-  const multiply = xd.circle(home, "Multiply", { x: 208, y: 400, width: 64, height: 64 }, "#F59E0B");
+  const multiply = xd.circle(
+    home,
+    "Multiply",
+    { x: 208, y: 400, width: 64, height: 64 },
+    "#F59E0B",
+  );
   xd.style(multiply, { blendMode: "multiply" });
-  const fit = xd.image(home, "Fit", { x: 288, y: 400, width: 64, height: 32 }, { r: 0.2, g: 0.6, b: 0.3 });
+  const fit = xd.image(
+    home,
+    "Fit",
+    { x: 288, y: 400, width: 64, height: 32 },
+    { r: 0.2, g: 0.6, b: 0.3 },
+  );
   const fill = (fit.style as { fill: { pattern: { meta: { ux: Record<string, unknown> } } } }).fill;
   fill.pattern.meta.ux.scaleBehavior = "fit";
   const label = xd.text(home, "Underlined", { x: 24, y: 520 }, "Underlined Inter", {
@@ -1026,7 +1069,8 @@ function xdFeatures(): XdBuilder {
     style: "Regular",
     size: 18,
   });
-  const ranged = (label.meta as { ux: { rangedStyles: Record<string, unknown>[] } }).ux.rangedStyles;
+  const ranged = (label.meta as { ux: { rangedStyles: Record<string, unknown>[] } }).ux
+    .rangedStyles;
   ranged[0]!.underline = true;
 
   const open = xd.rect(home, "Open details", { x: 88, y: 640, width: 200, height: 48 }, BLUE, 24);
