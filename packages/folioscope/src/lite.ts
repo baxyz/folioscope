@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { spring, toCssLinear } from "helpers4/animation";
 import { prefersReducedMotion } from "helpers4/browser";
-import { matrixToCss, rectToRect } from "helpers4/geometry";
 import type {
   Action,
   FolioComponent,
   FolioFrame,
   Hotspot,
   Layer,
+  Point,
   Rect,
   Side,
   Transition,
@@ -162,6 +162,7 @@ function renderComponent(
   const show = (variant: string, transition?: Transition) => {
     const state = component.states.find((s) => s.variant === variant);
     if (!state) return;
+    const previous = component.states.find((s) => s.variant === current);
     current = variant;
     // "After delay" inside a state starts counting when the state shows.
     timers.forEach(clearTimeout);
@@ -201,7 +202,15 @@ function renderComponent(
       before?.remove();
       return;
     }
-    // Smart animate and the rest fade for now.
+    if (transition.kind.type === "smartAnimate" && previous?.parts && state.parts) {
+      // The parts of both states move from one to the other, over the new state.
+      img.style.visibility = "hidden";
+      void playSmart(zone, previous.parts, state.parts, transition, layerUrl).then(() => {
+        img.style.visibility = "";
+        before.remove();
+      });
+      return;
+    }
     void img
       .animate([{ opacity: 0 }, { opacity: 1 }], {
         ...timing(transition),
@@ -280,25 +289,17 @@ export async function playOverlay(
  */
 export async function playSmart(
   stage: HTMLElement,
-  from: FolioFrame,
-  to: FolioFrame,
+  fromParts: Part[] | undefined,
+  toParts: Part[] | undefined,
   transition: Transition,
   layerUrl: (layer: Layer) => string,
 ): Promise<void> {
-  if (!from.parts?.length || !to.parts?.length || prefersReducedMotion()) return;
+  if (!fromParts?.length || !toParts?.length || prefersReducedMotion()) return;
+  const from = { parts: fromParts };
+  const to = { parts: toParts };
   const options: KeyframeAnimationOptions = { ...timing(transition), fill: "both" };
   const layer = document.createElement("div");
   layer.className = "smart";
-  const image = (bounds: Rect, src: Layer) => {
-    const img = document.createElement("img");
-    img.src = layerUrl(src);
-    img.alt = "";
-    place(img, bounds);
-    layer.append(img);
-    return img;
-  };
-  // Where `a` would be drawn at `b`'s place, from `a`'s own (transform-origin: 0 0).
-  const toward = (a: Rect, b: Rect) => matrixToCss(rectToRect(a, b));
   // Pairs by name, in order: the n-th part named X in `from` with the n-th one in `to`.
   const pairs = new Map<number, number>();
   for (const [i, part] of from.parts.entries()) {
@@ -307,31 +308,38 @@ export async function playSmart(
     );
     if (j >= 0) pairs.set(i, j);
   }
-  const paired = new Set(pairs.values());
+  const partnerOf = (j: number) => [...pairs].find(([, k]) => k === j)?.[0];
   const moves: [HTMLElement, Keyframe[]][] = [];
   for (const [i, part] of from.parts.entries()) {
     const j = pairs.get(i);
-    const end = j === undefined ? undefined : to.parts[j]!.layer.bounds;
-    const img = image(part.layer.bounds, part.layer);
+    const end = j === undefined ? undefined : to.parts[j]!;
+    // Two plain boxes: one box changes size, corners, colour and place; nothing to cross-fade.
+    if (end && part.shape && end.shape) {
+      const box = partElement(layer, part, layerUrl);
+      moves.push([box, [boxFrame(part), boxFrame(end)]]);
+      continue;
+    }
+    const el = partElement(layer, part, layerUrl);
     moves.push([
-      img,
+      el,
       // A paired part stays opaque under its partner fading in: a cross-fade of two half
       // transparent images would show what is behind them.
       end
-        ? [{ transform: "none" }, { transform: toward(part.layer.bounds, end) }]
+        ? [{ transform: partTransform(part) }, { transform: partTransform(end, part) }]
         : [{ opacity: 1 }, { opacity: 0 }],
     ]);
   }
   for (const [j, part] of to.parts.entries()) {
-    const i = [...pairs].find(([, k]) => k === j)?.[0];
-    const start = paired.has(j) && i !== undefined ? from.parts[i]!.layer.bounds : undefined;
-    const img = image(part.layer.bounds, part.layer);
+    const i = partnerOf(j);
+    const start = i === undefined ? undefined : from.parts[i]!;
+    if (start?.shape && part.shape) continue;
+    const el = partElement(layer, part, layerUrl);
     moves.push([
-      img,
+      el,
       start
         ? [
-            { transform: toward(part.layer.bounds, start), opacity: 0 },
-            { transform: "none", opacity: 1 },
+            { transform: partTransform(start, part), opacity: 0 },
+            { transform: partTransform(part), opacity: 1 },
           ]
         : [{ opacity: 0 }, { opacity: 1 }],
     ]);
@@ -339,9 +347,86 @@ export async function playSmart(
   stage.append(layer);
   await decoded(layer);
   await Promise.all(
-    moves.map(([img, frames]) => img.animate(frames, options).finished.catch(() => undefined)),
+    moves.map(([el, frames]) => el.animate(frames, options).finished.catch(() => undefined)),
   );
   layer.remove();
+}
+
+export type Part = NonNullable<FolioFrame["parts"]>[number];
+
+/** Parts moved by `origin`: an overlay's, from its frame's corner to the screen's. */
+export function shifted(parts: Part[] | undefined, origin: Point): Part[] | undefined {
+  return parts?.map((part) => ({
+    ...part,
+    layer: {
+      ...part.layer,
+      bounds: {
+        ...part.layer.bounds,
+        x: part.layer.bounds.x + origin.x,
+        y: part.layer.bounds.y + origin.y,
+      },
+    },
+    matrix: part.matrix && [
+      part.matrix[0],
+      part.matrix[1],
+      part.matrix[2],
+      part.matrix[3],
+      part.matrix[4] + origin.x,
+      part.matrix[5] + origin.y,
+    ],
+  }));
+}
+
+/** A part's element: its image, or a plain box, at the frame's origin, moved by `transform`. */
+function partElement(
+  layer: HTMLElement,
+  part: Part,
+  layerUrl: (layer: Layer) => string,
+): HTMLElement {
+  let el: HTMLElement;
+  if (part.shape) {
+    el = document.createElement("div");
+    Object.assign(el.style, boxFrame(part));
+  } else {
+    const img = document.createElement("img");
+    img.src = layerUrl(part.layer);
+    img.alt = "";
+    el = img;
+  }
+  Object.assign(el.style, {
+    left: "0px",
+    top: "0px",
+    width: `${part.layer.bounds.width}px`,
+    height: `${part.layer.bounds.height}px`,
+    transformOrigin: "0 0",
+    transform: partTransform(part),
+  });
+  layer.append(el);
+  return el;
+}
+
+/**
+ * Where a part goes, as a CSS transform from the frame's origin: its matrix (turned or flipped)
+ * or its position; scaled to `as`'s size when given, so its image fills `as`'s place.
+ */
+function partTransform(part: Part, as?: Part): string {
+  const [a, b, c, d, e, f] = part.matrix ?? [1, 0, 0, 1, part.layer.bounds.x, part.layer.bounds.y];
+  const matrix = `matrix(${a}, ${b}, ${c}, ${d}, ${e}, ${f})`;
+  if (!as) return matrix;
+  const sx = part.layer.bounds.width / (as.layer.bounds.width || 1);
+  const sy = part.layer.bounds.height / (as.layer.bounds.height || 1);
+  return `${matrix} scale(${sx}, ${sy})`;
+}
+
+/** A plain box's keyframe: its size, corners, colour and place. */
+function boxFrame(part: Part): Keyframe & Record<string, string> {
+  return {
+    width: `${part.layer.bounds.width}px`,
+    height: `${part.layer.bounds.height}px`,
+    borderRadius: `${part.shape?.radius ?? 0}px`,
+    background: part.shape?.fill ?? "transparent",
+    transform: partTransform(part),
+  };
 }
 
 /** Scrolls the frame `el` to a "scroll to" action's target, smoothly unless it is instant. */
