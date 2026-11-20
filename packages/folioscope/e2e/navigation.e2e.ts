@@ -137,9 +137,12 @@ try {
   // "While hovering" and "while pressing" hold a frame, and let go of it.
   await tab.goto(`${server.origin}/?folio=triggers`);
   await settledOn("Home"); // after the splash's 1.5 s delay
-  const button = (await tab
-    .locator('folioscope-player .frame[aria-label="Home"] .hotspot')
-    .boundingBox())!;
+  // The button, not the swipe card: the hotspot 48 px high.
+  const hotspots = tab.locator('folioscope-player .frame[aria-label="Home"] .hotspot');
+  const boxes = await Promise.all(
+    Array.from({ length: await hotspots.count() }, (_, i) => hotspots.nth(i).boundingBox()),
+  );
+  const button = boxes.find((b) => b && Math.round(b.height) === 48)!;
   await tab.mouse.move(button.x + button.width / 2, button.y + button.height / 2);
   await settledOn("Home, button hovered");
   await tab.mouse.down();
@@ -149,6 +152,23 @@ try {
   await tab.mouse.move(button.x + button.width / 2, button.y - 40);
   await settledOn("Home");
   console.log("✓ hover and press: a frame while they last, then back");
+
+  // A key trigger (Shift + right arrow) and a drag across the card open the details.
+  await tab.locator('folioscope-player .frame[aria-label="Home"]').focus();
+  await tab.keyboard.press("ArrowRight");
+  await tab.waitForTimeout(400);
+  await settledOn("Home");
+  await tab.keyboard.press("Shift+ArrowRight");
+  await settledOn("Details");
+  await tab.locator('folioscope-player .frame button[aria-label="Back"]').click();
+  await settledOn("Home");
+  const swipe = boxes.find((b) => b && Math.round(b.height) === 200)!;
+  await tab.mouse.move(swipe.x + swipe.width - 20, swipe.y + swipe.height / 2);
+  await tab.mouse.down();
+  await tab.mouse.move(swipe.x + 20, swipe.y + swipe.height / 2, { steps: 5 });
+  await tab.mouse.up();
+  await settledOn("Details");
+  console.log("✓ keys and drags: a key combination and a swipe follow their links");
 
   // Overlays open over the screen, centered on a dimmed backdrop, and close by a button or outside.
   await tab.goto(`${server.origin}/?folio=overlay`);

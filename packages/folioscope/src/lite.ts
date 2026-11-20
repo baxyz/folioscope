@@ -84,7 +84,8 @@ function renderHotspot(hotspot: Hotspot, on: FrameHandlers): HTMLElement | undef
   const by = (type: Trigger["type"]) =>
     hotspot.interactions.filter((i) => i.trigger.type === type).map((i) => i.action);
   const clicks = by("click");
-  const pointer = POINTER_TRIGGERS.some((type) => by(type).length > 0);
+  const drags = by("drag");
+  const pointer = POINTER_TRIGGERS.some((type) => by(type).length > 0) || drags.length > 0;
   if (clicks.length === 0 && !pointer) return undefined;
   const area: HTMLElement = document.createElement(clicks.length > 0 ? "button" : "div");
   area.className = "hotspot";
@@ -114,6 +115,24 @@ function renderHotspot(hotspot: Hotspot, on: FrameHandlers): HTMLElement | undef
       for (const action of by("press")) on.hold(action, "press", hotspot.bounds);
     });
     area.addEventListener("pointerup", () => run(by("mouseUp")));
+    if (drags.length > 0) {
+      // A drag is a press that moves far enough before it ends.
+      let start: { x: number; y: number } | undefined;
+      area.style.touchAction = "none";
+      area.addEventListener("pointerdown", (event) => {
+        start = { x: event.clientX, y: event.clientY };
+      });
+      area.addEventListener("pointermove", (event) => {
+        if (!start) return;
+        if (Math.hypot(event.clientX - start.x, event.clientY - start.y) >= DRAG_DISTANCE) {
+          start = undefined;
+          run(drags);
+        }
+      });
+      const end = () => (start = undefined);
+      area.addEventListener("pointerup", end);
+      area.addEventListener("pointercancel", end);
+    }
   }
   return area;
 }
@@ -195,6 +214,9 @@ function renderComponent(
   show(component.initial);
   return zone;
 }
+
+/** How far, in CSS pixels, a press must move to be a drag. */
+const DRAG_DISTANCE = 10;
 
 const POINTER_TRIGGERS = [
   "hover",
