@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `.xd` → IR v1 (ADR 0008): artboards as frames, the home artboard as the flow's start, and
+//! `.xd` → IR v1 (docs/spec/folio.md): artboards as frames, the home artboard as the flow's start, and
 //! every node with an interaction as a hotspot. See `docs/format-xd.md`.
 
 use std::collections::{HashMap, HashSet};

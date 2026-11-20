@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `.penpot` → IR v1 (ADR 0008): pages, top-level boards as frames, named flows, and the
+//! `.penpot` → IR v1 (docs/spec/folio.md): pages, top-level boards as frames, named flows, and the
 //! interactions of every shape. Penpot keeps geometry in page coordinates; the IR wants frame
 //! coordinates. Overlay settings live on Penpot's interactions, and on the IR's destination frame.
 

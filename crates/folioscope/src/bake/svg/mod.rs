@@ -126,7 +126,7 @@ pub fn render_component_state<'t>(
     Some(svg(&ctx, size))
 }
 
-/// A layer of a scrolling frame (ADR 0004's layer split).
+/// A layer of a scrolling frame (the layer split of docs/spec/folio.md).
 #[derive(Debug, Clone, Copy)]
 pub enum Part<'f> {
     /// The frame's own fills and strokes, without its children: stays in place.

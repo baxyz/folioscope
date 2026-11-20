@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `.fig` → IR v1 (ADR 0008): pages, flows, top-level frames and their hotspots.
+//! `.fig` → IR v1 (docs/spec/folio.md): pages, flows, top-level frames and their hotspots.
 
 use crate::figma::FigFile;
 use helpers4::geometry::{self, Matrix};
@@ -210,7 +210,7 @@ impl<'t, 'a> Walk<'t, 'a> {
         let mut states: Vec<ComponentState> = Vec::new();
         let mut queue = vec![symbol.id];
         while let Some(variant) = queue.pop() {
-            // Every reachable variant, each once: the bake decides how many it draws (ADR 0007).
+            // Every reachable variant, each once: the bake decides how many it draws (docs/spec/folio.md).
             if states.iter().any(|s| s.variant == variant.to_string()) {
                 continue;
             }

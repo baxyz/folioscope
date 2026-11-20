@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `.sketch` → IR v1 (ADR 0008): pages, artboards as frames, their start points and links.
+//! `.sketch` → IR v1 (docs/spec/folio.md): pages, artboards as frames, their start points and links.
 //! Sketch's prototype is a subset of Figma's: clicks only, navigate or back, slides.
 
 use std::collections::HashMap;

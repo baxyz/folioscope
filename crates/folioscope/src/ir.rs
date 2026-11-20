@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 //! The intermediate model, v1: the prototype graph of a document, whatever its source format
-//! (ADR 0008). Serialized as camelCase JSON into every `.folio`.
+//! (docs/spec/folio.md). Serialized as camelCase JSON into every `.folio`.
 
 use serde::{Deserialize, Serialize};
 

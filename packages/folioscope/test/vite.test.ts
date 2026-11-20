@@ -40,7 +40,7 @@ describe.skipIf(!wasmBuilt)("folioscope/vite", () => {
     const raw = readFileSync(indexPath, "utf8");
     const index = JSON.parse(raw);
     expect(index.pages[0].frames.map((f: { name: string }) => f.name)).toEqual(["Home", "Details"]);
-    // A flat screen is served as its SVG (ADR 0006).
+    // A flat screen is served as its SVG (docs/spec/bake.md).
     const layer = index.pages[0].frames[0].layers[0];
     expect(layer.format).toBe("svg");
     expect(existsSync(join(root, `dist/folio/app.folio/layers/${layer.src}.svg`))).toBe(true);

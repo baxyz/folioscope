@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-/** `index.json` of a `.folio` folder, as `folioscope bake` writes it (ADR 0004, ADR 0008). */
+/** `index.json` of a `.folio` folder, as `folioscope bake` writes it (docs/spec/folio.md). */
 export interface FolioIndex {
   folio: number;
   irVersion: number;
@@ -99,7 +99,7 @@ export interface Point {
  */
 export interface Layer {
   src: string;
-  /** File extension: `webp`; `avif` for large, photo-like layers; `svg` for flat ones (ADR 0006). */
+  /** File extension: `webp`; `avif` for large, photo-like layers; `svg` for flat ones (docs/spec/bake.md). */
   format: "webp" | "avif" | "svg";
   bounds: Rect;
   /** The frame's scrolling content: moves with the scroll, under the layers that follow. */

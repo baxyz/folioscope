@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Builds the WebAssembly bake (crates/folioscope-wasm) into wasm/, for folioscope/vite (ADR 0009).
+// Builds the WebAssembly bake (crates/folioscope-wasm) into wasm/, for folioscope/vite (docs/architecture.md).
 // Needs Rust with the wasm32-unknown-unknown target and wasm-bindgen-cli at the version pinned in
 // crates/folioscope-wasm/Cargo.toml. Run before publishing; the lite player does not need it.
 import { execFileSync } from "node:child_process";

@@ -36,7 +36,7 @@ pub trait Draw {
     /// Fonts some text needed and was not given (`Family Style`), over every call so far.
     fn missing_fonts(&mut self) -> BTreeSet<String>;
 
-    /// The parts smart animate pairs (ADR 0003): the frame's background, named `""`, then each
+    /// The parts smart animate pairs (docs/spec/player.md): the frame's background, named `""`, then each
     /// direct child, as `(name, markup, bounds)` in the frame's coordinates. None by default.
     fn parts(&mut self, _frame: &ir::Frame) -> Vec<(String, String, Rect)> {
         Vec::new()
@@ -159,7 +159,7 @@ impl Draw for FigmaDraw<'_, '_> {
             let Some(svg) = svg::render_node(self.tree, child.id) else {
                 continue;
             };
-            // Where the child sits; its rotation is not animated (ADR 0003).
+            // Where the child sits; its rotation is not animated (docs/spec/player.md).
             let offset = |k: &str| {
                 child
                     .value

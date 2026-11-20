@@ -4,7 +4,7 @@
 //!
 //! Handled: groups and clip paths, rectangles (with corner radii), circles, ellipses, lines,
 //! polygons, paths and compound shapes, colour, linear and radial gradient and image fills, borders
-//! (centred, inside and outside), drop shadows, opacity, and text, laid out with the fonts given (ADR 0011) at the
+//! (centred, inside and outside), drop shadows, opacity, and text, laid out with the fonts given (docs/spec/bake.md) at the
 //! positions XD stored for each line, and artboards taller than their viewport, which scroll. Not
 //! yet: blurs, text underline and strikethrough.
 
