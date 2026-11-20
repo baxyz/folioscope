@@ -23,7 +23,8 @@ const ANIMATIONS: Record<SketchAnimation, number> = {
   slideFromTop: 4,
 };
 
-type Layer = FileFormat.Rectangle | FileFormat.Hotspot;
+type Layer = FileFormat.Rectangle | FileFormat.Hotspot | FileFormat.Oval | FileFormat.Bitmap;
+type Parent = FileFormat.Artboard | FileFormat.Group;
 
 /**
  * Builds a `.sketch` file, typed against Sketch's published file format. Ids are deterministic so
@@ -32,6 +33,7 @@ type Layer = FileFormat.Rectangle | FileFormat.Hotspot;
 export class SketchBuilder {
   private nextId = 1;
   private readonly pages: FileFormat.Page[] = [];
+  private readonly images = new Map<string, Uint8Array>();
 
   /** UUID-shaped and deterministic; uppercase, as Sketch writes them. */
   private id(): string {
@@ -84,13 +86,7 @@ export class SketchBuilder {
     return artboard;
   }
 
-  rect(
-    artboard: FileFormat.Artboard,
-    name: string,
-    box: Box,
-    fill: string,
-    radius = 0,
-  ): FileFormat.Rectangle {
+  rect(artboard: Parent, name: string, box: Box, fill: string, radius = 0): FileFormat.Rectangle {
     const corner = (point: string): FileFormat.CurvePoint => ({
       _class: "curvePoint",
       cornerRadius: radius,
@@ -177,6 +173,113 @@ export class SketchBuilder {
     };
     artboard.layers.push(text);
     return text;
+  }
+
+  /** An ellipse filling its box. */
+  oval(parent: Parent, name: string, box: Box, fill: string): FileFormat.Oval {
+    const point = (p: string, from: string, to: string): FileFormat.CurvePoint => ({
+      _class: "curvePoint",
+      cornerRadius: 0,
+      cornerStyle: 0,
+      curveFrom: from,
+      curveTo: to,
+      hasCurveFrom: true,
+      hasCurveTo: true,
+      curveMode: 2,
+      point: p,
+    });
+    const k = 0.22385762510000001;
+    const oval: FileFormat.Oval = {
+      ...this.base(name, box),
+      _class: "oval",
+      clippingMaskMode: 0,
+      hasClippingMask: false,
+      style: this.style(fill),
+      edited: false,
+      isClosed: true,
+      pointRadiusBehaviour: 1,
+      points: [
+        point("{0.5, 1}", `{${0.5 + k * 1.0}, 1}`, `{${0.5 - k * 1.0}, 1}`),
+        point("{1, 0.5}", `{1, ${0.5 - k}}`, `{1, ${0.5 + k}}`),
+        point("{0.5, 0}", `{${0.5 - k}, 0}`, `{${0.5 + k}, 0}`),
+        point("{0, 0.5}", `{0, ${0.5 + k}}`, `{0, ${0.5 - k}}`),
+      ],
+    };
+    parent.layers.push(oval);
+    return oval;
+  }
+
+  /** A bitmap of one colour, stored in the file's images/. */
+  bitmap(
+    parent: Parent,
+    name: string,
+    box: Box,
+    rgb: { r: number; g: number; b: number },
+  ): FileFormat.Bitmap {
+    const ref = `images/${this.id().toLowerCase()}.png`;
+    this.images.set(ref, solidPng(8, 8, rgb));
+    const bitmap = {
+      ...this.base(name, box),
+      _class: "bitmap",
+      clippingMask: "{{0, 0}, {1, 1}}",
+      fillReplacesImage: false,
+      intendedDPI: 72,
+      image: { _class: "MSJSONFileReference", _ref_class: "MSImageData", _ref: ref },
+      clippingMaskMode: 0,
+      hasClippingMask: false,
+      style: this.style(),
+    } as unknown as FileFormat.Bitmap;
+    parent.layers.push(bitmap);
+    return bitmap;
+  }
+
+  /** A group of layers, at `box` inside its parent. */
+  group(parent: Parent, name: string, box: Box): FileFormat.Group {
+    const group: FileFormat.Group = {
+      ...this.base(name, box),
+      _class: "group",
+      ...this.container(),
+      hasClickThrough: false,
+      layers: [],
+    };
+    parent.layers.push(group);
+    return group;
+  }
+
+  /** Makes `layer` a mask: it clips the layers after it in its group. */
+  mask(layer: Layer): void {
+    (layer as FileFormat.Rectangle).hasClippingMask = true;
+  }
+
+  /** Replaces a layer's first fill with a linear (0) or radial (1) gradient between two colours. */
+  gradient(layer: Layer, type: 0 | 1, from: string, to: string): void {
+    const fill = (layer as FileFormat.Rectangle).style!.fills![0]!;
+    fill.fillType = 1 as FileFormat.FillType;
+    fill.gradient = {
+      _class: "gradient",
+      gradientType: type as FileFormat.GradientType,
+      elipseLength: 1,
+      from: type === 1 ? "{0.5, 0.5}" : "{0, 0.5}",
+      to: type === 1 ? "{1, 0.5}" : "{1, 0.5}",
+      stops: [
+        { _class: "gradientStop", position: 0, color: color(from) },
+        { _class: "gradientStop", position: 1, color: color(to) },
+      ],
+    };
+  }
+
+  /** Adds a drop shadow. */
+  shadow(layer: Layer, offsetY: number, blur: number, hex: string): void {
+    (layer as FileFormat.Rectangle).style!.shadows!.push({
+      _class: "shadow",
+      isEnabled: true,
+      blurRadius: blur,
+      color: color(hex),
+      contextSettings: { _class: "graphicsContextSettings", blendMode: 0, opacity: 1 },
+      offsetX: 0,
+      offsetY,
+      spread: 0,
+    });
   }
 
   /** An invisible clickable area, Sketch's way to add a link without a visible layer. */
@@ -286,6 +389,7 @@ export class SketchBuilder {
         this.pages.map((page) => [`pages/${page.do_objectID}.json`, [json(page), stored]]),
       ),
       "previews/preview.png": [solidPng(400, 300, { r: 0.96, g: 0.96, b: 0.96 }), stored],
+      ...Object.fromEntries([...this.images].map(([ref, png]) => [ref, [png, stored]])),
     });
   }
 
