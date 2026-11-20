@@ -6,7 +6,7 @@
 //! Handled: boards (clipping their content unless they show it), rectangles with their corner
 //! radii, ellipses, paths and boolean shapes (as one path), groups, images, colour, gradient and
 //! image fills, strokes, drop shadows, rotations and flips (`transform`), and text from the
-//! position Penpot computed for each run, drawn with the fonts given (ADR 0011). Not yet: blurs,
+//! position Penpot computed for each run, drawn with the fonts given (docs/spec/bake.md). Not yet: blurs,
 //! inner shadows, blend modes, inside and outside strokes (drawn centred), `svg-raw` shapes.
 
 use std::collections::{BTreeSet, HashMap};

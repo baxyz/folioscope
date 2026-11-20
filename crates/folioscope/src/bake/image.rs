@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Layer image formats (ADR 0004, ADR 0006): lossless WebP by default, AVIF when it is much
+//! Layer image formats (docs/spec/folio.md, docs/spec/bake.md): lossless WebP by default, AVIF when it is much
 //! smaller (photos), and the layer's SVG itself when it holds no image or filter and weighs less
 //! than its lightest image.
 
@@ -62,7 +62,7 @@ pub fn encode_best(
     })
 }
 
-/// Whether a layer may be served as its SVG (ADR 0006): it holds no image, which an SVG shown
+/// Whether a layer may be served as its SVG (docs/spec/bake.md): it holds no image, which an SVG shown
 /// by `<img>` can only carry inlined (no AVIF, no cache of its own), and no filter (blurs,
 /// shadows), which browsers draw slowly and not quite as `resvg` does.
 #[must_use]

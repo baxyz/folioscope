@@ -7,23 +7,22 @@ This repository inherits the [canonical workspace rules](https://github.com/baxy
 `<folioscope-player>`: a web component that plays the interactive prototype stored in a `.fig`,
 `.sketch`, `.xd` or `.penpot` file, with no Figma, Sketch or Adobe account.
 
-**Status:** Phase 1 under way. `.fig` files bake into `.folio` folders (CLI, and `folioscope/vite`
-through WebAssembly) and play in `<folioscope-player>`; the four formats are read into a common
-summary. See [PROJECT.md § 8](PROJECT.md#8-roadmap).
+**Status:** the four formats bake and play; what each one supports, and what is left, is on the
+site's [Roadmap](https://folioscope.baxyz.dev/roadmap).
 
-## The project plan: `PROJECT.md`
+## Documentation and feature status
 
-[PROJECT.md](PROJECT.md) holds the design and the roadmap that are not implemented or documented
-elsewhere yet: architecture, IR, `.folio` format, fonts, open decisions. Read it before any
-structural change. It is a **temporary** document that shrinks as the project advances:
-
-- When something lands, delete the matching text from `PROJECT.md` **in the same PR**: a finished
-  roadmap item, a decision now recorded in an ADR, a spec now covered by code, the README or the
-  site. Don't tick checkboxes, remove the line.
-- Before deleting, check that what is still useful has a permanent home (ADR, README, code docs,
-  site). Rationale goes into an ADR, not into a code comment.
-- Section numbers stay stable; a deleted section leaves a gap. Update links that point at it.
-- Once the file is empty, delete it, and remove the links to it (README, this file, `CLAUDE.md`).
+- `docs/architecture.md`: the pipeline and the main choices, with their reasons.
+- `docs/spec/`: what the code does and must keep doing: the `.folio` format (`folio.md`), the bake
+  (`bake.md`), the player (`player.md`). Change a spec in the same PR as the behaviour it
+  describes; a choice and its reasons go there, in a sentence or two, not into a separate record.
+- `docs/format-*.md`: what we know of each design format.
+- `docs/development.md`: stack, tests, fixtures, website, publishing, licence.
+- **`apps/site/data/features.ts`** lists every feature, per format, as works, unverified (tested on
+  our own files only), to do, or not in the format, and what each unverified or missing one needs.
+  The site's Roadmap and Compatibility pages are generated from it, and
+  `packages/folioscope/test/features.test.ts` checks that every feature said to work names a test
+  that exists. Update it in the same PR as the feature.
 
 ## License
 
@@ -59,7 +58,7 @@ Defined in `scopes.json`:
 ```text
 folioscope/
   crates/
-    folioscope/        ← the one published crate (ADR 0013), library and binary `folioscope`:
+    folioscope/        ← the one published crate library and binary `folioscope`:
                          importers (figma, sketch, xd, penpot), format detection, IR v1, summary;
                          `bake/` (feature `bake`, on by default): rendering and the .folio writer;
                          `main.rs`: inspect, render, bake, fonts
@@ -67,14 +66,11 @@ folioscope/
   packages/
     folioscope/        ← npm package: <folioscope-player> (src/), folioscope/vite (src/vite/),
                          wasm/ built by `build:wasm`, git-ignored, published
-  apps/site/           ← VitePress site on folioscope.baxyz.dev (ADR 0010); public/folio/ holds baked demos
+  apps/site/           ← VitePress site on folioscope.baxyz.dev ; public/folio/ holds baked demos
   fixtures/            ← test files we generated, one folder per format;
                          external/ (git-ignored) holds real third-party files for local checks
   tools/fixtures/      ← the generators behind fixtures/
-  docs/
-    adr/               ← decisions D1–D7
-    format-*.md        ← what we know of each file format
-  PROJECT.md           ← temporary project plan, shrinks to nothing (see above)
+  docs/                ← architecture.md, spec/, format-*.md, development.md (see above)
 ```
 
 ## Commands
@@ -146,7 +142,7 @@ What this means when you work here:
   `folioscope` package checks both. Change them only together with the setting on npmjs.com.
 - Every preflight message links to
   [the action's troubleshooting page](https://github.com/helpers4/action-release/blob/main/docs/troubleshooting.md).
-- crates.io gets **one crate**, `folioscope` (the CLI and the library, ADR 0013), with the version of
+- crates.io gets **one crate**, `folioscope` (the CLI and the library), with the version of
   the release (`- crates: .` in `release.yml` publishes the one publishable crate of the workspace);
   `folioscope-wasm` (`publish = false`) ships in the npm package only. The release writes the version
   in `[workspace.package]` and in the `version` of the path dependency of `[workspace.dependencies]`,
@@ -167,7 +163,7 @@ runs `npx`.
 - **helpers4 first.** Before writing a generic helper (geometry, binary reading, easing, FSM, DOM,
   glob…), look in `helpers4` (TS: one dependency, `helpers4`, imported by sub-path such as
   `helpers4/function`; Rust: crate `helpers4` with one feature per module). If it is missing and
-  generic, propose it for helpers4 instead of coding it locally. See [PROJECT.md § 6.4](PROJECT.md#64-helpers4-libraries).
+  generic, write it here: helpers4 is used as it is (see `docs/development.md`).
 - **No UI framework** in the component: vanilla custom elements, no Lit, no React.
 - **Performance budgets are features**: the lite player stays under 15 KB of JS gzipped, with no
   WASM and no fonts.
@@ -175,7 +171,6 @@ runs `npx`.
   logo name. Say "compatible with `.fig`, `.sketch`, `.xd` and `.penpot` files".
 - **Fixtures** are files we generate in `tools/fixtures`; edit the generator, never the files.
   Never commit third-party design files: they go into the git-ignored `fixtures/external/`.
-- **Figma, Sketch and Penpot are the judges**: a generated fixture counts as valid once it has
-  been imported and its prototype played in the real tool.
-- Decisions go into an ADR in `docs/adr/` (`NNNN-short-title.md`, numbered after the design doc's
-  D-ids).
+- **The design tools are the judges**: a generated fixture counts as valid once it has been
+  imported and its prototype played in the real tool. Until then, what it covers is "unverified"
+  in `features.ts`, which says what file would validate it.

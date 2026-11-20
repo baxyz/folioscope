@@ -13,7 +13,7 @@ fn navigation_bakes_to_a_folio_folder() {
     let file = decode(&std::fs::read(input).unwrap()).unwrap();
 
     let report = bake_fig(&file, &out, &BakeOptions::default()).unwrap();
-    // Two flat screens: each one SVG file, lighter than its images (ADR 0006).
+    // Two flat screens: each one SVG file, lighter than its images (docs/spec/bake.md).
     assert_eq!((report.frames, report.layers, report.svg_layers), (2, 2, 2));
 
     let index: serde_json::Value =
@@ -302,7 +302,7 @@ fn pages_without_a_flow_are_left_out() {
     assert_eq!(index["pages"].as_array().unwrap().len(), 1);
 }
 
-/// A layer with an image or a filter stays a raster image, whatever its weight (ADR 0006).
+/// A layer with an image or a filter stays a raster image, whatever its weight (docs/spec/bake.md).
 #[test]
 fn only_layers_without_images_or_filters_may_be_svg() {
     use folioscope::bake::image::svg_eligible;
@@ -317,7 +317,7 @@ fn only_layers_without_images_or_filters_may_be_svg() {
     ));
 }
 
-/// Past `max_states`, a component's states are left out and the report names it (ADR 0007).
+/// Past `max_states`, a component's states are left out and the report names it (docs/spec/folio.md).
 #[test]
 fn states_past_the_cap_are_left_out_and_reported() {
     use flat::{document, frame, page};

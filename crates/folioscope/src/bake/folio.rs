@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Writes a `.folio` folder (ADR 0004): `index.json` (the IR plus each frame's layers), hashed
+//! Writes a `.folio` folder (docs/spec/folio.md): `index.json` (the IR plus each frame's layers), hashed
 //! layer images at every density, and `poster.webp`. A frame is one layer, or, when it scrolls,
 //! three: its background, the content that scrolls, and the fixed children on top.
 
@@ -51,12 +51,12 @@ pub struct BakeOptions {
     /// Encode large, photo-like layers as AVIF when it beats lossless WebP (see `image`).
     pub avif: bool,
     /// Serve a layer as its SVG when it holds no image or filter and weighs less than its lightest
-    /// image (ADR 0006).
+    /// image (docs/spec/bake.md).
     pub svg: bool,
-    /// The most states baked per interactive component (ADR 0007); the others stay unreachable,
+    /// The most states baked per interactive component (docs/spec/folio.md); the others stay unreachable,
     /// and the report lists the component.
     pub max_states: usize,
-    /// Fonts for text the file stores no glyphs for (ADR 0011).
+    /// Fonts for text the file stores no glyphs for (docs/spec/bake.md).
     pub fonts: FontLibrary,
     /// Bake the pages that have no flow too. By default, when some page has one, the others (a
     /// design system's components, say) are left out: they are not part of the prototype.
@@ -96,7 +96,7 @@ pub struct BakeReport {
     pub skipped_pages: Vec<String>,
 }
 
-/// An interactive component the bake kept only some states of (ADR 0007).
+/// An interactive component the bake kept only some states of (docs/spec/folio.md).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CappedComponent {
     /// The component's name, then the frame's.
@@ -107,7 +107,7 @@ pub struct CappedComponent {
     pub states: usize,
 }
 
-/// States baked per interactive component by default (ADR 0007).
+/// States baked per interactive component by default (docs/spec/folio.md).
 pub const DEFAULT_MAX_STATES: usize = 16;
 
 /// The longest side of an image WebP can hold.
@@ -141,7 +141,7 @@ struct FolioFrame<'a> {
     layers: Vec<Layer>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     components: Vec<FolioComponent<'a>>,
-    /// For smart animate (ADR 0003): the background, then each direct child, by name.
+    /// For smart animate (docs/spec/player.md): the background, then each direct child, by name.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     parts: Vec<FolioPart>,
     /// [ThumbHash](https://evanw.github.io/thumbhash/), base64: a blurred preview shown until the
@@ -247,7 +247,7 @@ fn bake_components<'a>(
     Ok(components)
 }
 
-/// Frames a smart animate leaves or reaches: they need their parts (ADR 0003).
+/// Frames a smart animate leaves or reaches: they need their parts (docs/spec/player.md).
 fn smart_animated(document: &Document) -> HashSet<&str> {
     let mut frames = HashSet::new();
     for frame in document.pages.iter().flat_map(|p| &p.frames) {
@@ -307,7 +307,7 @@ enum LayerError {
     Sink(BakeError),
 }
 
-/// Encodes one layer into `sink`: as its SVG when that is allowed and lighter (ADR 0006), else at
+/// Encodes one layer into `sink`: as its SVG when that is allowed and lighter (docs/spec/bake.md), else at
 /// every density, highest first (it picks the raster format).
 fn encode_layer(
     markup: &str,

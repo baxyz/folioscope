@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Fonts given to the bake (ADR 0011): read for their family, weight and style, and matched to
+//! Fonts given to the bake (docs/spec/bake.md): read for their family, weight and style, and matched to
 //! what a text asks for. Never the system's fonts, so a bake gives the same result everywhere.
 
 use std::sync::Arc;

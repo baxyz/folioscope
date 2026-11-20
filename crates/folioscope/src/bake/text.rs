@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Text laid out from fonts (ADR 0011), where the design file stores no glyph outlines: parley
+//! Text laid out from fonts (docs/spec/bake.md), where the design file stores no glyph outlines: parley
 //! shapes the characters and breaks the lines, skrifa gives each glyph's outline, drawn as an SVG
 //! path like the outlines a `.fig` stores.
 

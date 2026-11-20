@@ -4,7 +4,7 @@
 //!
 //! Handled: groups, shapes from their curve points (rectangles, ovals, paths, boolean groups as
 //! one path), colour, gradient and image fills, borders, drop shadows, bitmaps, symbol instances
-//! (text overrides included) and text, laid out with the fonts given (ADR 0011). Not yet: masks,
+//! (text overrides included) and text, laid out with the fonts given (docs/spec/bake.md). Not yet: masks,
 //! blurs, blend modes, inner shadows, per-run text styles (a text takes its first run's style).
 
 use std::collections::{BTreeSet, HashMap};

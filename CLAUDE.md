@@ -4,9 +4,9 @@ Full canonical rules (commit format, restrictions, license) live in the workspac
 [AGENTS.md](https://github.com/baxyz/.dev/blob/main/AGENTS.md); project-specific deltas — scopes,
 commands, the helpers4-first rule, SPDX headers — are in [AGENTS.md](AGENTS.md) at this repo's root.
 
-The project plan is [PROJECT.md](PROJECT.md), a temporary document. Work one roadmap phase per
-session, using its § 8 as the task list, and delete from `PROJECT.md` whatever each PR completes or
-moves to a permanent home (see "The project plan" in [AGENTS.md](AGENTS.md)).
+What works and what is left lives in `apps/site/data/features.ts`, published as the site's
+Roadmap and Compatibility pages: update it in the same PR as the feature (see "Feature status" in
+[AGENTS.md](AGENTS.md)). The design is described in `docs/` (architecture, specs, format notes).
 
 Releases: never bump `version`, edit a released changelog section or push a `v*` tag by hand. The **Release**
 workflow (`helpers4/action-release`) computes the version, pushes the release commit to `main`,

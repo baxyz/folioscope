@@ -234,7 +234,7 @@ export async function playOverlay(
 }
 
 /**
- * Smart animate (ADR 0003): over `stage`, the parts of `from` and `to` paired by name move and
+ * Smart animate (docs/spec/player.md): over `stage`, the parts of `from` and `to` paired by name move and
  * scale from their bounds in one frame to those in the other, the second image fading in over the
  * first; parts on one side only fade out or in. Resolves when it is over; does nothing when a
  * frame has no parts or motion is reduced.

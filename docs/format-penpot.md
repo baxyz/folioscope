@@ -74,4 +74,4 @@ the board's top-left corner:
   of the run's box), `height` (its line height), `fontFamily` (`Roboto` in some files, `"Roboto"`
   with CSS quotes in others; `sourcesanspro` is Penpot's default font), `fontWeight` and `fontSize` (CSS
   strings such as `"300"`, `"14px"`), `fontStyle`, `letterSpacing`, `textTransform`, `fills`. Each
-  run is drawn on its own line with the fonts given (ADR 0011): no line breaking is needed.
+  run is drawn on its own line with the fonts given ([bake](spec/bake.md#fonts-and-text)): no line breaking is needed.
