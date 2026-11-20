@@ -18,6 +18,7 @@ export default defineConfig({
       { text: "Getting started", link: "/guide/getting-started" },
       { text: "Demos", link: "/demos" },
       { text: "Compatibility", link: "/compatibility" },
+      { text: "Roadmap", link: "/roadmap" },
       { text: "Comparison", link: "/comparison" },
       { text: "About", link: "/about" },
     ],
