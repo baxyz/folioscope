@@ -119,12 +119,19 @@ Fonts matter only to the full player (a `.folio` holds no font). They are declar
 - `<folioscope-font>` must be closed explicitly: `/>` does not close an element in HTML.
 - **Shared set**: `<folioscope-fonts id="portfolio">` holds fonts several players use, by
   `fonts="portfolio"`; a player's own `<folioscope-font>` children come first.
-- **JavaScript**: `player.registerFont({ src | family | match | base | css | data, … })`,
-  `registerFont("Roboto", "/fonts/Roboto.woff2")`, and `new FolioscopeFontSet()` assigned to
-  `player.fonts`.
-- **Resolution order** for each family: a font embedded in the design file; an exact `family`; the
-  first matching `match` rule, in document order; auto fonts; the `base` manifests, then the `css`
-  stylesheets; otherwise the text is left out and `folioscope:font-missing` fires.
+- **JavaScript**: `player.registerFont({ src | data | base | css, family, match, weight, style })`,
+  `registerFont("Roboto", "/fonts/Roboto.woff2")`, and a shared set: `player.fonts = new
+  FolioscopeFontSet().add({ base: "/fonts/" })`; adding to the set bakes its players again.
+- **Only what the design uses is fetched**: the worker asks the bake which families the file's
+  text uses (`families`), then fetches a font declared with a `family` the design uses, a `match`
+  rule that matches one, the faces of a `base` manifest or of `css` `@font-face` rules whose
+  family is used, and every `src` font with neither (its file says its family), and bytes already
+  given. A folder or a stylesheet that cannot be read is reported with the missing fonts.
+- **Resolution order** for each family: a font embedded in the design file; the declared fonts, in
+  document order (the element's children, then `registerFont()`, then the shared set); otherwise
+  the text is left out and `folioscope:font-missing` fires.
+- **Cache**: keyed by the design file, the density and the declarations as written (URLs, not the
+  fonts' bytes), so a second visit needs no WebAssembly.
 
 ## Accessibility
 

@@ -19,6 +19,11 @@ folioscope render <file.fig> <node> <out.png> [scale]   # one node, and its SVG
 folioscope fonts <folder>                  # writes folder/folioscope-fonts.json
 ```
 
+`folioscope.config.json`, in the current folder (or `--config <file>`), gives the same options as
+the Vite plugin, as JSON (`avif`, `svg`, `maxStates`, `allPages`, `fonts`: paths, or `{ src,
+family, match, weight, italic }`), paths relative to the file; the flags win over it, and an
+unknown option is an error.
+
 The `folioscope/vite` plugin takes the same options: `include`, `base`, `cacheDir`, `avif`, `svg`,
 `maxStates`, `fonts` (see the site's Getting started).
 
@@ -90,8 +95,9 @@ Fonts are needed where the file stored no glyphs: `.sketch`, `.xd` and `.penpot`
   the rest). Each face is read for its family (typographic family first), weight, style and, for a
   variable font, its weight range.
 - **A font may stand in for other names**: its own family, plus the names and patterns it is told
-  to answer to (`--family`, `--match`; `*` and `?`, case-insensitive, or `/regex/flags`), with a
-  weight and style that override the file's. This is how a free font replaces one you may not serve
+  to answer to (`--family`, `--match`; `*` and `?`, case-insensitive, or `/regex/flags` with the
+  `i`, `m` and `s` flags, refused when it does not compile), with a weight and style that override
+  the file's. Penpot's default font, `sourcesanspro`, is found as Source Sans Pro or Source Sans 3. This is how a free font replaces one you may not serve
   (`SF Pro*`).
 - **Matching**, for each family a text asks for: the same family, case-insensitive, with the
   closest weight and the same style (CSS font matching); otherwise the first matching rule;
