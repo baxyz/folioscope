@@ -341,7 +341,7 @@ export class SketchBuilder {
   }
 
   /** Keeps a layer in place while its artboard scrolls. */
-  fixed(layer: Layer): void {
+  fixed(layer: Layer | FileFormat.Text): void {
     (layer as FileFormat.Rectangle).isFixedToViewport = true;
   }
 
