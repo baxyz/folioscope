@@ -331,7 +331,11 @@ export const FEATURES: Feature[] = [
     id: "reduced-motion",
     group: "Transitions",
     name: "prefers-reduced-motion turns transitions into cuts",
-    formats: { all: works("vitest: reduced motion") },
+    formats: {
+      all: works(
+        "e2e: accessibility: axe finds nothing serious; reduced motion plays no transition",
+      ),
+    },
   },
 
   // Drawing
@@ -654,10 +658,24 @@ export const FEATURES: Feature[] = [
     formats: { all: works("e2e: keyboard: Enter follows a hotspot, Escape goes back") },
   },
   {
+    id: "axe",
+    group: "Accessibility",
+    name: "Automated audit (axe): no issue in the player, its controls, overlays, components, scrolling",
+    formats: {
+      all: works(
+        "e2e: accessibility: axe finds nothing serious; reduced motion plays no transition",
+      ),
+    },
+  },
+  {
     id: "screen-readers",
     group: "Accessibility",
     name: "Screen readers",
-    formats: { all: todo("labels are set; not checked with a screen reader yet") },
+    formats: {
+      all: todo(
+        "frames, hotspots and controls are labelled and pass an automated audit; a person using a screen reader (NVDA, VoiceOver) has not checked them yet",
+      ),
+    },
   },
 
   // Bake
