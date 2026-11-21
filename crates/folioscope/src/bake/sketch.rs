@@ -20,7 +20,7 @@ use crate::bake::fx;
 use crate::bake::draw::Draw;
 use crate::bake::folio::BakeError;
 use crate::bake::fonts::weight_of_style;
-use crate::bake::svg::mime;
+use crate::bake::svg::{image_size, mime};
 use crate::bake::text::{Align, Rich, Span, Typesetter};
 use helpers4::geometry::{Matrix, transform_path};
 
@@ -574,12 +574,25 @@ impl<'f> Svg<'_, 'f> {
             }
             4 => {
                 let href = self.image(&fill["image"])?;
+                let id = self.id("p");
+                // Tiles: the image at its own size, times the tile scale.
+                if fill["patternFillType"].as_i64() == Some(0) {
+                    let bytes = self.file.files.get(fill["image"]["_ref"].as_str()?)?;
+                    let (iw, ih) = image_size(bytes)?;
+                    #[allow(clippy::cast_possible_truncation)]
+                    let scale = fill["patternTileScale"].as_f64().unwrap_or(1.0) as f32;
+                    let (tw, th) = (iw * scale, ih * scale);
+                    let _ = write!(
+                        self.defs,
+                        r#"<pattern id="{id}" patternUnits="userSpaceOnUse" width="{tw}" height="{th}"><image href="{href}" width="{tw}" height="{th}" preserveAspectRatio="none"/></pattern>"#
+                    );
+                    return Some(format!(r#"fill="url(#{id})""#));
+                }
                 let aspect = match fill["patternFillType"].as_i64() {
                     Some(2) => "none",
                     Some(3) => "xMidYMid meet",
                     _ => "xMidYMid slice",
                 };
-                let id = self.id("p");
                 let _ = write!(
                     self.defs,
                     r#"<pattern id="{id}" patternUnits="userSpaceOnUse" width="{w}" height="{h}"><image href="{href}" width="{w}" height="{h}" preserveAspectRatio="{aspect}"/></pattern>"#
