@@ -11,7 +11,7 @@ use std::collections::HashMap;
 
 use crate::ir::{
     Action, Component, ComponentState, Document, Easing, Flow, Frame, Hotspot, Interaction,
-    OverlayPosition, OverlaySettings, Page, Point, Rect, Scroll, ScrollDirection, Side,
+    OverlayPosition, OverlaySettings, Page, Point, Rect, Scroll, ScrollDirection, Scroller, Side,
     SourceFormat, Transition, TransitionKind, Trigger,
 };
 use crate::kiwi::Value;
@@ -78,7 +78,8 @@ fn page(tree: &Tree<'_>, canvas: &Node<'_>) -> Page {
         .map(|frame| {
             let mut walk = Walk::new(tree);
             walk.node(frame, Affine::IDENTITY, false, &mut Vec::new(), 0);
-            let (mut hotspots, components) = (walk.hotspots, walk.components);
+            let (mut hotspots, components, scrollers) =
+                (walk.hotspots, walk.components, walk.scrollers);
             resolve_scroll_targets(tree, frame, &mut hotspots);
             let (x, y) = translation(frame.value);
             let (width, height) = size(frame.value);
@@ -95,6 +96,7 @@ fn page(tree: &Tree<'_>, canvas: &Node<'_>) -> Page {
                 overlay: overlay(frame.value),
                 scroll: scroll(tree, frame),
                 components,
+                scrollers,
             }
         })
         .collect();
@@ -119,6 +121,9 @@ struct Walk<'t, 'a> {
     changes_state: HashMap<NodeId, bool>,
     /// The instances walked through, whose overrides apply below them.
     overrides: Overrides,
+    /// Frames inside the screen that scroll, and the one being walked through.
+    scrollers: Vec<Scroller>,
+    scroller: Option<String>,
 }
 
 impl<'t, 'a> Walk<'t, 'a> {
@@ -129,6 +134,8 @@ impl<'t, 'a> Walk<'t, 'a> {
             components: Vec::new(),
             changes_state: HashMap::new(),
             overrides: Overrides::default(),
+            scrollers: Vec::new(),
+            scroller: None,
         }
     }
 
@@ -180,6 +187,7 @@ impl<'t, 'a> Walk<'t, 'a> {
                 bounds: to_frame.bounding_box(width, height),
                 interactions: own,
                 fixed,
+                scroller: self.scroller.clone(),
             });
         }
         // Only the top-level frame's direct children can be fixed.
@@ -190,10 +198,35 @@ impl<'t, 'a> Walk<'t, 'a> {
             self.overrides.enter(node, node.value);
         }
         let children: Vec<&Node<'a>> = self.tree.children(source).collect();
+        // A frame inside the screen whose content scrolls: its children are walked in its
+        // content's coordinates, and their hotspots scroll with it. One level of them.
+        let inner = (node.kind == "FRAME" && !top && self.scroller.is_none() && in_state == 0)
+            .then(|| scroll(self.tree, node))
+            .flatten();
+        let outer = to_frame;
+        let scrolls = inner.is_some();
+        let to_frame = if let Some(inner) = inner {
+            let (width, height) = size(node.value);
+            self.scrollers.push(Scroller {
+                id: node.id.to_string(),
+                name: node.name.to_owned(),
+                bounds: outer.bounding_box(width, height),
+                direction: inner.direction,
+                content: inner.content,
+                sticky: inner.sticky,
+            });
+            self.scroller = Some(node.id.to_string());
+            Affine::IDENTITY
+        } else {
+            to_frame
+        };
         for child in children {
             let to_frame = to_frame.then(Affine::of(&self.overrides.resolve(child)));
             let fixed = fixed || (top && is_fixed(child));
             self.node(child, to_frame, fixed, path, in_state);
+        }
+        if scrolls {
+            self.scroller = None;
         }
         if symbol.is_some() {
             path.pop();
@@ -239,6 +272,7 @@ impl<'t, 'a> Walk<'t, 'a> {
                         bounds: Affine::IDENTITY.bounding_box(w, h),
                         interactions: overrides,
                         fixed: false,
+                        scroller: None,
                     },
                 );
             }
@@ -365,6 +399,7 @@ fn scroll(tree: &Tree<'_>, frame: &Node<'_>) -> Option<Scroll> {
     let (width, height) = size(frame.value);
     let (mut right, mut bottom) = (width, height);
     let mut fixed = Vec::new();
+    let mut sticky = Vec::new();
     for child in tree.children(frame.id) {
         if matches!(child.value.get("visible"), Some(Value::Bool(false))) {
             continue;
@@ -372,6 +407,9 @@ fn scroll(tree: &Tree<'_>, frame: &Node<'_>) -> Option<Scroll> {
         if is_fixed(child) {
             fixed.push(child.id.to_string());
             continue;
+        }
+        if child.value.get("scrollBehavior").and_then(Value::as_str) == Some("STICKY_SCROLLS") {
+            sticky.push(child.id.to_string());
         }
         let (w, h) = size(child.value);
         let bounds = Affine::of(child.value).bounding_box(w, h);
@@ -392,6 +430,7 @@ fn scroll(tree: &Tree<'_>, frame: &Node<'_>) -> Option<Scroll> {
             height: bottom,
         },
         fixed,
+        sticky,
     })
 }
 

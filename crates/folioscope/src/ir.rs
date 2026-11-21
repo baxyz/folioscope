@@ -68,6 +68,25 @@ pub struct Frame {
     /// Interactive component instances: their variants change in place ("change to").
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub components: Vec<Component>,
+    /// Frames inside the screen whose content scrolls in place.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub scrollers: Vec<Scroller>,
+}
+
+/// A frame inside a screen whose content scrolls past its bounds.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Scroller {
+    pub id: String,
+    pub name: String,
+    /// Where it shows, in the screen's coordinates.
+    pub bounds: Rect,
+    pub direction: ScrollDirection,
+    /// What scrolls, from the frame's corner: at least its size.
+    pub content: Rect,
+    /// Ids of its direct children that stick at its top (or left) edge once scrolled to it.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sticky: Vec<String>,
 }
 
 /// An instance whose variants the prototype switches between, each drawn as a state of its own.
@@ -113,6 +132,9 @@ pub struct Scroll {
     /// Ids of the direct children that stay in place while the rest scrolls.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fixed: Vec<String>,
+    /// Ids of the direct children that scroll, then stick at the top (or left) edge.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub sticky: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -166,6 +188,10 @@ pub struct Hotspot {
     /// In a fixed child of a scrolling frame: stays in place while the content scrolls.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub fixed: bool,
+    /// In a frame that scrolls inside the screen (one of [`Frame::scrollers`]), by its id; then
+    /// `bounds` are in that frame's content.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scroller: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

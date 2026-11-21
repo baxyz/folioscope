@@ -47,6 +47,7 @@ fn page(page: &PenpotPage) -> Page {
                 overlay: None,
                 scroll: None,
                 components: Vec::new(),
+                scrollers: Vec::new(),
             }
         })
         .collect();
@@ -122,6 +123,7 @@ fn collect(shape: &Value, origin: (f32, f32), page: &PenpotPage, out: &mut Vec<H
             bounds,
             interactions,
             fixed: false,
+            scroller: None,
         });
     }
     for child in children(shape, page) {
