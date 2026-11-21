@@ -9,7 +9,7 @@
     "build": "vitepress build",
     "preview": "vitepress preview --host --port 4323",
     "bake-demos": "node scripts/bake-demos.ts",
-    "test:e2e": "node e2e/comparison.e2e.ts",
+    "test:e2e": "node e2e/comparison.e2e.ts && node e2e/demos.e2e.ts",
     "record-comparison": "node scripts/record-comparison.ts"
   },
   "dependencies": {
