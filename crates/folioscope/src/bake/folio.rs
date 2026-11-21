@@ -205,6 +205,12 @@ struct Layer {
     /// The frame's scrolling content: moves with the scroll, under the layers that follow.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     scrolls: bool,
+    /// In a frame that scrolls inside the screen, by its id; `bounds` are in its content.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    scroller: Option<String>,
+    /// Scrolls with its content, then sticks at its scroller's top (or left) edge.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    sticky: bool,
 }
 
 /// Renders every state of the frame's interactive components, each as a layer.
@@ -284,6 +290,8 @@ fn bake_component<'a>(
                 format,
                 bounds: state.bounds,
                 scrolls: false,
+                scroller: None,
+                sticky: false,
             },
             components: nested,
         });
@@ -358,6 +366,8 @@ fn encode_parts(
                 format,
                 bounds: part.bounds,
                 scrolls: false,
+                scroller: None,
+                sticky: false,
             },
         });
     }
@@ -611,20 +621,7 @@ pub fn bake_into(
                 source,
             };
             let placeholder = crate::bake::placeholder(&whole).map_err(render_error)?;
-            let mut layers = Vec::new();
-            for (markup, bounds, scrolls) in draw.layers(frame, &whole)? {
-                let (src, format) = encode_layer(&markup, &densities, options, &mut report, sink)
-                    .map_err(|e| match e {
-                    LayerError::Render(source) => render_error(source),
-                    LayerError::Sink(e) => e,
-                })?;
-                layers.push(Layer {
-                    src,
-                    format,
-                    bounds,
-                    scrolls,
-                });
-            }
+            let layers = bake_layers(draw, frame, &whole, options, &mut report, sink)?;
             // The poster stands in for the starting frame until the player runs: 1x, lossless.
             if Some(frame.id.as_str()) == first_start {
                 let pixmap = render_pixmap(&whole, 1.0).map_err(render_error)?;
@@ -675,6 +672,53 @@ pub fn bake_into(
     report.bytes += json.len();
     sink("index.json", json.as_bytes())?;
     Ok(report)
+}
+
+/// Encodes a frame's layers: its stack, then what scrolls inside it and what sticks.
+fn bake_layers(
+    draw: &mut dyn Draw,
+    frame: &ir::Frame,
+    whole: &str,
+    options: &BakeOptions,
+    report: &mut BakeReport,
+    sink: &mut Sink<'_>,
+) -> Result<Vec<Layer>, BakeError> {
+    let densities = sorted_densities(options);
+    let encode = |markup: &str, report: &mut BakeReport, sink: &mut Sink<'_>| {
+        encode_layer(markup, &densities, options, report, sink).map_err(|e| match e {
+            LayerError::Render(source) => BakeError::Render {
+                frame: frame.id.clone(),
+                source,
+            },
+            LayerError::Sink(e) => e,
+        })
+    };
+    let mut layers = Vec::new();
+    for (markup, bounds, scrolls) in draw.layers(frame, whole)? {
+        let (src, format) = encode(&markup, report, sink)?;
+        layers.push(Layer {
+            src,
+            format,
+            bounds,
+            scrolls,
+            scroller: None,
+            sticky: false,
+        });
+    }
+    for extra in draw.scroll_layers(frame)? {
+        let (src, format) = encode(&extra.markup, report, sink)?;
+        // A sticky child of the frame itself scrolls with the frame's content.
+        let scrolls = extra.scroller.is_none();
+        layers.push(Layer {
+            src,
+            format,
+            bounds: extra.bounds,
+            scrolls,
+            scroller: extra.scroller,
+            sticky: extra.sticky,
+        });
+    }
+    Ok(layers)
 }
 
 /// Whether an image of the frame (or of its scrolling content, when that is larger), at the top
