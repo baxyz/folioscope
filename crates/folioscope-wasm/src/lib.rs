@@ -25,8 +25,8 @@ struct DeclaredFont {
 /// `poster.webp`, `layers/…`) to their bytes, and the fonts some text needed and was not given
 /// (`Family Style`), plus the given files that are not fonts. `densities` (1x and 2x when absent)
 /// lets the browser bake only the one its screen needs. `svg` (true when absent) serves a layer as
-/// its SVG when it holds no image or filter and is lighter (ADR 0006); `max_states` (16 when
-/// absent) caps the states baked per interactive component (ADR 0007), and the result's
+/// its SVG when it holds no image or filter and is lighter (docs/spec/bake.md); `max_states` (16 when
+/// absent) caps the states baked per interactive component (docs/spec/folio.md), and the result's
 /// `cappedComponents` lists those it cut, as `Component (frame): 16 of 40 states`.
 ///
 /// # Errors
@@ -102,6 +102,20 @@ pub fn bake(
     Reflect::set(&result, &"files".into(), &files).map_err(|_| JsError::new("result"))?;
     Reflect::set(&result, &"missingFonts".into(), &missing).map_err(|_| JsError::new("result"))?;
     Ok(result)
+}
+
+/// The font families the text of a design file uses (a `.sketch` also gives its PostScript
+/// names), so a page fetches only the fonts it needs.
+///
+/// # Errors
+///
+/// Throws on an unknown format or a file that cannot be decoded.
+#[wasm_bindgen]
+pub fn families(input: &[u8]) -> Result<Array, JsError> {
+    Ok(folioscope::families::families(input)?
+        .iter()
+        .map(|family| JsValue::from(family.as_str()))
+        .collect())
 }
 
 /// Summarizes the prototype of any supported design file, as `folioscope inspect` prints it.

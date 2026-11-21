@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Bakes prototypes into `.folio` folders (ADR 0004): renders nodes to SVG, rasterizes them with
-//! `resvg` (ADR 0001), and writes the layers and `index.json`.
+//! Bakes prototypes into `.folio` folders (docs/spec/folio.md): renders nodes to SVG, rasterizes them with
+//! `resvg` (docs/architecture.md), and writes the layers and `index.json`.
 
 pub mod draw;
 pub mod folio;
 pub mod fonts;
+pub mod fx;
 pub mod image;
 pub mod penpot;
 pub mod sketch;
@@ -53,6 +54,15 @@ pub fn placeholder(svg: &str) -> Result<String, RenderError> {
     let hash =
         thumbhash::rgba_to_thumb_hash(pixmap.width() as usize, pixmap.height() as usize, &rgba);
     Ok(helpers4::hex::base64_encode(&hash))
+}
+
+/// The size an SVG document declares, in CSS pixels; none when it does not parse.
+#[must_use]
+pub fn svg_size(svg: &str) -> Option<(f32, f32)> {
+    let size = usvg::Tree::from_str(svg, &usvg::Options::default())
+        .ok()?
+        .size();
+    Some((size.width(), size.height()))
 }
 
 /// Renders an SVG document at `scale` times its size.

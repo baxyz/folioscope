@@ -23,3 +23,248 @@ fn generated_fixture_converts_to_ir() {
     let ir = folioscope::penpot::ir::to_ir(&file);
     insta::assert_snapshot!("ir-navigation", serde_json::to_string_pretty(&ir).unwrap());
 }
+
+#[cfg(feature = "bake")]
+mod features {
+    //! `fixtures/penpot/features.penpot`: every Penpot scenario, one test per feature.
+    use folioscope::bake::draw::Draw;
+    use folioscope::bake::fonts::FontLibrary;
+    use folioscope::bake::penpot::PenpotDraw;
+    use folioscope::bake::text::Typesetter;
+    use folioscope::ir::{Action, Document, Frame, OverlayPosition, Trigger};
+    use folioscope::penpot::{PenpotFile, decode, ir::to_ir};
+
+    fn root() -> String {
+        format!("{}/../../fixtures", env!("CARGO_MANIFEST_DIR"))
+    }
+
+    fn file() -> PenpotFile {
+        decode(&std::fs::read(format!("{}/penpot/features.penpot", root())).unwrap()).unwrap()
+    }
+
+    fn frame<'d>(ir: &'d Document, name: &str) -> &'d Frame {
+        ir.pages
+            .iter()
+            .flat_map(|p| &p.frames)
+            .find(|f| f.name == name)
+            .unwrap_or_else(|| panic!("no frame {name}"))
+    }
+
+    /// The SVG of a frame, with Inter given for its text.
+    fn svg(name: &str) -> String {
+        let file = file();
+        let ir = to_ir(&file);
+        let mut fonts = FontLibrary::default();
+        let inter = std::fs::read(format!("{}/fonts/Inter-Latin.ttf", root())).unwrap();
+        fonts.add("Inter-Latin.ttf", &inter).unwrap();
+        let mut draw = PenpotDraw::new(&file, Typesetter::new(fonts));
+        let markup = draw.frame(frame(&ir, name)).unwrap();
+        assert!(
+            draw.missing_fonts().is_empty(),
+            "{:?}",
+            draw.missing_fonts()
+        );
+        markup
+    }
+
+    /// The interactions of a hotspot, by its node's name.
+    fn on<'d>(frame: &'d Frame, name: &str) -> Vec<&'d folioscope::ir::Interaction> {
+        frame
+            .hotspots
+            .iter()
+            .filter(|h| h.name == name)
+            .flat_map(|h| &h.interactions)
+            .collect()
+    }
+
+    #[test]
+    fn penpot_flows_and_pages() {
+        let ir = to_ir(&file());
+        let pages: Vec<_> = ir.pages.iter().map(|p| p.name.as_str()).collect();
+        assert_eq!(pages, ["Prototype", "Second page"]);
+        let flows: Vec<_> = ir
+            .pages
+            .iter()
+            .flat_map(|p| &p.flows)
+            .map(|f| f.name.as_str())
+            .collect();
+        assert_eq!(flows, ["Main flow", "Skip the splash", "About flow"]);
+    }
+
+    #[test]
+    fn penpot_triggers() {
+        let ir = to_ir(&file());
+        let splash = on(frame(&ir, "Splash"), "Splash");
+        assert_eq!(splash[0].trigger, Trigger::AfterDelay { delay_ms: 1500 });
+        let home = frame(&ir, "Home");
+        assert_eq!(on(home, "Hold me")[0].trigger, Trigger::Press);
+        let hover = on(home, "Hover me");
+        assert_eq!(hover[0].trigger, Trigger::MouseEnter);
+        assert_eq!(hover[1].trigger, Trigger::MouseLeave);
+        assert!(matches!(hover[1].action, Action::Close));
+        assert!(matches!(
+            &on(home, "Website")[0].action,
+            Action::OpenUrl { url, .. } if url == "https://folioscope.baxyz.dev"
+        ));
+    }
+
+    /// A slide without Penpot's offset effect moves only the new screen.
+    #[test]
+    fn penpot_slides() {
+        use folioscope::ir::{Side, TransitionKind};
+        let ir = to_ir(&file());
+        let open = &on(frame(&ir, "Home"), "Open details")[0].action;
+        assert!(matches!(
+            open,
+            Action::Navigate { transition, .. }
+                if transition.kind == TransitionKind::MoveIn { from: Side::Right }
+        ));
+    }
+
+    #[test]
+    fn penpot_overlays() {
+        let ir = to_ir(&file());
+        let home = frame(&ir, "Home");
+        assert!(matches!(
+            on(home, "Menu button")[0].action,
+            Action::Overlay { toggle: true, .. }
+        ));
+        let menu = frame(&ir, "Menu").overlay.as_ref().unwrap();
+        assert_eq!(menu.position, OverlayPosition::Center);
+        assert!(menu.close_on_click_outside);
+        assert!(menu.backdrop.is_some());
+        let tip = frame(&ir, "Tip").overlay.as_ref().unwrap();
+        assert_eq!(tip.position, OverlayPosition::Manual);
+        assert!(matches!(
+            on(home, "Hover me")[0].action,
+            Action::Overlay {
+                offset: Some(_),
+                ..
+            }
+        ));
+        assert!(matches!(
+            on(frame(&ir, "Menu"), "Close")[0].action,
+            Action::Close
+        ));
+    }
+
+    #[test]
+    fn penpot_draws_shapes() {
+        let svg = svg("Home");
+        // The path, the image, the masked group, the dashed stroke and the drop shadow.
+        assert!(svg.contains("L547 328"), "path");
+        assert!(
+            svg.contains("<image") && svg.contains("data:image/png;base64,"),
+            "image"
+        );
+        assert!(svg.contains("<clipPath") || svg.contains("<mask"), "mask");
+        assert!(svg.contains("stroke-dasharray"), "dashed stroke");
+        assert!(
+            svg.contains("feDropShadow") || svg.contains("feGaussianBlur"),
+            "shadow"
+        );
+        // And it renders.
+        folioscope::bake::rasterize(&svg, 1.0).unwrap();
+    }
+
+    #[test]
+    fn penpot_gradients() {
+        let svg = svg("Home");
+        assert!(svg.contains("<linearGradient"), "linear");
+        assert!(svg.contains("<radialGradient"), "radial");
+        assert!(
+            svg.contains("rgb(37 99 235)") || svg.contains("#2563EB"),
+            "a stop colour"
+        );
+    }
+
+    #[test]
+    fn penpot_text() {
+        let svg = svg("Home");
+        // Two runs, two colours, both laid out with Inter (one family quoted).
+        assert!(
+            svg.contains("fill=\"rgb(17 24 39)\"") || svg.contains("#111827"),
+            "first run"
+        );
+        assert!(
+            svg.contains("fill=\"rgb(37 99 235)\"") || svg.contains("#2563EB"),
+            "second run"
+        );
+    }
+}
+
+#[cfg(feature = "bake")]
+mod effects {
+    //! The effects of `fixtures/penpot/features.penpot`.
+    use folioscope::bake::draw::Draw;
+    use folioscope::bake::fonts::FontLibrary;
+    use folioscope::bake::penpot::PenpotDraw;
+    use folioscope::bake::text::Typesetter;
+    use folioscope::penpot::{decode, ir::to_ir};
+
+    fn svg() -> String {
+        let root = format!("{}/../../fixtures", env!("CARGO_MANIFEST_DIR"));
+        let file =
+            decode(&std::fs::read(format!("{root}/penpot/features.penpot")).unwrap()).unwrap();
+        let ir = to_ir(&file);
+        let mut fonts = FontLibrary::default();
+        let inter = std::fs::read(format!("{root}/fonts/Inter-Latin.ttf")).unwrap();
+        fonts.add("Inter-Latin.ttf", &inter).unwrap();
+        let mut draw = PenpotDraw::new(&file, Typesetter::new(fonts));
+        let home = ir.pages[0]
+            .frames
+            .iter()
+            .find(|f| f.name == "Home")
+            .unwrap();
+        let svg = draw.frame(home).unwrap();
+        assert!(draw.missing_fonts().is_empty());
+        folioscope::bake::rasterize(&svg, 1.0).unwrap();
+        svg
+    }
+
+    #[test]
+    fn penpot_effects() {
+        let svg = svg();
+        assert!(
+            svg.contains(r#"operator="arithmetic" k1="-1""#),
+            "inner shadow"
+        );
+        assert!(
+            svg.contains("<feGaussianBlur stdDeviation=\"4\"/>"),
+            "layer blur"
+        );
+        assert!(svg.contains("mix-blend-mode:screen"), "blend mode");
+    }
+
+    #[test]
+    fn penpot_strokes_and_paths() {
+        let svg = svg();
+        assert!(
+            svg.contains(r#"stroke-width="8""#),
+            "inside and outside strokes"
+        );
+        assert!(
+            svg.contains("M803.0,492.0L813.0,502.0L835.0,480.0"),
+            "a path as SVG data"
+        );
+        assert!(svg.contains(r#"stroke-linecap="round""#), "round caps");
+    }
+
+    #[test]
+    fn penpot_svg_raw() {
+        let svg = svg();
+        assert!(
+            svg.contains(
+                r##"<rect fill="#EC4899" height="16" rx="4" width="40" x="300" y="536"/>"##
+            )
+        );
+        // The imported text, laid out with Inter, in its colour.
+        assert!(svg.contains(r##"fill="#6B7280""##));
+    }
+
+    #[test]
+    fn penpot_text_decoration() {
+        // The underlined run ends with a rectangle as wide as itself.
+        assert!(svg().contains("v1.2857143h-"), "underline");
+    }
+}

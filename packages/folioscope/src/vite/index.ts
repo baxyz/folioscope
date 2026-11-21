@@ -93,7 +93,7 @@ const FONT_FILE = /\.(ttf|otf|ttc|woff2?)$/i;
 
 /**
  * Bakes design files into `.folio` folders while the site builds, and serves them in dev
- * (ADR 0009: the bake runs as WebAssembly, so no Rust is needed).
+ * (docs/architecture.md: the bake runs as WebAssembly, so no Rust is needed).
  *
  * ```ts
  * import { folioscope } from "folioscope/vite";

@@ -148,3 +148,142 @@ fn real_prototypes_keep_their_links() {
         }
     }
 }
+
+#[cfg(feature = "bake")]
+mod features {
+    //! `fixtures/xd/features.xd`: every XD scenario, one test per feature.
+    use folioscope::bake::draw::Draw;
+    use folioscope::bake::fonts::FontLibrary;
+    use folioscope::bake::text::Typesetter;
+    use folioscope::bake::xd::XdDraw;
+    use folioscope::ir::{Action, Document, Frame, TransitionKind, Trigger};
+    use folioscope::xd::{XdFile, decode, ir::to_ir};
+
+    fn file() -> XdFile {
+        let path = format!(
+            "{}/../../fixtures/xd/features.xd",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        decode(&std::fs::read(path).unwrap()).unwrap()
+    }
+
+    fn frame<'d>(ir: &'d Document, name: &str) -> &'d Frame {
+        ir.pages
+            .iter()
+            .flat_map(|p| &p.frames)
+            .find(|f| f.name == name)
+            .unwrap_or_else(|| panic!("no frame {name}"))
+    }
+
+    fn svg(name: &str) -> String {
+        let file = file();
+        let ir = to_ir(&file);
+        let mut draw = XdDraw::new(&file, Typesetter::new(FontLibrary::default()));
+        draw.frame(frame(&ir, name)).unwrap()
+    }
+
+    #[test]
+    fn xd_triggers() {
+        let ir = to_ir(&file());
+        let splash = &frame(&ir, "Splash").hotspots[0].interactions[0];
+        assert_eq!(splash.trigger, Trigger::AfterDelay { delay_ms: 1500 });
+        let open = &frame(&ir, "Home").hotspots[0].interactions[0];
+        assert_eq!(open.trigger, Trigger::Click);
+        let peek = frame(&ir, "Home")
+            .hotspots
+            .iter()
+            .find(|h| h.name == "Peek")
+            .unwrap();
+        assert_eq!(peek.interactions[0].trigger, Trigger::Hover);
+        assert!(matches!(
+            frame(&ir, "Details").hotspots[0].interactions[0].action,
+            Action::Back
+        ));
+    }
+
+    #[test]
+    fn xd_auto_animate() {
+        let ir = to_ir(&file());
+        let open = &frame(&ir, "Home").hotspots[0].interactions[0];
+        assert!(matches!(
+            &open.action,
+            Action::Navigate { transition, .. } if transition.kind == TransitionKind::SmartAnimate
+        ));
+    }
+
+    #[test]
+    fn xd_draws_shapes() {
+        let svg = svg("Home");
+        assert!(
+            svg.contains("<image") && svg.contains("data:image/png;base64,"),
+            "image fill"
+        );
+        assert!(svg.contains("<clipPath"), "clip path");
+        assert!(svg.contains(r#"result="s0""#), "shadow");
+        folioscope::bake::rasterize(&svg, 1.0).unwrap();
+    }
+
+    #[test]
+    fn xd_gradients() {
+        let svg = svg("Home");
+        assert!(svg.contains("<linearGradient"), "linear");
+        assert!(svg.contains("<radialGradient"), "radial");
+    }
+}
+
+#[cfg(feature = "bake")]
+mod effects {
+    //! The effects of `fixtures/xd/features.xd`, drawn with Inter.
+    use folioscope::bake::draw::Draw;
+    use folioscope::bake::fonts::FontLibrary;
+    use folioscope::bake::text::Typesetter;
+    use folioscope::bake::xd::XdDraw;
+    use folioscope::xd::{decode, ir::to_ir};
+
+    fn svg() -> String {
+        let root = format!("{}/../../fixtures", env!("CARGO_MANIFEST_DIR"));
+        let file = decode(&std::fs::read(format!("{root}/xd/features.xd")).unwrap()).unwrap();
+        let ir = to_ir(&file);
+        let mut fonts = FontLibrary::default();
+        let inter = std::fs::read(format!("{root}/fonts/Inter-Latin.ttf")).unwrap();
+        fonts.add("Inter-Latin.ttf", &inter).unwrap();
+        let mut draw = XdDraw::new(&file, Typesetter::new(fonts));
+        let home = ir.pages[0]
+            .frames
+            .iter()
+            .find(|f| f.name == "Home")
+            .unwrap();
+        let svg = draw.frame(home).unwrap();
+        assert!(draw.missing_fonts().is_empty());
+        folioscope::bake::rasterize(&svg, 1.0).unwrap();
+        svg
+    }
+
+    #[test]
+    fn xd_blurs() {
+        let svg = svg();
+        assert!(
+            svg.contains("<feGaussianBlur stdDeviation=\"4\"/>"),
+            "object blur"
+        );
+        assert!(
+            svg.contains("frame\"><") && svg.contains("<use href"),
+            "background blur"
+        );
+    }
+
+    #[test]
+    fn xd_blend_and_image_fit() {
+        let svg = svg();
+        assert!(svg.contains("mix-blend-mode:multiply"), "blend mode");
+        assert!(
+            svg.contains(r#"preserveAspectRatio="xMidYMid meet""#),
+            "image fit whole"
+        );
+    }
+
+    #[test]
+    fn xd_text_decoration() {
+        assert!(svg().contains("v1.2857143h-"), "underline");
+    }
+}

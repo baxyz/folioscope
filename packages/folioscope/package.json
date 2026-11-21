@@ -53,6 +53,7 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "axe-core": "catalog:",
     "helpers4": "catalog:",
     "playwright": "catalog:",
     "thumbhash": "0.1.1",
@@ -74,6 +75,7 @@
     "@helpers4/browser": "3.1.12",
     "@helpers4/fetch": "3.1.12",
     "@helpers4/geometry": "3.1.12",
+    "@helpers4/string": "3.1.12",
     "@helpers4/structure": "3.1.12",
     "thumbhash": "0.1.1"
   }

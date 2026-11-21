@@ -13,7 +13,7 @@ fn navigation_bakes_to_a_folio_folder() {
     let file = decode(&std::fs::read(input).unwrap()).unwrap();
 
     let report = bake_fig(&file, &out, &BakeOptions::default()).unwrap();
-    // Two flat screens: each one SVG file, lighter than its images (ADR 0006).
+    // Two flat screens: each one SVG file, lighter than its images (docs/spec/bake.md).
     assert_eq!((report.frames, report.layers, report.svg_layers), (2, 2, 2));
 
     let index: serde_json::Value =
@@ -57,6 +57,69 @@ fn navigation_bakes_to_a_folio_folder() {
         std::fs::read(again.join("index.json")).unwrap()
     );
     std::fs::remove_dir_all(&out).unwrap();
+}
+
+/// A `.fig` stores the layout of the variant an instance shows only: another variant is laid
+/// out again for the instance's overrides. The chip's label is overridden with a longer one; its
+/// selected variant (20 px on each side of the label, 78 px wide in the component) hugs it.
+#[test]
+fn another_variant_is_laid_out_again_for_the_overrides() {
+    use folioscope::bake::folio::bake_file_into;
+    use folioscope::bake::fonts::FontLibrary;
+
+    let root = env!("CARGO_MANIFEST_DIR");
+    let fig = std::fs::read(format!("{root}/../../fixtures/figma/components.fig")).unwrap();
+    let inter = std::fs::read(format!("{root}/../../fixtures/fonts/Inter-Latin.ttf")).unwrap();
+
+    // The selected state of the Filter chip: its bounds and its variant's hotspot.
+    let bake = |with_inter: bool| {
+        let mut fonts = FontLibrary::default();
+        if with_inter {
+            fonts.add("Inter-Latin.ttf", &inter).unwrap();
+        }
+        let options = BakeOptions {
+            fonts,
+            ..BakeOptions::default()
+        };
+        let mut index = serde_json::Value::Null;
+        let report = bake_file_into(&fig, &options, &mut |path, bytes| {
+            if path == "index.json" {
+                index = serde_json::from_slice(bytes).unwrap();
+            }
+            Ok(())
+        })
+        .unwrap();
+        let chip = index["pages"][0]["frames"][0]["components"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["name"] == "Filter")
+            .unwrap()
+            .clone();
+        let selected = chip["states"][1].clone();
+        assert_eq!(selected["name"], "Selected=true");
+        (report.missing_fonts, selected)
+    };
+
+    // Without the font, the variant keeps its size, and the label is reported.
+    let (missing, kept) = bake(false);
+    assert!(missing.contains("Inter Regular"), "{missing:?}");
+    assert_eq!(kept["bounds"]["width"], 78.0);
+
+    // With it: the label measured (the shown chip is 192 px wide, with 16 px on each side), the
+    // chip 8 px wider than the one shown, and its hotspot as wide as it.
+    let (missing, fitted) = bake(true);
+    assert!(missing.is_empty(), "{missing:?}");
+    let width = fitted["bounds"]["width"].as_f64().unwrap();
+    assert!((width - 200.0).abs() < 1.0, "{width}");
+    assert_eq!(
+        fitted["layer"]["bounds"]["width"],
+        fitted["bounds"]["width"]
+    );
+    assert_eq!(
+        fitted["hotspots"][0]["bounds"]["width"],
+        fitted["bounds"]["width"]
+    );
 }
 
 /// A `.sketch` stores no glyphs: its text is drawn with the fonts given, matched by name.
@@ -210,6 +273,7 @@ mod flat {
             overlay: None,
             scroll: None,
             components: Vec::new(),
+            scrollers: Vec::new(),
         }
     }
 
@@ -302,7 +366,7 @@ fn pages_without_a_flow_are_left_out() {
     assert_eq!(index["pages"].as_array().unwrap().len(), 1);
 }
 
-/// A layer with an image or a filter stays a raster image, whatever its weight (ADR 0006).
+/// A layer with an image or a filter stays a raster image, whatever its weight (docs/spec/bake.md).
 #[test]
 fn only_layers_without_images_or_filters_may_be_svg() {
     use folioscope::bake::image::svg_eligible;
@@ -317,7 +381,7 @@ fn only_layers_without_images_or_filters_may_be_svg() {
     ));
 }
 
-/// Past `max_states`, a component's states are left out and the report names it (ADR 0007).
+/// Past `max_states`, a component's states are left out and the report names it (docs/spec/folio.md).
 #[test]
 fn states_past_the_cap_are_left_out_and_reported() {
     use flat::{document, frame, page};
@@ -341,6 +405,7 @@ fn states_past_the_cap_are_left_out_and_reported() {
                 name: v.to_owned(),
                 bounds,
                 hotspots: Vec::new(),
+                components: Vec::new(),
             })
             .to_vec(),
     });

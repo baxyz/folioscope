@@ -20,9 +20,11 @@ import {
   type HoldKind,
   play,
   playOverlay,
+  type Part,
   playSmart,
   renderFrame,
   scrollFrame,
+  shifted,
 } from "./lite.ts";
 import type { FontDeclaration } from "./full/index.ts";
 import { type OpenOverlay, Runtime, type Step } from "./runtime.ts";
@@ -37,15 +39,83 @@ export interface FontRegistration {
   data?: ArrayBuffer | Uint8Array;
   /** A family name the font also answers to, besides its own. */
   family?: string;
-  /** Family names or patterns (`SF Pro*`, `*` and `?`) it also answers to: it stands in for them. */
+  /**
+   * Family names or patterns it also answers to, standing in for them: globs (`SF Pro*`, `*` and
+   * `?`, case-insensitive) or regular expressions (`/^Helvetica( Neue)?$/i`).
+   */
   match?: string | string[];
   weight?: number | string;
   /** `italic` or `oblique`; anything else is upright. */
   style?: string;
+  /** A folder with a `folioscope-fonts.json` manifest: its fonts, fetched when the design uses them. */
+  base?: string;
+  /** A stylesheet whose `@font-face` rules give fonts, fetched when the design uses them. */
+  css?: string;
+}
+
+/** A font as the bake takes it, from what the page says. */
+function toDeclaration(font: FontRegistration | string, src?: string): FontDeclaration {
+  const given = typeof font === "string" ? { family: font, src } : font;
+  const url = (value: string) => new URL(value, document.baseURI).href;
+  return {
+    url: given.src && url(given.src),
+    data: given.data && new Uint8Array(given.data),
+    family: given.family,
+    match: given.match === undefined ? undefined : [given.match].flat(),
+    weight: given.weight === undefined ? undefined : Number(given.weight),
+    italic: given.style === undefined ? undefined : /^(italic|oblique)/.test(given.style),
+    base: given.base && url(given.base.endsWith("/") ? given.base : `${given.base}/`),
+    css: given.css && url(given.css),
+  };
+}
+
+/** The rules of a `match` attribute: one regular expression, or globs separated by commas. */
+function rules(value: string): string[] {
+  const trimmed = value.trim();
+  if (/^\/.+\/[dgimsuvy]*$/.test(trimmed)) return [trimmed];
+  return trimmed
+    .split(",")
+    .map((pattern) => pattern.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Fonts shared by several players, in JavaScript: `player.fonts = new FolioscopeFontSet().add({
+ * base: "/fonts/" })`. The same as a `<folioscope-fonts>` element; a player's own fonts come first.
+ */
+export class FolioscopeFontSet {
+  readonly #fonts: FontDeclaration[] = [];
+  readonly #listeners = new Set<() => void>();
+
+  /** Adds a font (as `registerFont()` takes it); the players using the set bake again. */
+  add(font: FontRegistration | string, src?: string): this {
+    this.#fonts.push(toDeclaration(font, src));
+    for (const listener of this.#listeners) listener();
+    return this;
+  }
+
+  /** The fonts of the set, in the order they were added. */
+  get declarations(): readonly FontDeclaration[] {
+    return this.#fonts;
+  }
+
+  /** Calls `listener` when a font is added; returns what stops it. */
+  watch(listener: () => void): () => void {
+    this.#listeners.add(listener);
+    return () => this.#listeners.delete(listener);
+  }
 }
 
 /** A raw design file, played by the full player when no `.folio` sits next to it. */
 const RAW = /\.(fig|sketch|xd|penpot)$/i;
+
+/**
+ * Whether `src` is a raw design file: by its extension, or a `blob:` URL (a file the visitor
+ * dropped), whose format the bake reads from its contents.
+ */
+function isRaw(src: string): boolean {
+  return RAW.test(src) || src.startsWith("blob:");
+}
 
 // Keeps the module importable during SSR (VitePress build, the Vite plugin), where HTMLElement is undefined.
 const BaseElement: typeof HTMLElement =
@@ -69,7 +139,7 @@ const STYLE = `
 .sheet > .frame { pointer-events: auto; }
 .component { position: absolute; }
 .smart { position: absolute; inset: 0; overflow: hidden; }
-.smart img { position: absolute; display: block; transform-origin: 0 0; pointer-events: none; }
+.smart > * { position: absolute; display: block; transform-origin: 0 0; pointer-events: none; }
 .hotspot { position: absolute; margin: 0; padding: 0; border: 0; background: none; cursor: pointer; }
 .hotspot:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
 :host([hotspots="always"]) .hotspot { background: rgb(37 99 235 / 0.15); box-shadow: inset 0 0 0 2px rgb(37 99 235 / 0.6); }
@@ -102,6 +172,9 @@ export class FolioscopePlayer extends BaseElement {
   private loadedSrc?: string;
   /** Fonts given with `registerFont()`, after those declared in the page. */
   private readonly registered: FontDeclaration[] = [];
+  /** A shared set given in JavaScript (`player.fonts = set`), and what stops watching it. */
+  private fontSet?: FolioscopeFontSet;
+  private unwatchFonts?: () => void;
   /** Watches the `<folioscope-font>` children, to bake again when fonts come or go. */
   private fontObserver?: MutationObserver;
   /** Set once the raw file's bake starts: before, a font declared in the page is just on time. */
@@ -117,7 +190,7 @@ export class FolioscopePlayer extends BaseElement {
   private preloadedPage?: FolioIndex["pages"][number];
   private showing = 0;
   private resize?: ResizeObserver;
-  private readonly controls: Controls;
+  private readonly controlBar: Controls;
   /** The hovers and presses holding a frame, innermost last, with the hotspot that started each. */
   private holds: { kind: HoldKind; bounds: Rect }[] = [];
   private readonly releasePress = () => this.release((hold) => hold.kind === "press");
@@ -128,7 +201,7 @@ export class FolioscopePlayer extends BaseElement {
     this.root.innerHTML = `<style>${STYLE}${CONTROLS_STYLE}</style><div class="viewport" part="viewport"><div class="stage"></div></div>`;
     this.viewport = this.root.querySelector(".viewport")!;
     this.stage = this.root.querySelector(".stage")!;
-    this.controls = new Controls({
+    this.controlBar = new Controls({
       restart: () => this.restart(),
       back: () => this.back(),
       page: (i) =>
@@ -136,8 +209,8 @@ export class FolioscopePlayer extends BaseElement {
       flow: (i) => this.setAttribute("flow", String(i)),
       fullscreen: () => void this.requestFullscreen?.().catch(() => undefined),
     });
-    this.controls.element.hidden = !this.hasAttribute("controls");
-    this.root.append(this.controls.element);
+    this.controlBar.element.hidden = !this.hasAttribute("controls");
+    this.root.append(this.controlBar.element);
     // `hotspots="on-miss"` (the default): a click beside every hotspot shows where they are.
     this.viewport.addEventListener("click", (event) => {
       const missed = !event
@@ -150,7 +223,7 @@ export class FolioscopePlayer extends BaseElement {
       }
     });
     this.viewport.addEventListener("animationend", () => this.viewport.classList.remove("flash"));
-    this.addEventListener("fullscreenchange", () => this.fit());
+    this.addEventListener("fullscreenchange", () => this.fitStage());
     // A hover lasts while the pointer stays over the hotspot that started it.
     this.viewport.addEventListener("pointermove", (event) =>
       this.release((hold) => hold.kind === "hover" && !this.under(event, hold.bounds)),
@@ -159,7 +232,12 @@ export class FolioscopePlayer extends BaseElement {
       this.release((hold) => hold.kind === "hover"),
     );
     this.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && this.runtime?.canGoBack) {
+      const top = this.runtime?.top;
+      const action = top && keyAction(top, event);
+      if (action) {
+        event.preventDefault();
+        void this.show(this.runtime?.run(action));
+      } else if (event.key === "Escape" && this.runtime?.canGoBack) {
         event.preventDefault();
         void this.show(this.runtime.back());
       }
@@ -182,13 +260,13 @@ export class FolioscopePlayer extends BaseElement {
   connectedCallback(): void {
     // A framework builds the element, sets its attributes, then inserts it: `controls` was not
     // there yet when the constructor ran, and the callback ignores changes while disconnected.
-    this.controls.element.hidden = !this.hasAttribute("controls");
+    this.controlBar.element.hidden = !this.hasAttribute("controls");
     this.fontObserver ??= new MutationObserver(() => this.fontsChanged());
     this.fontObserver.observe(this, { childList: true, attributes: true, subtree: true });
     // A press ends wherever the button is released, even outside the player.
     globalThis.addEventListener("pointerup", this.releasePress);
     globalThis.addEventListener("pointercancel", this.releasePress);
-    this.resize = new ResizeObserver(() => this.fit());
+    this.resize = new ResizeObserver(() => this.fitStage());
     this.resize.observe(this.viewport);
     if (!this.index) void this.load();
   }
@@ -203,7 +281,7 @@ export class FolioscopePlayer extends BaseElement {
 
   attributeChangedCallback(name: string, previous: string | null, value: string | null): void {
     if (previous === value || !this.isConnected) return;
-    if (name === "controls") this.controls.element.hidden = value === null;
+    if (name === "controls") this.controlBar.element.hidden = value === null;
     else if (name === "src") void this.load();
     else if (name === "fonts") this.fontsChanged();
     else if (this.index) this.startPage();
@@ -231,7 +309,7 @@ export class FolioscopePlayer extends BaseElement {
     const attempt = ++this.loading;
     this.showPoster();
     try {
-      const index = RAW.test(src) ? await this.loadRaw(src, attempt) : await this.loadFolio(src);
+      const index = isRaw(src) ? await this.loadRaw(src, attempt) : await this.loadFolio(src);
       if (!index) return;
       if (index.folio > SUPPORTED_FOLIO || index.irVersion > SUPPORTED_IR) {
         throw new Error(
@@ -268,8 +346,11 @@ export class FolioscopePlayer extends BaseElement {
    * `app.folio/`), else baked here by the full player, loaded on demand.
    */
   private async loadRaw(src: string, attempt: number): Promise<FolioIndex | undefined> {
+    // A dropped file (`blob:`) has no folder next to it.
     const sibling = src.replace(RAW, ".folio/");
-    const found = await fetch(`${sibling}index.json`).catch(() => undefined);
+    const found = RAW.test(src)
+      ? await fetch(`${sibling}index.json`).catch(() => undefined)
+      : undefined;
     if (found?.ok) {
       this.forgetBlobs();
       this.base = sibling;
@@ -312,15 +393,24 @@ export class FolioscopePlayer extends BaseElement {
    * baked again with it.
    */
   registerFont(font: FontRegistration | string, src?: string): void {
-    const given = typeof font === "string" ? { family: font, src } : font;
-    this.registered.push({
-      url: given.src && new URL(given.src, document.baseURI).href,
-      data: given.data && new Uint8Array(given.data),
-      family: given.family,
-      match: given.match === undefined ? undefined : [given.match].flat(),
-      weight: given.weight === undefined ? undefined : Number(given.weight),
-      italic: given.style === undefined ? undefined : /^(italic|oblique)/.test(given.style),
-    });
+    this.registered.push(toDeclaration(font, src));
+    this.fontsChanged();
+  }
+
+  /** A shared font set given in JavaScript; the player's own fonts come first. */
+  get fonts(): FolioscopeFontSet | undefined {
+    return this.fontSet;
+  }
+
+  set fonts(set: FolioscopeFontSet | string | undefined) {
+    // Frameworks set attributes as properties when the element has one: the `fonts` attribute.
+    if (typeof set === "string") {
+      this.setAttribute("fonts", set);
+      return;
+    }
+    this.unwatchFonts?.();
+    this.fontSet = set;
+    this.unwatchFonts = set?.watch(() => this.fontsChanged());
     this.fontsChanged();
   }
 
@@ -333,30 +423,28 @@ export class FolioscopePlayer extends BaseElement {
       ...this.querySelectorAll(":scope > folioscope-font"),
     ];
     const declared = tags.flatMap((tag): FontDeclaration[] => {
-      const src = tag.getAttribute("src");
-      if (!src) return [];
-      const weight = tag.getAttribute("weight");
-      const style = tag.getAttribute("style");
-      const match = tag.getAttribute("match");
+      const attribute = (name: string) => tag.getAttribute(name) ?? undefined;
+      const [src, base, css] = [attribute("src"), attribute("base"), attribute("css")];
+      if (!src && !base && !css) return [];
+      const match = attribute("match");
       return [
-        {
-          url: new URL(src, document.baseURI).href,
-          family: tag.getAttribute("family") ?? undefined,
-          match: match
-            ?.split(",")
-            .map((pattern) => pattern.trim())
-            .filter(Boolean),
-          weight: weight === null ? undefined : Number(weight),
-          italic: style === null ? undefined : /^(italic|oblique)/.test(style),
-        },
+        toDeclaration({
+          src,
+          base,
+          css,
+          family: attribute("family"),
+          match: match === undefined ? undefined : rules(match),
+          weight: attribute("weight"),
+          style: attribute("style"),
+        }),
       ];
     });
-    return [...declared, ...this.registered];
+    return [...declared, ...this.registered, ...(this.fontSet?.declarations ?? [])];
   }
 
   /** Fonts came or went: a raw file already baked, or being baked, is baked again. */
   private fontsChanged(): void {
-    if (!this.baking || !this.isConnected || !RAW.test(this.src)) return;
+    if (!this.baking || !this.isConnected || !isRaw(this.src)) return;
     this.baking = false;
     this.loadedSrc = undefined;
     void this.load();
@@ -387,7 +475,7 @@ export class FolioscopePlayer extends BaseElement {
             0,
             page.flows.findIndex((f) => f.name === flowAttr),
           );
-    this.controls.load(index, page, flowIndex);
+    this.controlBar.load(index, page, flowIndex);
     this.showPoster(this.runtime.frame.placeholder);
     void this.show(this.runtime.restart());
   }
@@ -407,11 +495,11 @@ export class FolioscopePlayer extends BaseElement {
     if (!shown || seq !== this.showing) return;
     // Focus would be lost with the outgoing screen: move it to the new one, announced by name.
     if (hadFocus) shown.focus({ preventScroll: true });
-    this.controls.update(this.runtime?.canGoBack ?? false);
+    this.controlBar.update(this.runtime?.canGoBack ?? false);
     const top = step.overlays.at(-1)?.frame ?? step.frame;
     this.emit("folioscope:navigate", { frame: top.id, name: top.name });
     this.schedule(top);
-    this.preload(top);
+    this.preloadFrom(top);
   }
 
   /** Replaces the screen and its overlays; returns the frame on top. */
@@ -419,7 +507,7 @@ export class FolioscopePlayer extends BaseElement {
     const { frame } = step;
     this.viewport.style.setProperty("--w", String(frame.bounds.width));
     this.viewport.style.setProperty("--h", String(frame.bounds.height));
-    this.fit();
+    this.fitStage();
     const incoming = this.render(frame);
     const overlays = step.overlays.map((overlay) => this.renderOverlay(overlay, frame));
     await Promise.all([incoming, ...overlays].map(decoded));
@@ -432,7 +520,9 @@ export class FolioscopePlayer extends BaseElement {
     const before = this.shownFrame;
     this.shownFrame = frame;
     if (step.transition?.kind.type === "smartAnimate" && before?.parts && frame.parts) {
-      await playSmart(this.stage, before, frame, step.transition, (layer) => this.layerUrl(layer));
+      await playSmart(this.stage, before.parts, frame.parts, step.transition, (layer) =>
+        this.layerUrl(layer),
+      );
     } else {
       await play(outgoing, incoming, step.transition, step.reverse ?? false);
     }
@@ -460,7 +550,17 @@ export class FolioscopePlayer extends BaseElement {
       this.stage.append(opening);
     }
     const transition = top?.transition ?? step.transition;
-    if (transition) {
+    const swapped = closing && opening && this.overlayParts(closing, opening);
+    if (transition?.kind.type === "smartAnimate" && swapped) {
+      // A swap with smart animate: the parts of both overlays move from one to the other.
+      const sheet = opening!.querySelector<HTMLElement>(".sheet")!;
+      sheet.style.visibility = "hidden";
+      closing!.querySelector<HTMLElement>(".sheet")!.style.visibility = "hidden";
+      await playSmart(this.stage, swapped[0], swapped[1], transition, (layer) =>
+        this.layerUrl(layer),
+      );
+      sheet.style.visibility = "";
+    } else if (transition) {
       await Promise.all([
         opening && playOverlay(opening, transition, false),
         closing && playOverlay(closing, transition, true),
@@ -470,6 +570,23 @@ export class FolioscopePlayer extends BaseElement {
     closing?.remove();
     const shown = this.stage.querySelectorAll<HTMLElement>(":scope > .overlay > .sheet > .frame");
     return shown[shown.length - 1] ?? this.shown;
+  }
+
+  /** The parts of a closing and an opening overlay, in the screen's coordinates, when both have. */
+  private overlayParts(closing: HTMLElement, opening: HTMLElement): [Part[], Part[]] | undefined {
+    const frames = this.runtime?.page.frames ?? [];
+    const partsOf = (layer: HTMLElement) => {
+      const frame = frames.find((f) => f.id === layer.dataset.frame);
+      const el = layer.querySelector<HTMLElement>(".sheet > .frame");
+      if (!frame?.parts || !el) return undefined;
+      return shifted(frame.parts, {
+        x: Number.parseFloat(el.style.left) || 0,
+        y: Number.parseFloat(el.style.top) || 0,
+      });
+    };
+    const from = partsOf(closing);
+    const to = partsOf(opening);
+    return from && to ? [from, to] : undefined;
   }
 
   /** A frame with its hotspots wired to the runtime; `at` places it in the screen's coordinates. */
@@ -563,7 +680,7 @@ export class FolioscopePlayer extends BaseElement {
    * `preload`: `neighbors` (default) fetches the frames this one links to, `all` every frame of
    * the page once, `start` and `none` nothing beyond the frame on screen.
    */
-  private preload(frame: FolioFrame): void {
+  private preloadFrom(frame: FolioFrame): void {
     const strategy = this.getAttribute("preload") ?? "neighbors";
     const page = this.runtime?.page;
     if (!page || strategy === "none" || strategy === "start") return;
@@ -611,7 +728,7 @@ export class FolioscopePlayer extends BaseElement {
    * Scales the prototype to the element's width. In fullscreen, the screen's height bounds it too,
    * and the prototype is centered.
    */
-  private fit(): void {
+  private fitStage(): void {
     const style = this.viewport.style;
     const width = Number(style.getPropertyValue("--w")) || 1;
     const height = Number(style.getPropertyValue("--h")) || 1;
@@ -647,6 +764,31 @@ export class FolioscopePlayer extends BaseElement {
   private emit(type: string, detail: object): void {
     this.dispatchEvent(new CustomEvent(type, { detail, bubbles: true, composed: true }));
   }
+}
+
+/** Key codes of the modifier keys, which a key trigger lists with the key they go with. */
+const MODIFIERS: Record<number, (event: KeyboardEvent) => boolean> = {
+  16: (e) => e.shiftKey,
+  17: (e) => e.ctrlKey,
+  18: (e) => e.altKey,
+  91: (e) => e.metaKey,
+  93: (e) => e.metaKey,
+};
+
+/** The action of the frame's key trigger the key press matches, if any. */
+function keyAction(frame: FolioFrame, event: KeyboardEvent): Action | undefined {
+  for (const hotspot of frame.hotspots) {
+    for (const { trigger, action } of hotspot.interactions) {
+      if (trigger.type !== "key") continue;
+      const codes = trigger.codes ?? [];
+      if (codes.length === 0) return action;
+      const keys = codes.filter((c) => !(c in MODIFIERS));
+      const held = codes.filter((c) => c in MODIFIERS);
+      // oxlint-disable-next-line typescript/no-deprecated -- the file stores key codes
+      if (keys.includes(event.keyCode) && held.every((c) => MODIFIERS[c]!(event))) return action;
+    }
+  }
+  return undefined;
 }
 
 /** Top-left corner of an overlay in the screen's coordinates. */

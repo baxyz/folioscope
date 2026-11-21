@@ -16,8 +16,11 @@ export default defineConfig({
   themeConfig: {
     nav: [
       { text: "Getting started", link: "/guide/getting-started" },
+      { text: "API", link: "/guide/api" },
       { text: "Demos", link: "/demos" },
+      { text: "Playground", link: "/playground" },
       { text: "Compatibility", link: "/compatibility" },
+      { text: "Roadmap", link: "/roadmap" },
       { text: "Comparison", link: "/comparison" },
       { text: "About", link: "/about" },
     ],

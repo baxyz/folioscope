@@ -5,7 +5,7 @@
 clicks, hovers, overlays, scrolling, transitions. `.xd` files follow. Not a viewer for the design file: a player
 for its clickable prototype.
 
-> Early development: see the [roadmap](https://github.com/baxyz/folioscope/blob/main/PROJECT.md#8-roadmap).
+> What plays for each format: see the [roadmap](https://folioscope.baxyz.dev/roadmap).
 
 ## Bake at build time, with Vite
 

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { spring, toCssLinear } from "helpers4/animation";
 import { prefersReducedMotion } from "helpers4/browser";
-import { matrixToCss, rectToRect } from "helpers4/geometry";
 import type {
   Action,
   FolioComponent,
   FolioFrame,
   Hotspot,
   Layer,
+  Point,
   Rect,
   Side,
   Transition,
@@ -39,34 +39,67 @@ export function renderFrame(
   el.setAttribute("aria-label", frame.name);
   el.tabIndex = -1;
   // A scrolling frame: background layers, then a scroller holding the content and its hotspots,
-  // then fixed layers and hotspots on top.
+  // then fixed layers and hotspots on top. Frames that scroll inside the screen get scrollers of
+  // their own, in the content they are part of.
   let content: HTMLElement | undefined;
+  const inner = new Map<string, HTMLElement>();
+  const scroller = (
+    direction: "vertical" | "horizontal" | "both",
+    size: { width: number; height: number },
+  ) => {
+    const box = document.createElement("div");
+    box.className = "scroll";
+    box.style.overflowX = direction === "vertical" ? "hidden" : "auto";
+    box.style.overflowY = direction === "horizontal" ? "hidden" : "auto";
+    const area = document.createElement("div");
+    area.className = "content";
+    area.style.width = `${size.width}px`;
+    area.style.height = `${size.height}px`;
+    box.append(area);
+    return [box, area] as const;
+  };
+  const innerOf = (id: string) => {
+    let area = inner.get(id);
+    const spec = frame.scrollers?.find((s) => s.id === id);
+    if (!area && spec) {
+      const [box, made] = scroller(spec.direction, spec.content);
+      place(box, spec.bounds);
+      box.classList.add("inner");
+      (content ?? el).append(box);
+      inner.set(id, made);
+      area = made;
+    }
+    return area;
+  };
   for (const layer of frame.layers) {
     const img = document.createElement("img");
     img.src = layerUrl(layer);
     img.alt = "";
     img.draggable = false;
     place(img, layer.bounds);
-    if (layer.scrolls && frame.scroll) {
-      const scroller = document.createElement("div");
-      scroller.className = "scroll";
-      const { direction } = frame.scroll;
-      scroller.style.overflowX = direction === "vertical" ? "hidden" : "auto";
-      scroller.style.overflowY = direction === "horizontal" ? "hidden" : "auto";
-      content = document.createElement("div");
-      content.className = "content";
-      content.style.width = `${frame.scroll.content.width}px`;
-      content.style.height = `${frame.scroll.content.height}px`;
-      content.append(img);
-      scroller.append(content);
-      el.append(scroller);
-    } else {
-      el.append(img);
+    let parent: HTMLElement = el;
+    if (layer.scroller) {
+      parent = innerOf(layer.scroller) ?? el;
+    } else if (layer.scrolls && frame.scroll) {
+      if (!content) {
+        const [box, area] = scroller(frame.scroll.direction, frame.scroll.content);
+        content = area;
+        el.append(box);
+      }
+      parent = content;
     }
+    parent.append(img);
+    if (layer.sticky) stick(img, layer.bounds, parent.parentElement!);
   }
   for (const hotspot of frame.hotspots) {
     const area = renderHotspot(hotspot, on);
-    if (area) (hotspot.fixed ? el : (content ?? el)).append(area);
+    if (!area) continue;
+    const parent = hotspot.scroller
+      ? innerOf(hotspot.scroller)
+      : hotspot.fixed
+        ? el
+        : (content ?? el);
+    (parent ?? el).append(area);
   }
   // Components go last: they sit above the frame's own hotspots, as in the design file.
   for (const component of frame.components ?? []) {
@@ -77,6 +110,20 @@ export function renderFrame(
 }
 
 /**
+ * Keeps a sticky layer in its scroller's view once the scroll reaches it: it moves with the
+ * content, then holds at the top (or left) edge.
+ */
+function stick(img: HTMLElement, bounds: Rect, box: HTMLElement): void {
+  img.style.zIndex = "1";
+  const update = () => {
+    const dy = Math.max(0, box.scrollTop - bounds.y);
+    const dx = box.style.overflowX === "hidden" ? 0 : Math.max(0, box.scrollLeft - bounds.x);
+    img.style.transform = dx || dy ? `translate(${dx}px, ${dy}px)` : "";
+  };
+  box.addEventListener("scroll", update, { passive: true });
+}
+
+/**
  * A hotspot as a transparent element: a focusable button when it can be clicked, a plain area
  * when it only reacts to the pointer; `undefined` when nothing in it is for the player.
  */
@@ -84,7 +131,8 @@ function renderHotspot(hotspot: Hotspot, on: FrameHandlers): HTMLElement | undef
   const by = (type: Trigger["type"]) =>
     hotspot.interactions.filter((i) => i.trigger.type === type).map((i) => i.action);
   const clicks = by("click");
-  const pointer = POINTER_TRIGGERS.some((type) => by(type).length > 0);
+  const drags = by("drag");
+  const pointer = POINTER_TRIGGERS.some((type) => by(type).length > 0) || drags.length > 0;
   if (clicks.length === 0 && !pointer) return undefined;
   const area: HTMLElement = document.createElement(clicks.length > 0 ? "button" : "div");
   area.className = "hotspot";
@@ -114,6 +162,24 @@ function renderHotspot(hotspot: Hotspot, on: FrameHandlers): HTMLElement | undef
       for (const action of by("press")) on.hold(action, "press", hotspot.bounds);
     });
     area.addEventListener("pointerup", () => run(by("mouseUp")));
+    if (drags.length > 0) {
+      // A drag is a press that moves far enough before it ends.
+      let start: { x: number; y: number } | undefined;
+      area.style.touchAction = "none";
+      area.addEventListener("pointerdown", (event) => {
+        start = { x: event.clientX, y: event.clientY };
+      });
+      area.addEventListener("pointermove", (event) => {
+        if (!start) return;
+        if (Math.hypot(event.clientX - start.x, event.clientY - start.y) >= DRAG_DISTANCE) {
+          start = undefined;
+          run(drags);
+        }
+      });
+      const end = () => (start = undefined);
+      area.addEventListener("pointerup", end);
+      area.addEventListener("pointercancel", end);
+    }
   }
   return area;
 }
@@ -139,10 +205,26 @@ function renderComponent(
   });
   let current = component.initial;
   const held: string[] = [];
+  let timers: ReturnType<typeof setTimeout>[] = [];
   const show = (variant: string, transition?: Transition) => {
     const state = component.states.find((s) => s.variant === variant);
     if (!state) return;
+    const previous = component.states.find((s) => s.variant === current);
     current = variant;
+    // "After delay" inside a state starts counting when the state shows.
+    timers.forEach(clearTimeout);
+    timers = state.hotspots.flatMap((h) =>
+      h.interactions.flatMap(({ trigger, action }) =>
+        trigger.type === "afterDelay"
+          ? [
+              setTimeout(
+                () => zone.isConnected && handlers.action(action, h.bounds),
+                trigger.delayMs,
+              ),
+            ]
+          : [],
+      ),
+    );
     zone.dataset.state = state.name;
     zone.style.width = `${state.bounds.width}px`;
     zone.style.height = `${state.bounds.height}px`;
@@ -153,7 +235,9 @@ function renderComponent(
     place(img, state.layer.bounds);
     const before = zone.querySelector("img");
     const areas = state.hotspots.flatMap((h) => renderHotspot(h, handlers) ?? []);
-    zone.replaceChildren(...(before ? [before] : []), img, ...areas);
+    // Components nested in the state play on their own, over it; what else they do goes up.
+    const nested = (state.components ?? []).map((c) => renderComponent(c, layerUrl, handlers));
+    zone.replaceChildren(...(before ? [before] : []), img, ...nested, ...areas);
     const reduced = prefersReducedMotion();
     if (
       !before ||
@@ -165,7 +249,15 @@ function renderComponent(
       before?.remove();
       return;
     }
-    // Smart animate and the rest fade for now.
+    if (transition.kind.type === "smartAnimate" && previous?.parts && state.parts) {
+      // The parts of both states move from one to the other, over the new state.
+      img.style.visibility = "hidden";
+      void playSmart(zone, previous.parts, state.parts, transition, layerUrl).then(() => {
+        img.style.visibility = "";
+        before.remove();
+      });
+      return;
+    }
     void img
       .animate([{ opacity: 0 }, { opacity: 1 }], {
         ...timing(transition),
@@ -195,6 +287,9 @@ function renderComponent(
   show(component.initial);
   return zone;
 }
+
+/** How far, in CSS pixels, a press must move to be a drag. */
+const DRAG_DISTANCE = 10;
 
 const POINTER_TRIGGERS = [
   "hover",
@@ -234,32 +329,24 @@ export async function playOverlay(
 }
 
 /**
- * Smart animate (ADR 0003): over `stage`, the parts of `from` and `to` paired by name move and
+ * Smart animate (docs/spec/player.md): over `stage`, the parts of `from` and `to` paired by name move and
  * scale from their bounds in one frame to those in the other, the second image fading in over the
  * first; parts on one side only fade out or in. Resolves when it is over; does nothing when a
  * frame has no parts or motion is reduced.
  */
 export async function playSmart(
   stage: HTMLElement,
-  from: FolioFrame,
-  to: FolioFrame,
+  fromParts: Part[] | undefined,
+  toParts: Part[] | undefined,
   transition: Transition,
   layerUrl: (layer: Layer) => string,
 ): Promise<void> {
-  if (!from.parts?.length || !to.parts?.length || prefersReducedMotion()) return;
+  if (!fromParts?.length || !toParts?.length || prefersReducedMotion()) return;
+  const from = { parts: fromParts };
+  const to = { parts: toParts };
   const options: KeyframeAnimationOptions = { ...timing(transition), fill: "both" };
   const layer = document.createElement("div");
   layer.className = "smart";
-  const image = (bounds: Rect, src: Layer) => {
-    const img = document.createElement("img");
-    img.src = layerUrl(src);
-    img.alt = "";
-    place(img, bounds);
-    layer.append(img);
-    return img;
-  };
-  // Where `a` would be drawn at `b`'s place, from `a`'s own (transform-origin: 0 0).
-  const toward = (a: Rect, b: Rect) => matrixToCss(rectToRect(a, b));
   // Pairs by name, in order: the n-th part named X in `from` with the n-th one in `to`.
   const pairs = new Map<number, number>();
   for (const [i, part] of from.parts.entries()) {
@@ -268,31 +355,38 @@ export async function playSmart(
     );
     if (j >= 0) pairs.set(i, j);
   }
-  const paired = new Set(pairs.values());
+  const partnerOf = (j: number) => [...pairs].find(([, k]) => k === j)?.[0];
   const moves: [HTMLElement, Keyframe[]][] = [];
   for (const [i, part] of from.parts.entries()) {
     const j = pairs.get(i);
-    const end = j === undefined ? undefined : to.parts[j]!.layer.bounds;
-    const img = image(part.layer.bounds, part.layer);
+    const end = j === undefined ? undefined : to.parts[j]!;
+    // Two plain boxes: one box changes size, corners, colour and place; nothing to cross-fade.
+    if (end && part.shape && end.shape) {
+      const box = partElement(layer, part, layerUrl);
+      moves.push([box, [boxFrame(part), boxFrame(end)]]);
+      continue;
+    }
+    const el = partElement(layer, part, layerUrl);
     moves.push([
-      img,
+      el,
       // A paired part stays opaque under its partner fading in: a cross-fade of two half
       // transparent images would show what is behind them.
       end
-        ? [{ transform: "none" }, { transform: toward(part.layer.bounds, end) }]
+        ? [{ transform: partTransform(part) }, { transform: partTransform(end, part) }]
         : [{ opacity: 1 }, { opacity: 0 }],
     ]);
   }
   for (const [j, part] of to.parts.entries()) {
-    const i = [...pairs].find(([, k]) => k === j)?.[0];
-    const start = paired.has(j) && i !== undefined ? from.parts[i]!.layer.bounds : undefined;
-    const img = image(part.layer.bounds, part.layer);
+    const i = partnerOf(j);
+    const start = i === undefined ? undefined : from.parts[i]!;
+    if (start?.shape && part.shape) continue;
+    const el = partElement(layer, part, layerUrl);
     moves.push([
-      img,
+      el,
       start
         ? [
-            { transform: toward(part.layer.bounds, start), opacity: 0 },
-            { transform: "none", opacity: 1 },
+            { transform: partTransform(start, part), opacity: 0 },
+            { transform: partTransform(part), opacity: 1 },
           ]
         : [{ opacity: 0 }, { opacity: 1 }],
     ]);
@@ -300,9 +394,86 @@ export async function playSmart(
   stage.append(layer);
   await decoded(layer);
   await Promise.all(
-    moves.map(([img, frames]) => img.animate(frames, options).finished.catch(() => undefined)),
+    moves.map(([el, frames]) => el.animate(frames, options).finished.catch(() => undefined)),
   );
   layer.remove();
+}
+
+export type Part = NonNullable<FolioFrame["parts"]>[number];
+
+/** Parts moved by `origin`: an overlay's, from its frame's corner to the screen's. */
+export function shifted(parts: Part[] | undefined, origin: Point): Part[] | undefined {
+  return parts?.map((part) => ({
+    ...part,
+    layer: {
+      ...part.layer,
+      bounds: {
+        ...part.layer.bounds,
+        x: part.layer.bounds.x + origin.x,
+        y: part.layer.bounds.y + origin.y,
+      },
+    },
+    matrix: part.matrix && [
+      part.matrix[0],
+      part.matrix[1],
+      part.matrix[2],
+      part.matrix[3],
+      part.matrix[4] + origin.x,
+      part.matrix[5] + origin.y,
+    ],
+  }));
+}
+
+/** A part's element: its image, or a plain box, at the frame's origin, moved by `transform`. */
+function partElement(
+  layer: HTMLElement,
+  part: Part,
+  layerUrl: (layer: Layer) => string,
+): HTMLElement {
+  let el: HTMLElement;
+  if (part.shape) {
+    el = document.createElement("div");
+    Object.assign(el.style, boxFrame(part));
+  } else {
+    const img = document.createElement("img");
+    img.src = layerUrl(part.layer);
+    img.alt = "";
+    el = img;
+  }
+  Object.assign(el.style, {
+    left: "0px",
+    top: "0px",
+    width: `${part.layer.bounds.width}px`,
+    height: `${part.layer.bounds.height}px`,
+    transformOrigin: "0 0",
+    transform: partTransform(part),
+  });
+  layer.append(el);
+  return el;
+}
+
+/**
+ * Where a part goes, as a CSS transform from the frame's origin: its matrix (turned or flipped)
+ * or its position; scaled to `as`'s size when given, so its image fills `as`'s place.
+ */
+function partTransform(part: Part, as?: Part): string {
+  const [a, b, c, d, e, f] = part.matrix ?? [1, 0, 0, 1, part.layer.bounds.x, part.layer.bounds.y];
+  const matrix = `matrix(${a}, ${b}, ${c}, ${d}, ${e}, ${f})`;
+  if (!as) return matrix;
+  const sx = part.layer.bounds.width / (as.layer.bounds.width || 1);
+  const sy = part.layer.bounds.height / (as.layer.bounds.height || 1);
+  return `${matrix} scale(${sx}, ${sy})`;
+}
+
+/** A plain box's keyframe: its size, corners, colour and place. */
+function boxFrame(part: Part): Keyframe & Record<string, string> {
+  return {
+    width: `${part.layer.bounds.width}px`,
+    height: `${part.layer.bounds.height}px`,
+    borderRadius: `${part.shape?.radius ?? 0}px`,
+    background: part.shape?.fill ?? "transparent",
+    transform: partTransform(part),
+  };
 }
 
 /** Scrolls the frame `el` to a "scroll to" action's target, smoothly unless it is instant. */
@@ -347,7 +518,9 @@ export async function play(
   };
   const kind = transition.kind;
   const animations: Animation[] = [];
-  const slide = (side: Side, sign: 1 | -1) => offset(side, sign);
+  const slide = (side: Side, sign: number) => offset(side, sign);
+  // Slides move the screen underneath a little too, the other way; moves leave it in place.
+  const parallax = kind.type === "slideIn" || kind.type === "slideOut" ? PARALLAX : 0;
   switch (kind.type) {
     case "slideIn":
     case "moveIn":
@@ -357,20 +530,31 @@ export async function play(
         animations.push(
           outgoing.animate([{ transform: "none" }, { transform: slide(kind.from, 1) }], options),
         );
+        if (parallax)
+          animations.push(
+            incoming.animate(
+              [{ transform: slide(kind.from, -parallax) }, { transform: "none" }],
+              options,
+            ),
+          );
       } else {
         animations.push(
           incoming.animate([{ transform: slide(kind.from, 1) }, { transform: "none" }], options),
         );
+        if (parallax)
+          animations.push(
+            outgoing.animate(
+              [{ transform: "none" }, { transform: slide(kind.from, -parallax) }],
+              options,
+            ),
+          );
       }
       break;
     case "push": {
       const sign = reverse ? -1 : 1;
       animations.push(
         incoming.animate([{ transform: slide(kind.from, sign) }, { transform: "none" }], options),
-        outgoing.animate(
-          [{ transform: "none" }, { transform: slide(kind.from, -sign as 1 | -1) }],
-          options,
-        ),
+        outgoing.animate([{ transform: "none" }, { transform: slide(kind.from, -sign) }], options),
       );
       break;
     }
@@ -380,6 +564,13 @@ export async function play(
       animations.push(
         outgoing.animate([{ transform: "none" }, { transform: slide(kind.to, 1) }], options),
       );
+      if (parallax)
+        animations.push(
+          incoming.animate(
+            [{ transform: slide(kind.to, -parallax) }, { transform: "none" }],
+            options,
+          ),
+        );
       break;
     default:
       // Dissolve; smart animate and unknown kinds fall back to it until they are supported.
@@ -400,8 +591,11 @@ function place(
   });
 }
 
-/** Where a screen sits off-stage on `side`. */
-function offset(side: Side, sign: 1 | -1): string {
+/** How far a slide moves the screen underneath, as a share of the screen. */
+const PARALLAX = 0.3;
+
+/** Where a screen sits off-stage on `side`, `sign` screens away (negative: the other side). */
+function offset(side: Side, sign: number): string {
   const axis = side === "left" || side === "right" ? "X" : "Y";
   const direction = side === "left" || side === "top" ? -1 : 1;
   return `translate${axis}(${direction * sign * 100}%)`;

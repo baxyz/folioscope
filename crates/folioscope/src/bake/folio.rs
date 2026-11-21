@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Writes a `.folio` folder (ADR 0004): `index.json` (the IR plus each frame's layers), hashed
+//! Writes a `.folio` folder (docs/spec/folio.md): `index.json` (the IR plus each frame's layers), hashed
 //! layer images at every density, and `poster.webp`. A frame is one layer, or, when it scrolls,
 //! three: its background, the content that scrolls, and the fixed children on top.
 
@@ -16,14 +16,14 @@ use crate::sketch::{SketchFile, ir::to_ir as sketch_ir};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
-use crate::bake::draw::{Draw, FigmaDraw};
+use crate::bake::draw::{Draw, FigmaDraw, Part, PartShape};
 use crate::bake::fonts::FontLibrary;
 use crate::bake::image::{ImageFormat, encode, encode_best, gzipped_len, svg_eligible};
 use crate::bake::penpot::PenpotDraw;
 use crate::bake::sketch::SketchDraw;
 use crate::bake::text::Typesetter;
 use crate::bake::xd::XdDraw;
-use crate::bake::{RenderError, render_pixmap};
+use crate::bake::{RenderError, render_pixmap, svg_size};
 use crate::xd::{XdFile, ir::to_ir as xd_ir};
 
 /// Version of the `.folio` layout, independent of the IR's.
@@ -51,12 +51,12 @@ pub struct BakeOptions {
     /// Encode large, photo-like layers as AVIF when it beats lossless WebP (see `image`).
     pub avif: bool,
     /// Serve a layer as its SVG when it holds no image or filter and weighs less than its lightest
-    /// image (ADR 0006).
+    /// image (docs/spec/bake.md).
     pub svg: bool,
-    /// The most states baked per interactive component (ADR 0007); the others stay unreachable,
+    /// The most states baked per interactive component (docs/spec/folio.md); the others stay unreachable,
     /// and the report lists the component.
     pub max_states: usize,
-    /// Fonts for text the file stores no glyphs for (ADR 0011).
+    /// Fonts for text the file stores no glyphs for (docs/spec/bake.md).
     pub fonts: FontLibrary,
     /// Bake the pages that have no flow too. By default, when some page has one, the others (a
     /// design system's components, say) are left out: they are not part of the prototype.
@@ -96,7 +96,7 @@ pub struct BakeReport {
     pub skipped_pages: Vec<String>,
 }
 
-/// An interactive component the bake kept only some states of (ADR 0007).
+/// An interactive component the bake kept only some states of (docs/spec/folio.md).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CappedComponent {
     /// The component's name, then the frame's.
@@ -107,7 +107,7 @@ pub struct CappedComponent {
     pub states: usize,
 }
 
-/// States baked per interactive component by default (ADR 0007).
+/// States baked per interactive component by default (docs/spec/folio.md).
 pub const DEFAULT_MAX_STATES: usize = 16;
 
 /// The longest side of an image WebP can hold.
@@ -141,7 +141,7 @@ struct FolioFrame<'a> {
     layers: Vec<Layer>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     components: Vec<FolioComponent<'a>>,
-    /// For smart animate (ADR 0003): the background, then each direct child, by name.
+    /// For smart animate (docs/spec/player.md): the background, then each direct child, by name.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     parts: Vec<FolioPart>,
     /// [ThumbHash](https://evanw.github.io/thumbhash/), base64: a blurred preview shown until the
@@ -149,12 +149,19 @@ struct FolioFrame<'a> {
     placeholder: String,
 }
 
-/// A part of a frame that smart animate moves: the background is named `""`.
+/// A part of a frame that smart animate moves: the background is named `""`, nested layers
+/// `Parent/Child`.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct FolioPart {
     name: String,
     layer: Layer,
+    /// Its transform in the frame, its image's top-left corner at the origin, when turned.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    matrix: Option<[f32; 6]>,
+    /// A plain rounded rectangle, animated as a box.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    shape: Option<PartShape>,
 }
 
 /// An interactive component, with one layer per state.
@@ -173,10 +180,18 @@ struct FolioComponent<'a> {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct FolioState<'a> {
-    #[serde(flatten)]
-    state: &'a ir::ComponentState,
+    variant: &'a str,
+    name: &'a str,
+    bounds: Rect,
+    hotspots: Vec<ir::Hotspot>,
     /// Drawn at the state's bounds, from the component's top-left corner.
     layer: Layer,
+    /// Interactive components inside the state, drawn over its layer.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    components: Vec<FolioComponent<'a>>,
+    /// For smart animate between states.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    parts: Vec<FolioPart>,
 }
 
 /// An image drawn at `bounds` (frame coordinates); its files are
@@ -190,6 +205,12 @@ struct Layer {
     /// The frame's scrolling content: moves with the scroll, under the layers that follow.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     scrolls: bool,
+    /// In a frame that scrolls inside the screen, by its id; `bounds` are in its content.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    scroller: Option<String>,
+    /// Scrolls with its content, then sticks at its scroller's top (or left) edge.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    sticky: bool,
 }
 
 /// Renders every state of the frame's interactive components, each as a layer.
@@ -200,61 +221,117 @@ fn bake_components<'a>(
     report: &mut BakeReport,
     sink: &mut Sink<'_>,
 ) -> Result<Vec<FolioComponent<'a>>, BakeError> {
-    let densities = &sorted_densities(options);
     let mut components = Vec::new();
     for component in &frame.components {
-        let kept = component.states.len().min(options.max_states.max(1));
-        if kept < component.states.len() {
-            report.capped_components.push(CappedComponent {
-                name: component.name.clone(),
-                frame: frame.name.clone(),
-                kept,
-                states: component.states.len(),
-            });
-        }
-        let mut states = Vec::new();
-        for state in &component.states[..kept] {
-            let markup = draw
-                .state(component, state)
-                .ok_or_else(|| BakeError::MissingFrame(state.variant.clone()))?;
-            let (src, format) =
-                encode_layer(&markup, densities, options, report, sink).map_err(|e| match e {
-                    LayerError::Render(source) => BakeError::Render {
-                        frame: frame.id.clone(),
-                        source,
-                    },
-                    LayerError::Sink(e) => e,
-                })?;
-            states.push(FolioState {
-                state,
-                layer: Layer {
-                    src,
-                    format,
-                    bounds: state.bounds,
-                    scrolls: false,
-                },
-            });
-        }
-        components.push(FolioComponent {
-            id: &component.id,
-            name: &component.name,
-            bounds: component.bounds,
-            initial: &component.initial,
-            fixed: component.fixed,
-            states,
-        });
+        components.push(bake_component(
+            draw, frame, component, options, report, sink,
+        )?);
     }
     Ok(components)
 }
 
-/// Frames a smart animate leaves or reaches: they need their parts (ADR 0003).
+/// Renders one interactive component's states, and those of the components nested in them.
+fn bake_component<'a>(
+    draw: &mut dyn Draw,
+    frame: &'a ir::Frame,
+    component: &'a ir::Component,
+    options: &BakeOptions,
+    report: &mut BakeReport,
+    sink: &mut Sink<'_>,
+) -> Result<FolioComponent<'a>, BakeError> {
+    let densities = &sorted_densities(options);
+    let kept = component.states.len().min(options.max_states.max(1));
+    if kept < component.states.len() {
+        report.capped_components.push(CappedComponent {
+            name: component.name.clone(),
+            frame: frame.name.clone(),
+            kept,
+            states: component.states.len(),
+        });
+    }
+    // States changed with smart animate get their parts.
+    let smart = component.states.iter().any(|s| {
+        s.hotspots.iter().flat_map(|h| &h.interactions).any(|i| {
+            matches!(&i.action, ir::Action::ChangeTo { transition, .. }
+                if matches!(transition.kind, ir::TransitionKind::SmartAnimate))
+        })
+    });
+    let mut states = Vec::new();
+    for state in &component.states[..kept] {
+        let markup = draw
+            .state(component, state)
+            .ok_or_else(|| BakeError::MissingFrame(state.variant.clone()))?;
+        let (src, format) =
+            encode_layer(&markup, densities, options, report, sink).map_err(|e| match e {
+                LayerError::Render(source) => BakeError::Render {
+                    frame: frame.id.clone(),
+                    source,
+                },
+                LayerError::Sink(e) => e,
+            })?;
+        // A variant laid out again for the instance's overrides (a longer label) is drawn at
+        // the size it took: the state, and the variant's own hotspot, take it too.
+        let mut bounds = state.bounds;
+        let mut hotspots = state.hotspots.clone();
+        if let Some((width, height)) = svg_size(&markup)
+            && ((width - bounds.width).abs() > 0.5 || (height - bounds.height).abs() > 0.5)
+        {
+            bounds.width = width;
+            bounds.height = height;
+            for hotspot in hotspots.iter_mut().filter(|h| h.node == state.variant) {
+                hotspot.bounds.width = width;
+                hotspot.bounds.height = height;
+            }
+        }
+        let mut nested = Vec::new();
+        for inner in &state.components {
+            nested.push(bake_component(draw, frame, inner, options, report, sink)?);
+        }
+        let parts = if smart {
+            let drawn = draw.state_parts(component, state);
+            encode_parts(drawn, frame, options, report, sink)?
+        } else {
+            Vec::new()
+        };
+        states.push(FolioState {
+            parts,
+            variant: &state.variant,
+            name: &state.name,
+            bounds,
+            hotspots,
+            layer: Layer {
+                src,
+                format,
+                bounds,
+                scrolls: false,
+                scroller: None,
+                sticky: false,
+            },
+            components: nested,
+        });
+    }
+    Ok(FolioComponent {
+        id: &component.id,
+        name: &component.name,
+        bounds: component.bounds,
+        initial: &component.initial,
+        fixed: component.fixed,
+        states,
+    })
+}
+
+/// Frames a smart animate leaves or reaches: they need their parts (docs/spec/player.md).
 fn smart_animated(document: &Document) -> HashSet<&str> {
     let mut frames = HashSet::new();
     for frame in document.pages.iter().flat_map(|p| &p.frames) {
         for interaction in frame.hotspots.iter().flat_map(|h| &h.interactions) {
-            if let ir::Action::Navigate { to, transition } = &interaction.action
-                && matches!(transition.kind, ir::TransitionKind::SmartAnimate)
-            {
+            let (ir::Action::Navigate { to, transition }
+            | ir::Action::Overlay { to, transition, .. }
+            | ir::Action::SwapOverlay { to, transition, .. }) = &interaction.action
+            else {
+                continue;
+            };
+            if matches!(transition.kind, ir::TransitionKind::SmartAnimate) {
                 frames.insert(frame.id.as_str());
                 frames.insert(to.as_str());
             }
@@ -271,11 +348,23 @@ fn bake_parts(
     report: &mut BakeReport,
     sink: &mut Sink<'_>,
 ) -> Result<Vec<FolioPart>, BakeError> {
+    let drawn = draw.parts(frame);
+    encode_parts(drawn, frame, options, report, sink)
+}
+
+/// Encodes drawn parts, each as a layer.
+fn encode_parts(
+    drawn: Vec<Part>,
+    frame: &ir::Frame,
+    options: &BakeOptions,
+    report: &mut BakeReport,
+    sink: &mut Sink<'_>,
+) -> Result<Vec<FolioPart>, BakeError> {
     let densities = &sorted_densities(options);
     let mut parts = Vec::new();
-    for (name, markup, bounds) in draw.parts(frame) {
+    for part in drawn {
         let (src, format) =
-            encode_layer(&markup, densities, options, report, sink).map_err(|e| match e {
+            encode_layer(&part.markup, densities, options, report, sink).map_err(|e| match e {
                 LayerError::Render(source) => BakeError::Render {
                     frame: frame.id.clone(),
                     source,
@@ -283,12 +372,16 @@ fn bake_parts(
                 LayerError::Sink(e) => e,
             })?;
         parts.push(FolioPart {
-            name,
+            name: part.name,
+            matrix: part.matrix,
+            shape: part.shape,
             layer: Layer {
                 src,
                 format,
-                bounds,
+                bounds: part.bounds,
                 scrolls: false,
+                scroller: None,
+                sticky: false,
             },
         });
     }
@@ -307,7 +400,7 @@ enum LayerError {
     Sink(BakeError),
 }
 
-/// Encodes one layer into `sink`: as its SVG when that is allowed and lighter (ADR 0006), else at
+/// Encodes one layer into `sink`: as its SVG when that is allowed and lighter (docs/spec/bake.md), else at
 /// every density, highest first (it picks the raster format).
 fn encode_layer(
     markup: &str,
@@ -542,20 +635,7 @@ pub fn bake_into(
                 source,
             };
             let placeholder = crate::bake::placeholder(&whole).map_err(render_error)?;
-            let mut layers = Vec::new();
-            for (markup, bounds, scrolls) in draw.layers(frame, &whole)? {
-                let (src, format) = encode_layer(&markup, &densities, options, &mut report, sink)
-                    .map_err(|e| match e {
-                    LayerError::Render(source) => render_error(source),
-                    LayerError::Sink(e) => e,
-                })?;
-                layers.push(Layer {
-                    src,
-                    format,
-                    bounds,
-                    scrolls,
-                });
-            }
+            let layers = bake_layers(draw, frame, &whole, options, &mut report, sink)?;
             // The poster stands in for the starting frame until the player runs: 1x, lossless.
             if Some(frame.id.as_str()) == first_start {
                 let pixmap = render_pixmap(&whole, 1.0).map_err(render_error)?;
@@ -606,6 +686,53 @@ pub fn bake_into(
     report.bytes += json.len();
     sink("index.json", json.as_bytes())?;
     Ok(report)
+}
+
+/// Encodes a frame's layers: its stack, then what scrolls inside it and what sticks.
+fn bake_layers(
+    draw: &mut dyn Draw,
+    frame: &ir::Frame,
+    whole: &str,
+    options: &BakeOptions,
+    report: &mut BakeReport,
+    sink: &mut Sink<'_>,
+) -> Result<Vec<Layer>, BakeError> {
+    let densities = sorted_densities(options);
+    let encode = |markup: &str, report: &mut BakeReport, sink: &mut Sink<'_>| {
+        encode_layer(markup, &densities, options, report, sink).map_err(|e| match e {
+            LayerError::Render(source) => BakeError::Render {
+                frame: frame.id.clone(),
+                source,
+            },
+            LayerError::Sink(e) => e,
+        })
+    };
+    let mut layers = Vec::new();
+    for (markup, bounds, scrolls) in draw.layers(frame, whole)? {
+        let (src, format) = encode(&markup, report, sink)?;
+        layers.push(Layer {
+            src,
+            format,
+            bounds,
+            scrolls,
+            scroller: None,
+            sticky: false,
+        });
+    }
+    for extra in draw.scroll_layers(frame)? {
+        let (src, format) = encode(&extra.markup, report, sink)?;
+        // A sticky child of the frame itself scrolls with the frame's content.
+        let scrolls = extra.scroller.is_none();
+        layers.push(Layer {
+            src,
+            format,
+            bounds: extra.bounds,
+            scrolls,
+            scroller: extra.scroller,
+            sticky: extra.sticky,
+        });
+    }
+    Ok(layers)
 }
 
 /// Whether an image of the frame (or of its scrolling content, when that is larger), at the top

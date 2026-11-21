@@ -65,7 +65,12 @@ the schema, then the root definition `Message`.
   - An outer instance's entries win over an inner one's for the same node.
 - An instance carries a copy of its component's `prototypeInteractions` (same interaction ids);
   when it has none, the component's apply.
-- Derived data exists only for the variant the instance shows.
+- Derived data exists only for the variant the instance shows. For another variant, the bake
+  lays out again what the overrides change: a text that grows with its content
+  (`textAutoResize`: `WIDTH_AND_HEIGHT`, `HEIGHT`) is measured with its font, and an auto-layout
+  frame (`stackMode`) that hugs its content (`stackPrimarySizing`, `stackCounterSizing`:
+  `RESIZE_TO_FIT…`) takes the size of its children, padding (`stackHorizontalPadding`,
+  `stackPaddingRight`, `stackVerticalPadding`, `stackPaddingBottom`) and spacing included.
 
 ### Text
 

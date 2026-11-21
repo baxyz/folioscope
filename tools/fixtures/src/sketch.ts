@@ -23,7 +23,8 @@ const ANIMATIONS: Record<SketchAnimation, number> = {
   slideFromTop: 4,
 };
 
-type Layer = FileFormat.Rectangle | FileFormat.Hotspot;
+type Layer = FileFormat.Rectangle | FileFormat.Hotspot | FileFormat.Oval | FileFormat.Bitmap;
+type Parent = FileFormat.Artboard | FileFormat.Group;
 
 /**
  * Builds a `.sketch` file, typed against Sketch's published file format. Ids are deterministic so
@@ -32,6 +33,7 @@ type Layer = FileFormat.Rectangle | FileFormat.Hotspot;
 export class SketchBuilder {
   private nextId = 1;
   private readonly pages: FileFormat.Page[] = [];
+  private readonly images = new Map<string, Uint8Array>();
 
   /** UUID-shaped and deterministic; uppercase, as Sketch writes them. */
   private id(): string {
@@ -84,13 +86,7 @@ export class SketchBuilder {
     return artboard;
   }
 
-  rect(
-    artboard: FileFormat.Artboard,
-    name: string,
-    box: Box,
-    fill: string,
-    radius = 0,
-  ): FileFormat.Rectangle {
+  rect(artboard: Parent, name: string, box: Box, fill: string, radius = 0): FileFormat.Rectangle {
     const corner = (point: string): FileFormat.CurvePoint => ({
       _class: "curvePoint",
       cornerRadius: radius,
@@ -176,6 +172,240 @@ export class SketchBuilder {
       glyphBounds: "{{0, 0}, {0, 0}}",
     };
     artboard.layers.push(text);
+    return text;
+  }
+
+  /** An ellipse filling its box. */
+  oval(parent: Parent, name: string, box: Box, fill: string): FileFormat.Oval {
+    const point = (p: string, from: string, to: string): FileFormat.CurvePoint => ({
+      _class: "curvePoint",
+      cornerRadius: 0,
+      cornerStyle: 0,
+      curveFrom: from,
+      curveTo: to,
+      hasCurveFrom: true,
+      hasCurveTo: true,
+      curveMode: 2,
+      point: p,
+    });
+    // The Bézier handle length of a quarter circle, as a share of the diameter.
+    const k = 0.27614237490000004;
+    const oval: FileFormat.Oval = {
+      ...this.base(name, box),
+      _class: "oval",
+      clippingMaskMode: 0,
+      hasClippingMask: false,
+      style: this.style(fill),
+      edited: false,
+      isClosed: true,
+      pointRadiusBehaviour: 1,
+      points: [
+        point("{0.5, 1}", `{${0.5 + k * 1.0}, 1}`, `{${0.5 - k * 1.0}, 1}`),
+        point("{1, 0.5}", `{1, ${0.5 - k}}`, `{1, ${0.5 + k}}`),
+        point("{0.5, 0}", `{${0.5 - k}, 0}`, `{${0.5 + k}, 0}`),
+        point("{0, 0.5}", `{0, ${0.5 + k}}`, `{0, ${0.5 - k}}`),
+      ],
+    };
+    parent.layers.push(oval);
+    return oval;
+  }
+
+  /** A bitmap of one colour, stored in the file's images/. */
+  bitmap(
+    parent: Parent,
+    name: string,
+    box: Box,
+    rgb: { r: number; g: number; b: number },
+  ): FileFormat.Bitmap {
+    const ref = `images/${this.id().toLowerCase()}.png`;
+    this.images.set(ref, solidPng(8, 8, rgb));
+    const bitmap = {
+      ...this.base(name, box),
+      _class: "bitmap",
+      clippingMask: "{{0, 0}, {1, 1}}",
+      fillReplacesImage: false,
+      intendedDPI: 72,
+      image: { _class: "MSJSONFileReference", _ref_class: "MSImageData", _ref: ref },
+      clippingMaskMode: 0,
+      hasClippingMask: false,
+      style: this.style(),
+    } as unknown as FileFormat.Bitmap;
+    parent.layers.push(bitmap);
+    return bitmap;
+  }
+
+  /** A group of layers, at `box` inside its parent. */
+  group(parent: Parent, name: string, box: Box): FileFormat.Group {
+    const group: FileFormat.Group = {
+      ...this.base(name, box),
+      _class: "group",
+      ...this.container(),
+      hasClickThrough: false,
+      layers: [],
+    };
+    parent.layers.push(group);
+    return group;
+  }
+
+  /** Makes `layer` a mask: it clips the layers after it in its group. */
+  mask(layer: Layer): void {
+    (layer as FileFormat.Rectangle).hasClippingMask = true;
+  }
+
+  /** Replaces a layer's first fill with a linear (0), radial (1) or angular (2) gradient. */
+  gradient(layer: Layer, type: 0 | 1 | 2, from: string, to: string): void {
+    const fill = (layer as FileFormat.Rectangle).style!.fills![0]!;
+    fill.fillType = 1 as FileFormat.FillType;
+    fill.gradient = {
+      _class: "gradient",
+      gradientType: type as FileFormat.GradientType,
+      elipseLength: 1,
+      from: type === 1 ? "{0.5, 0.5}" : "{0, 0.5}",
+      to: type === 1 ? "{1, 0.5}" : "{1, 0.5}",
+      stops: [
+        { _class: "gradientStop", position: 0, color: color(from) },
+        { _class: "gradientStop", position: 1, color: color(to) },
+      ],
+    };
+  }
+
+  /** Replaces a layer's first fill with an image: tiled (0, at `scale`), fill (1), stretch (2), fit (3). */
+  imageFill(layer: Layer, png: Uint8Array, mode: 0 | 1 | 2 | 3, scale = 1): void {
+    const ref = `images/${this.id().toLowerCase()}.png`;
+    this.images.set(ref, png);
+    const fill = (layer as FileFormat.Rectangle).style!.fills![0]!;
+    fill.fillType = 4 as FileFormat.FillType;
+    fill.patternFillType = mode as FileFormat.PatternFillType;
+    fill.patternTileScale = scale;
+    (fill as unknown as { image: object }).image = {
+      _class: "MSJSONFileReference",
+      _ref_class: "MSImageData",
+      _ref: ref,
+    };
+  }
+
+  /** Adds an inner shadow. */
+  innerShadow(layer: Layer, offsetY: number, blur: number, hex: string): void {
+    (layer as FileFormat.Rectangle).style!.innerShadows!.push({
+      _class: "innerShadow",
+      isEnabled: true,
+      blurRadius: blur,
+      color: color(hex),
+      contextSettings: { _class: "graphicsContextSettings", blendMode: 0, opacity: 1 },
+      offsetX: 0,
+      offsetY,
+      spread: 0,
+    });
+  }
+
+  /** A blur: 0 Gaussian (the layer), 3 background. */
+  blur(layer: Layer, type: 0 | 3, radius: number): void {
+    const style = (layer as FileFormat.Rectangle).style!;
+    style.blur = { ...style.blur!, isEnabled: true, type: type as FileFormat.BlurType, radius };
+  }
+
+  /** A blend mode, as Sketch numbers them (2 multiply). */
+  blend(layer: Layer, mode: number): void {
+    (layer as FileFormat.Rectangle).style!.contextSettings!.blendMode =
+      mode as FileFormat.BlendMode;
+  }
+
+  /** A border: position 0 centre, 1 inside, 2 outside. */
+  border(layer: Layer, hex: string, thickness: number, position: 0 | 1 | 2): void {
+    (layer as FileFormat.Rectangle).style!.borders!.push({
+      _class: "border",
+      isEnabled: true,
+      color: color(hex),
+      fillType: 0 as FileFormat.FillType,
+      position: position as FileFormat.BorderPosition,
+      thickness,
+      contextSettings: { _class: "graphicsContextSettings", blendMode: 0, opacity: 1 },
+      gradient: {
+        _class: "gradient",
+        gradientType: 0,
+        elipseLength: 0,
+        from: "{0.5, 0}",
+        to: "{0.5, 1}",
+        stops: [],
+      },
+    });
+  }
+
+  /** The device the artboard is prototyped on: a viewport smaller than it makes it scroll. */
+  viewport(artboard: FileFormat.Artboard, name: string, width: number, height: number): void {
+    artboard.prototypeViewport = {
+      _class: "MSImmutablePrototypeViewport",
+      name,
+      size: `{${width}, ${height}}`,
+    };
+  }
+
+  /** Keeps a layer in place while its artboard scrolls. */
+  fixed(layer: Layer): void {
+    (layer as FileFormat.Rectangle).isFixedToViewport = true;
+  }
+
+  /** Makes `layer` an alpha mask: its transparency masks the layers after it in its group. */
+  alphaMask(layer: Layer): void {
+    (layer as FileFormat.Rectangle).hasClippingMask = true;
+    (layer as FileFormat.Rectangle).clippingMaskMode = 1;
+  }
+
+  /** Adds a drop shadow. */
+  shadow(layer: Layer, offsetY: number, blur: number, hex: string): void {
+    (layer as FileFormat.Rectangle).style!.shadows!.push({
+      _class: "shadow",
+      isEnabled: true,
+      blurRadius: blur,
+      color: color(hex),
+      contextSettings: { _class: "graphicsContextSettings", blendMode: 0, opacity: 1 },
+      offsetX: 0,
+      offsetY,
+      spread: 0,
+    });
+  }
+
+  /**
+   * A text of several runs, each in its own font, colour and decorations; `width` makes it wrap.
+   */
+  richText(
+    artboard: FileFormat.Artboard,
+    name: string,
+    box: Box,
+    runs: {
+      text: string;
+      font: string;
+      size: number;
+      fill: string;
+      underline?: boolean;
+      strike?: boolean;
+    }[],
+  ): FileFormat.Text {
+    const text = this.text(artboard, name, box, runs.map((r) => r.text).join(""), {
+      name: runs[0]!.font,
+      size: runs[0]!.size,
+    });
+    let location = 0;
+    text.attributedString.attributes = runs.map((run) => {
+      const attribute: FileFormat.StringAttribute = {
+        _class: "stringAttribute",
+        location,
+        length: run.text.length,
+        attributes: {
+          MSAttributedStringFontAttribute: {
+            _class: "fontDescriptor",
+            attributes: { name: run.font, size: run.size },
+          },
+          MSAttributedStringColorAttribute: color(run.fill),
+          paragraphStyle: { _class: "paragraphStyle", alignment: 0 },
+          kerning: 0,
+          ...(run.underline ? { underlineStyle: 1 } : {}),
+          ...(run.strike ? { strikethroughStyle: 1 } : {}),
+        },
+      };
+      location += run.text.length;
+      return attribute;
+    });
     return text;
   }
 
@@ -286,6 +516,7 @@ export class SketchBuilder {
         this.pages.map((page) => [`pages/${page.do_objectID}.json`, [json(page), stored]]),
       ),
       "previews/preview.png": [solidPng(400, 300, { r: 0.96, g: 0.96, b: 0.96 }), stored],
+      ...Object.fromEntries([...this.images].map(([ref, png]) => [ref, [png, stored]])),
     });
   }
 

@@ -4,7 +4,7 @@
 //!
 //! Handled: groups and clip paths, rectangles (with corner radii), circles, ellipses, lines,
 //! polygons, paths and compound shapes, colour, linear and radial gradient and image fills, borders
-//! (centred, inside and outside), drop shadows, opacity, and text, laid out with the fonts given (ADR 0011) at the
+//! (centred, inside and outside), drop shadows, opacity, and text, laid out with the fonts given (docs/spec/bake.md) at the
 //! positions XD stored for each line, and artboards taller than their viewport, which scroll. Not
 //! yet: blurs, text underline and strikethrough.
 
@@ -13,12 +13,13 @@ use std::fmt::Write as _;
 
 use helpers4::color::{Rgb, Rgba};
 use helpers4::font::is_italic;
-use helpers4::geometry::{Rect as Box64, ellipse_path, rounded_rect_path};
+use helpers4::geometry::{Matrix, Rect as Box64, ellipse_path, rounded_rect_path};
 use serde_json::Value;
 
-use crate::bake::draw::Draw;
+use crate::bake::draw::{Draw, Part};
 use crate::bake::folio::BakeError;
 use crate::bake::fonts::weight_of_style;
+use crate::bake::fx;
 use crate::bake::svg::mime;
 use crate::bake::text::{Align, Paragraph, Typesetter};
 use crate::ir::{self, Rect};
@@ -75,7 +76,21 @@ impl<'f> XdDraw<'f> {
             defs: String::new(),
             body: String::new(),
             next_id: 0,
+            artboard: matches!(what, What::Whole).then_some((
+                artboard,
+                frame.bounds.x,
+                frame.bounds.y,
+            )),
+            backdrop: fx::Backdrop::default(),
         };
+        svg.backdrop.enter(Matrix::new(
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            -f64::from(frame.bounds.x),
+            -f64::from(frame.bounds.y),
+        ));
         if !matches!(what, What::Node(_) | What::Content) {
             svg.background(artboard, width, height);
         }
@@ -143,7 +158,7 @@ impl Draw for XdDraw<'_> {
     }
 
     /// XD's auto-animate pairs layers by name: the background, then each child of the artboard.
-    fn parts(&mut self, frame: &ir::Frame) -> Vec<(String, String, Rect)> {
+    fn parts(&mut self, frame: &ir::Frame) -> Vec<Part> {
         let Some(artboard) = self.artboards.get(frame.id.as_str()).copied() else {
             return Vec::new();
         };
@@ -155,7 +170,13 @@ impl Draw for XdDraw<'_> {
         };
         let mut parts = Vec::new();
         if let Some(markup) = self.svg(frame, What::Background) {
-            parts.push((String::new(), markup, whole));
+            parts.push(Part {
+                name: String::new(),
+                markup,
+                bounds: whole,
+                matrix: None,
+                shape: None,
+            });
         }
         for child in children(artboard) {
             if child["visible"] == false {
@@ -174,11 +195,13 @@ impl Draw for XdDraw<'_> {
                 width: canvas.width as f32,
                 height: canvas.height as f32,
             };
-            parts.push((
-                child["name"].as_str().unwrap_or("").to_owned(),
+            parts.push(Part {
+                name: child["name"].as_str().unwrap_or("").to_owned(),
                 markup,
                 bounds,
-            ));
+                matrix: None,
+                shape: None,
+            });
         }
         parts
     }
@@ -192,12 +215,15 @@ struct Svg<'d, 'f> {
     defs: String,
     body: String,
     next_id: u32,
+    /// The artboard drawn whole and where its corner is, for background blurs; none otherwise.
+    artboard: Option<(&'f Value, f32, f32)>,
+    backdrop: fx::Backdrop,
 }
 
-impl Svg<'_, '_> {
+impl<'f> Svg<'_, 'f> {
     fn id(&mut self, prefix: &str) -> String {
         self.next_id += 1;
-        format!("{prefix}{}", self.next_id)
+        format!("{}{prefix}{}", self.backdrop.prefix, self.next_id)
     }
 
     /// The artboard's own fill; white when it has none, as in XD's player.
@@ -218,35 +244,144 @@ impl Svg<'_, '_> {
         );
     }
 
-    fn node(&mut self, node: &Value) {
-        if node["visible"] == false {
+    fn node(&mut self, node: &'f Value) {
+        if node["visible"] == false || self.backdrop.stops_at(node["id"].as_str().unwrap_or("")) {
             return;
         }
         let m = matrix(node);
         let style = &node["style"];
         let opacity = style["opacity"].as_f64().unwrap_or(1.0);
+        let blend = fx::blend_style(style["blendMode"].as_str().and_then(fx::blend));
         let _ = write!(
             self.body,
-            r#"<g transform="matrix({} {} {} {} {} {})" opacity="{opacity}">"#,
+            r#"<g transform="matrix({} {} {} {} {} {})" opacity="{opacity}"{blend}>"#,
             m.a, m.b, m.c, m.d, m.e, m.f
         );
-        let shadow = self.shadow(style);
-        if let Some(filter) = &shadow {
-            let _ = write!(self.body, r#"<g filter="url(#{filter})">"#);
-        }
+        self.backdrop.enter(m);
+        self.background_blur(node);
+        let open = self.effects(style);
         match node["type"].as_str().unwrap_or("") {
             "group" => self.group(node),
             "shape" => self.shape(node),
             "text" => self.text(node),
             _ => {}
         }
-        if shadow.is_some() {
+        for _ in 0..open {
             self.body.push_str("</g>");
         }
         self.body.push_str("</g>");
+        self.backdrop.leave();
     }
 
-    fn group(&mut self, node: &Value) {
+    /// Opens the groups that draw a style's drop shadows (every one) and an object blur
+    /// (`uxdesign#blur` without `backgroundEffect`). Returns how many it opened.
+    fn effects(&mut self, style: &Value) -> usize {
+        let filters: Vec<&Value> = style["filters"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter(|f| f["visible"] != false)
+            .collect();
+        let mut open = 0;
+        let shadows: Vec<fx::Shadow> = filters
+            .iter()
+            .filter(|f| f["type"] == "dropShadow")
+            .flat_map(|f| f["params"]["dropShadows"].as_array().into_iter().flatten())
+            .map(|s| {
+                let (css, alpha) = color(&s["color"]);
+                let base = helpers4::color::Rgba::parse(&css)
+                    .unwrap_or(helpers4::color::Rgba::new(0, 0, 0, 255));
+                let [r, g, b, _] = base.to_unit();
+                fx::Shadow {
+                    dx: s["dx"].as_f64().unwrap_or(0.0),
+                    dy: s["dy"].as_f64().unwrap_or(0.0),
+                    blur: s["r"].as_f64().unwrap_or(0.0),
+                    spread: 0.0,
+                    color: helpers4::color::Rgba::from_unit(r, g, b, alpha),
+                }
+            })
+            .collect();
+        if !shadows.is_empty() {
+            let id = self.id("s");
+            fx::drop_shadows(&mut self.defs, &id, &shadows);
+            let _ = write!(self.body, r#"<g filter="url(#{id})">"#);
+            open += 1;
+        }
+        if let Some(blur) = filters
+            .iter()
+            .find(|f| f["type"] == "uxdesign#blur" && f["params"]["backgroundEffect"] != true)
+        {
+            let id = self.id("b");
+            let amount = blur["params"]["blurAmount"].as_f64().unwrap_or(0.0);
+            fx::layer_blur(&mut self.defs, &id, amount * 2.0);
+            let _ = write!(self.body, r#"<g filter="url(#{id})">"#);
+            open += 1;
+        }
+        open
+    }
+
+    /// XD's background blur (`uxdesign#blur` with `backgroundEffect`): what is drawn behind the
+    /// shape, blurred, in its outline.
+    fn background_blur(&mut self, node: &'f Value) {
+        let Some(blur) = node["style"]["filters"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .find(|f| {
+                f["type"] == "uxdesign#blur"
+                    && f["params"]["backgroundEffect"] == true
+                    && f["visible"] != false
+            })
+        else {
+            return;
+        };
+        let (Some((artboard, x, y)), Some(path), Some(to_node)) = (
+            self.artboard,
+            shape_path(&node["shape"]),
+            self.backdrop.to_node(),
+        ) else {
+            return;
+        };
+        self.next_id += 1;
+        let prefix = format!("{}b{}_", self.backdrop.prefix, self.next_id);
+        let mut typesetter = Typesetter::new(self.typesetter.library().clone());
+        let mut missing = BTreeSet::new();
+        let mut behind = Svg {
+            file: self.file,
+            typesetter: &mut typesetter,
+            missing_fonts: &mut missing,
+            defs: String::new(),
+            body: String::new(),
+            next_id: 0,
+            artboard: None,
+            backdrop: fx::Backdrop {
+                prefix: prefix.clone(),
+                stop_at: node["id"].as_str().map(str::to_owned),
+                ..fx::Backdrop::default()
+            },
+        };
+        let (width, height) = artboard_size(artboard);
+        behind.background(artboard, width, height);
+        let _ = write!(behind.body, r#"<g transform="translate({} {})">"#, -x, -y);
+        for child in children(artboard) {
+            behind.node(child);
+        }
+        behind.body.push_str("</g>");
+        let (clip, filter) = (self.id("c"), self.id("f"));
+        let amount = blur["params"]["blurAmount"].as_f64().unwrap_or(0.0);
+        fx::backdrop(
+            &mut self.defs,
+            &mut self.body,
+            &prefix,
+            (&behind.defs, &behind.body),
+            &format!(r#"<path d="{path}"/>"#),
+            (&clip, &filter),
+            amount * 2.0,
+            to_node,
+        );
+    }
+
+    fn group(&mut self, node: &'f Value) {
         let clip = self.clip(&node["style"]["clipPath"]);
         if let Some(id) = &clip {
             let _ = write!(self.body, r#"<g clip-path="url(#{id})">"#);
@@ -311,12 +446,19 @@ impl Svg<'_, '_> {
             }
             "pattern" => {
                 let uid = fill["pattern"]["meta"]["ux"]["uid"].as_str()?;
+                // `cover` fills the box, cropping; `fill` stretches the image to it; `fit` and
+                // `contain` show it whole.
+                let aspect = match fill["pattern"]["meta"]["ux"]["scaleBehavior"].as_str() {
+                    Some("fill" | "stretch") => "none",
+                    Some("fit" | "contain") => "xMidYMid meet",
+                    _ => "xMidYMid slice",
+                };
                 let bytes = self.file.images.get(uid)?;
                 let b: Box64 = local_box(node)?;
                 let id = self.id("p");
                 let _ = write!(
                     self.defs,
-                    r#"<pattern id="{id}" patternUnits="userSpaceOnUse" x="{}" y="{}" width="{}" height="{}"><image href="data:{};base64,{}" width="{}" height="{}" preserveAspectRatio="xMidYMid slice"/></pattern>"#,
+                    r#"<pattern id="{id}" patternUnits="userSpaceOnUse" x="{}" y="{}" width="{}" height="{}"><image href="data:{};base64,{}" width="{}" height="{}" preserveAspectRatio="{}"/></pattern>"#,
                     b.x,
                     b.y,
                     b.width,
@@ -324,7 +466,8 @@ impl Svg<'_, '_> {
                     mime(bytes),
                     helpers4::hex::base64_encode(bytes),
                     b.width,
-                    b.height
+                    b.height,
+                    aspect
                 );
                 Some(format!(r#"fill="url(#{id})""#))
             }
@@ -435,25 +578,6 @@ impl Svg<'_, '_> {
         }
     }
 
-    /// The first visible drop shadow of a style, as a filter in `defs`.
-    fn shadow(&mut self, style: &Value) -> Option<String> {
-        let filter = style["filters"]
-            .as_array()?
-            .iter()
-            .find(|f| f["type"] == "dropShadow" && f["visible"] != false)?;
-        let shadow = filter["params"]["dropShadows"].as_array()?.first()?;
-        let (color, opacity) = color(&shadow["color"]);
-        let id = self.id("s");
-        let _ = write!(
-            self.defs,
-            r#"<filter id="{id}" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="{}" dy="{}" stdDeviation="{}" flood-color="{color}" flood-opacity="{opacity}"/></filter>"#,
-            shadow["dx"].as_f64().unwrap_or(0.0),
-            shadow["dy"].as_f64().unwrap_or(0.0),
-            shadow["r"].as_f64().unwrap_or(0.0) / 2.0,
-        );
-        Some(id)
-    }
-
     /// Text at the positions XD laid out: each line from its baseline, in the style of each run.
     #[allow(clippy::cast_possible_truncation)]
     fn text(&mut self, node: &Value) {
@@ -521,11 +645,22 @@ impl Svg<'_, '_> {
                                     .then(|| color(&default_fill["color"]))
                             })
                             .unwrap_or_else(|| ("rgb(0 0 0)".to_owned(), 1.0));
+                        let mut path = set.path;
+                        let thickness = (size / 14.0).max(1.0);
+                        if run.underline {
+                            let top = set.baseline + size * 0.1;
+                            let _ =
+                                write!(path, "M0 {top}h{}v{thickness}h{}Z", set.width, -set.width);
+                        }
+                        if run.strikethrough {
+                            let top = set.baseline - size * 0.3;
+                            let _ =
+                                write!(path, "M0 {top}h{}v{thickness}h{}Z", set.width, -set.width);
+                        }
                         let _ = write!(
                             self.body,
-                            r#"<path transform="translate({x} {})" d="{}" fill="{color}" fill-opacity="{opacity}"/>"#,
+                            r#"<path transform="translate({x} {})" d="{path}" fill="{color}" fill-opacity="{opacity}"/>"#,
                             y - set.baseline,
-                            set.path
                         );
                         x += set.width;
                     }
@@ -547,6 +682,8 @@ struct Run {
     spacing: f32,
     fill: Option<(String, f64)>,
     transform: String,
+    underline: bool,
+    strikethrough: bool,
 }
 
 /// The style runs of a text node (`rangedStyles`), or one run over all of it.
@@ -566,6 +703,8 @@ fn runs(node: &Value) -> Vec<Run> {
             spacing: 0.0,
             fill: None,
             transform: String::new(),
+            underline: decorated(&node["style"], "underline"),
+            strikethrough: decorated(&node["style"], "strikethrough"),
         }];
     };
     let mut start = 0;
@@ -584,11 +723,28 @@ fn runs(node: &Value) -> Vec<Run> {
                 spacing: style["charSpacing"].as_f64().unwrap_or(0.0) as f32,
                 fill: style["fill"]["value"].as_u64().map(argb),
                 transform: style["textTransform"].as_str().unwrap_or("none").to_owned(),
+                underline: decorated(style, "underline"),
+                strikethrough: decorated(style, "strikethrough"),
             };
             start = end;
             run
         })
         .collect()
+}
+
+/// Whether a text style says `decoration` (`underline`, `strikethrough`): as a flag of its own,
+/// or in a `textAttributes.decoration` list.
+fn decorated(style: &Value, decoration: &str) -> bool {
+    style[decoration] == true
+        || style["textAttributes"]["decoration"]
+            .as_array()
+            .is_some_and(|d| d.iter().any(|d| d == decoration))
+}
+
+/// The size of an artboard, from its own bounds.
+#[allow(clippy::cast_possible_truncation)]
+fn artboard_size(artboard: &Value) -> (f32, f32) {
+    crate::xd::geometry::bounds(artboard).map_or((0.0, 0.0), |b| (b.width as f32, b.height as f32))
 }
 
 /// A coordinate; XD's fit in f32.
@@ -725,6 +881,8 @@ mod tests {
             defs: String::new(),
             body: String::new(),
             next_id: 0,
+            artboard: None,
+            backdrop: fx::Backdrop::default(),
         };
         let stops = json!([
             { "offset": 0, "color": { "mode": "RGB", "value": { "r": 2, "g": 2, "b": 2 }, "alpha": 0 } },

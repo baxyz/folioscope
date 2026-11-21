@@ -6,8 +6,7 @@
       bake and play today, with click, timed, hover and press links, overlays, scrolling and
       interactive components; <code>.sketch</code>, <code>.penpot</code> and <code>.xd</code>
       prototypes too, with their links and transitions. See what each format supports on the
-      <a href="/compatibility">compatibility page</a>, and the
-      <a href="https://github.com/baxyz/folioscope/blob/main/PROJECT.md">roadmap</a>.
+      <a href="/compatibility">compatibility page</a>, and the <a href="/roadmap">roadmap</a>.
     </p>
   </aside>
 </template>

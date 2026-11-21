@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Fonts given to the bake (ADR 0011): read for their family, weight and style, and matched to
+//! Fonts given to the bake (docs/spec/bake.md): read for their family, weight and style, and matched to
 //! what a text asks for. Never the system's fonts, so a bake gives the same result everywhere.
 
 use std::sync::Arc;
@@ -9,7 +9,28 @@ use helpers4::font::{
     FontFace, FontRequest, FontStyle, font_count, is_italic, pick_closest, read_font_at,
     split_postscript, to_sfnt,
 };
-use helpers4::string::match_glob_ignore_case;
+use helpers4::string::{Pattern, match_glob_ignore_case, parse_pattern};
+
+/// Whether `family` matches a rule: a glob (`SF Pro*`, case-insensitive) or `/regex/flags`.
+fn pattern_matches(rule: &str, family: &str) -> bool {
+    match parse_pattern(rule) {
+        Pattern::Glob(glob) => match_glob_ignore_case(&glob, family),
+        Pattern::RegExp { source, flags } => {
+            compile(&source, &flags).is_ok_and(|regex| regex.is_match(family))
+        }
+        _ => false,
+    }
+}
+
+/// A regular expression with JavaScript's `i`, `m` and `s` flags (the others change nothing
+/// when matching a name once).
+fn compile(source: &str, flags: &str) -> Result<regex_lite::Regex, regex_lite::Error> {
+    regex_lite::RegexBuilder::new(source)
+        .case_insensitive(flags.contains('i'))
+        .multi_line(flags.contains('m'))
+        .dot_matches_new_line(flags.contains('s'))
+        .build()
+}
 use serde::{Deserialize, Serialize};
 use skrifa::FontRef;
 
@@ -17,6 +38,8 @@ use skrifa::FontRef;
 pub enum FontError {
     #[error("{0}: not a WOFF, WOFF2, TrueType or OpenType font")]
     Format(String),
+    #[error("{0}: not a valid regular expression ({1})")]
+    Pattern(String, String),
 }
 
 /// One face of a font file: a single font, or one of a collection.
@@ -79,7 +102,7 @@ impl Face {
             || self
                 .aliases
                 .iter()
-                .any(|alias| match_glob_ignore_case(alias, family))
+                .any(|alias| pattern_matches(alias, family))
     }
 
     /// The face as helpers4 matches it.
@@ -133,6 +156,17 @@ impl FontLibrary {
         hints: &FontHints,
     ) -> Result<usize, FontError> {
         let error = || FontError::Format(source.to_owned());
+        // A `/regex/flags` rule must compile, so a mistake shows when the font is given.
+        for pattern in &hints.matches {
+            if let Pattern::RegExp {
+                source: regex,
+                flags,
+            } = parse_pattern(pattern)
+            {
+                compile(&regex, &flags)
+                    .map_err(|e| FontError::Pattern(pattern.clone(), e.to_string()))?;
+            }
+        }
         // WOFF2 needs a Brotli decoder, which helpers4 does not have: `wuff` opens it. A WOFF is
         // rebuilt as an sfnt by helpers4, and a TrueType or OpenType file is kept as it is.
         let data = Arc::new(if bytes.starts_with(b"wOF2") {
@@ -204,9 +238,14 @@ impl FontLibrary {
             .filter(|f| {
                 // PostScript names have no spaces: compare the aliases without theirs too.
                 squeeze(&f.family) == family
-                    || f.aliases
-                        .iter()
-                        .any(|alias| match_glob_ignore_case(&squeeze(alias), &family))
+                    || f.aliases.iter().any(|alias| match parse_pattern(alias) {
+                        // A regex is matched against the name as written, then squeezed.
+                        Pattern::RegExp { .. } => {
+                            pattern_matches(alias, family_name) || pattern_matches(alias, &family)
+                        }
+                        Pattern::Glob(glob) => match_glob_ignore_case(&squeeze(&glob), &family),
+                        _ => false,
+                    })
             })
             .collect();
         closest(&candidates, weight_of_style(style), is_italic(style))
@@ -291,6 +330,32 @@ mod tests {
         assert!(library.resolve_postscript("Helvetica-Bold").is_none());
         let face = &library.faces()[0];
         assert_eq!((face.weight, face.italic), ([500.0, 500.0], true));
+    }
+
+    #[test]
+    fn a_font_answers_to_regular_expressions() {
+        let mut library = FontLibrary::default();
+        let hints = FontHints {
+            matches: vec!["/^Helvetica( Neue)?$/i".into()],
+            ..FontHints::default()
+        };
+        library
+            .add_with("Inter-Latin.ttf", &inter("ttf"), &hints)
+            .unwrap();
+        for name in ["Helvetica", "helvetica neue"] {
+            assert!(library.resolve(name, 400.0, false).is_some(), "{name}");
+        }
+        assert!(library.resolve("Helvetica Now", 400.0, false).is_none());
+        assert!(library.resolve_postscript("Helvetica-Bold").is_some());
+        // A regular expression that does not compile is refused when the font is given.
+        let wrong = FontHints {
+            matches: vec!["/(unclosed/".into()],
+            ..FontHints::default()
+        };
+        assert!(matches!(
+            FontLibrary::default().add_with("Inter-Latin.ttf", &inter("ttf"), &wrong),
+            Err(FontError::Pattern(..))
+        ));
     }
 
     #[test]

@@ -25,6 +25,13 @@ export interface FontDeclaration {
   weight?: number;
   /** Whether it is italic, when the file says otherwise. */
   italic?: boolean;
+  /**
+   * A folder of fonts (absolute URL, ending with `/`) with the `folioscope-fonts.json` manifest
+   * `folioscope fonts` writes: each font is fetched only when the design uses its family.
+   */
+  base?: string;
+  /** A stylesheet (absolute URL) whose `@font-face` rules give the fonts, fetched when used. */
+  css?: string;
 }
 
 export interface BakeInBrowserOptions {

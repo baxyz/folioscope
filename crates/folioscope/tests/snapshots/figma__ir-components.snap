@@ -1,5 +1,5 @@
 ---
-source: crates/folioscope-core/tests/figma.rs
+source: crates/folioscope/tests/figma.rs
 expression: "serde_json::to_string_pretty(&ir).unwrap()"
 ---
 {
@@ -11,12 +11,12 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
       "flows": [
         {
           "name": "Components flow",
-          "start": "1:15"
+          "start": "1:33"
         }
       ],
       "frames": [
         {
-          "id": "1:15",
+          "id": "1:33",
           "name": "Home",
           "bounds": {
             "x": 0.0,
@@ -27,7 +27,104 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
           "hotspots": [],
           "components": [
             {
-              "id": "1:16",
+              "id": "1:34",
+              "name": "Filter",
+              "bounds": {
+                "x": 24.0,
+                "y": 300.0,
+                "width": 192.0,
+                "height": 35.0
+              },
+              "initial": "1:27",
+              "states": [
+                {
+                  "variant": "1:27",
+                  "name": "Selected=false",
+                  "bounds": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "width": 192.0,
+                    "height": 35.0
+                  },
+                  "hotspots": [
+                    {
+                      "node": "1:27",
+                      "name": "Selected=false",
+                      "bounds": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "width": 192.0,
+                        "height": 35.0
+                      },
+                      "interactions": [
+                        {
+                          "trigger": {
+                            "type": "click"
+                          },
+                          "action": {
+                            "type": "changeTo",
+                            "to": "1:29",
+                            "transition": {
+                              "kind": {
+                                "type": "dissolve"
+                              },
+                              "durationMs": 200,
+                              "easing": {
+                                "type": "easeOut"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "variant": "1:29",
+                  "name": "Selected=true",
+                  "bounds": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "width": 78.0,
+                    "height": 35.0
+                  },
+                  "hotspots": [
+                    {
+                      "node": "1:29",
+                      "name": "Selected=true",
+                      "bounds": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "width": 78.0,
+                        "height": 35.0
+                      },
+                      "interactions": [
+                        {
+                          "trigger": {
+                            "type": "click"
+                          },
+                          "action": {
+                            "type": "changeTo",
+                            "to": "1:27",
+                            "transition": {
+                              "kind": {
+                                "type": "dissolve"
+                              },
+                              "durationMs": 200,
+                              "easing": {
+                                "type": "easeOut"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "1:35",
               "name": "Button",
               "bounds": {
                 "x": 88.0,
@@ -135,7 +232,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
               ]
             },
             {
-              "id": "1:17",
+              "id": "1:36",
               "name": "Switch",
               "bounds": {
                 "x": 156.0,
@@ -174,7 +271,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                             "to": "1:11",
                             "transition": {
                               "kind": {
-                                "type": "dissolve"
+                                "type": "smartAnimate"
                               },
                               "durationMs": 200,
                               "easing": {
@@ -216,6 +313,61 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                             "to": "1:9",
                             "transition": {
                               "kind": {
+                                "type": "smartAnimate"
+                              },
+                              "durationMs": 200,
+                              "easing": {
+                                "type": "easeOut"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "1:37",
+              "name": "Card",
+              "bounds": {
+                "x": 24.0,
+                "y": 120.0,
+                "width": 327.0,
+                "height": 120.0
+              },
+              "initial": "1:16",
+              "states": [
+                {
+                  "variant": "1:16",
+                  "name": "Open=false",
+                  "bounds": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "width": 327.0,
+                    "height": 120.0
+                  },
+                  "hotspots": [
+                    {
+                      "node": "1:16",
+                      "name": "Open=false",
+                      "bounds": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "width": 327.0,
+                        "height": 120.0
+                      },
+                      "interactions": [
+                        {
+                          "trigger": {
+                            "type": "click"
+                          },
+                          "action": {
+                            "type": "changeTo",
+                            "to": "1:17",
+                            "transition": {
+                              "kind": {
                                 "type": "dissolve"
                               },
                               "durationMs": 200,
@@ -228,6 +380,214 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                       ]
                     }
                   ]
+                },
+                {
+                  "variant": "1:17",
+                  "name": "Open=true",
+                  "bounds": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "width": 327.0,
+                    "height": 120.0
+                  },
+                  "hotspots": [
+                    {
+                      "node": "1:19",
+                      "name": "Fold",
+                      "bounds": {
+                        "x": 16.0,
+                        "y": 16.0,
+                        "width": 120.0,
+                        "height": 32.0
+                      },
+                      "interactions": [
+                        {
+                          "trigger": {
+                            "type": "click"
+                          },
+                          "action": {
+                            "type": "changeTo",
+                            "to": "1:16",
+                            "transition": {
+                              "kind": {
+                                "type": "dissolve"
+                              },
+                              "durationMs": 200,
+                              "easing": {
+                                "type": "easeOut"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "components": [
+                    {
+                      "id": "1:21",
+                      "name": "Inner switch",
+                      "bounds": {
+                        "x": 247.0,
+                        "y": 68.0,
+                        "width": 64.0,
+                        "height": 36.0
+                      },
+                      "initial": "1:9",
+                      "states": [
+                        {
+                          "variant": "1:9",
+                          "name": "On=false",
+                          "bounds": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "width": 64.0,
+                            "height": 36.0
+                          },
+                          "hotspots": [
+                            {
+                              "node": "1:9",
+                              "name": "On=false",
+                              "bounds": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "width": 64.0,
+                                "height": 36.0
+                              },
+                              "interactions": [
+                                {
+                                  "trigger": {
+                                    "type": "click"
+                                  },
+                                  "action": {
+                                    "type": "changeTo",
+                                    "to": "1:11",
+                                    "transition": {
+                                      "kind": {
+                                        "type": "smartAnimate"
+                                      },
+                                      "durationMs": 200,
+                                      "easing": {
+                                        "type": "easeOut"
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "variant": "1:11",
+                          "name": "On=true",
+                          "bounds": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "width": 64.0,
+                            "height": 36.0
+                          },
+                          "hotspots": [
+                            {
+                              "node": "1:11",
+                              "name": "On=true",
+                              "bounds": {
+                                "x": 0.0,
+                                "y": 0.0,
+                                "width": 64.0,
+                                "height": 36.0
+                              },
+                              "interactions": [
+                                {
+                                  "trigger": {
+                                    "type": "click"
+                                  },
+                                  "action": {
+                                    "type": "changeTo",
+                                    "to": "1:9",
+                                    "transition": {
+                                      "kind": {
+                                        "type": "smartAnimate"
+                                      },
+                                      "durationMs": 200,
+                                      "easing": {
+                                        "type": "easeOut"
+                                      }
+                                    }
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "1:38",
+              "name": "Toast",
+              "bounds": {
+                "x": 72.0,
+                "y": 720.0,
+                "width": 232.0,
+                "height": 48.0
+              },
+              "initial": "1:23",
+              "states": [
+                {
+                  "variant": "1:23",
+                  "name": "Shown=true",
+                  "bounds": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "width": 232.0,
+                    "height": 48.0
+                  },
+                  "hotspots": [
+                    {
+                      "node": "1:23",
+                      "name": "Shown=true",
+                      "bounds": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "width": 232.0,
+                        "height": 48.0
+                      },
+                      "interactions": [
+                        {
+                          "trigger": {
+                            "type": "afterDelay",
+                            "delayMs": 1000
+                          },
+                          "action": {
+                            "type": "changeTo",
+                            "to": "1:24",
+                            "transition": {
+                              "kind": {
+                                "type": "dissolve"
+                              },
+                              "durationMs": 200,
+                              "easing": {
+                                "type": "easeOut"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "variant": "1:24",
+                  "name": "Shown=false",
+                  "bounds": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "width": 232.0,
+                    "height": 48.0
+                  },
+                  "hotspots": []
                 }
               ]
             }
@@ -341,7 +701,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                     "to": "1:11",
                     "transition": {
                       "kind": {
-                        "type": "dissolve"
+                        "type": "smartAnimate"
                       },
                       "durationMs": 200,
                       "easing": {
@@ -369,6 +729,292 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                   "action": {
                     "type": "changeTo",
                     "to": "1:9",
+                    "transition": {
+                      "kind": {
+                        "type": "smartAnimate"
+                      },
+                      "durationMs": 200,
+                      "easing": {
+                        "type": "easeOut"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "1:15",
+          "name": "Card",
+          "bounds": {
+            "x": 0.0,
+            "y": 240.0,
+            "width": 375.0,
+            "height": 312.0
+          },
+          "hotspots": [
+            {
+              "node": "1:16",
+              "name": "Open=false",
+              "bounds": {
+                "x": 24.0,
+                "y": 24.0,
+                "width": 327.0,
+                "height": 120.0
+              },
+              "interactions": [
+                {
+                  "trigger": {
+                    "type": "click"
+                  },
+                  "action": {
+                    "type": "changeTo",
+                    "to": "1:17",
+                    "transition": {
+                      "kind": {
+                        "type": "dissolve"
+                      },
+                      "durationMs": 200,
+                      "easing": {
+                        "type": "easeOut"
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "node": "1:19",
+              "name": "Fold",
+              "bounds": {
+                "x": 40.0,
+                "y": 184.0,
+                "width": 120.0,
+                "height": 32.0
+              },
+              "interactions": [
+                {
+                  "trigger": {
+                    "type": "click"
+                  },
+                  "action": {
+                    "type": "changeTo",
+                    "to": "1:16",
+                    "transition": {
+                      "kind": {
+                        "type": "dissolve"
+                      },
+                      "durationMs": 200,
+                      "easing": {
+                        "type": "easeOut"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "components": [
+            {
+              "id": "1:21",
+              "name": "Inner switch",
+              "bounds": {
+                "x": 271.0,
+                "y": 236.0,
+                "width": 64.0,
+                "height": 36.0
+              },
+              "initial": "1:9",
+              "states": [
+                {
+                  "variant": "1:9",
+                  "name": "On=false",
+                  "bounds": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "width": 64.0,
+                    "height": 36.0
+                  },
+                  "hotspots": [
+                    {
+                      "node": "1:9",
+                      "name": "On=false",
+                      "bounds": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "width": 64.0,
+                        "height": 36.0
+                      },
+                      "interactions": [
+                        {
+                          "trigger": {
+                            "type": "click"
+                          },
+                          "action": {
+                            "type": "changeTo",
+                            "to": "1:11",
+                            "transition": {
+                              "kind": {
+                                "type": "smartAnimate"
+                              },
+                              "durationMs": 200,
+                              "easing": {
+                                "type": "easeOut"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "variant": "1:11",
+                  "name": "On=true",
+                  "bounds": {
+                    "x": 0.0,
+                    "y": 0.0,
+                    "width": 64.0,
+                    "height": 36.0
+                  },
+                  "hotspots": [
+                    {
+                      "node": "1:11",
+                      "name": "On=true",
+                      "bounds": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "width": 64.0,
+                        "height": 36.0
+                      },
+                      "interactions": [
+                        {
+                          "trigger": {
+                            "type": "click"
+                          },
+                          "action": {
+                            "type": "changeTo",
+                            "to": "1:9",
+                            "transition": {
+                              "kind": {
+                                "type": "smartAnimate"
+                              },
+                              "durationMs": 200,
+                              "easing": {
+                                "type": "easeOut"
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "1:22",
+          "name": "Toast",
+          "bounds": {
+            "x": 400.0,
+            "y": 240.0,
+            "width": 280.0,
+            "height": 168.0
+          },
+          "hotspots": [
+            {
+              "node": "1:23",
+              "name": "Shown=true",
+              "bounds": {
+                "x": 24.0,
+                "y": 24.0,
+                "width": 232.0,
+                "height": 48.0
+              },
+              "interactions": [
+                {
+                  "trigger": {
+                    "type": "afterDelay",
+                    "delayMs": 1000
+                  },
+                  "action": {
+                    "type": "changeTo",
+                    "to": "1:24",
+                    "transition": {
+                      "kind": {
+                        "type": "dissolve"
+                      },
+                      "durationMs": 200,
+                      "easing": {
+                        "type": "easeOut"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "1:26",
+          "name": "Chip",
+          "bounds": {
+            "x": 700.0,
+            "y": 0.0,
+            "width": 160.0,
+            "height": 132.0
+          },
+          "hotspots": [
+            {
+              "node": "1:27",
+              "name": "Selected=false",
+              "bounds": {
+                "x": 24.0,
+                "y": 24.0,
+                "width": 70.0,
+                "height": 35.0
+              },
+              "interactions": [
+                {
+                  "trigger": {
+                    "type": "click"
+                  },
+                  "action": {
+                    "type": "changeTo",
+                    "to": "1:29",
+                    "transition": {
+                      "kind": {
+                        "type": "dissolve"
+                      },
+                      "durationMs": 200,
+                      "easing": {
+                        "type": "easeOut"
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "node": "1:29",
+              "name": "Selected=true",
+              "bounds": {
+                "x": 24.0,
+                "y": 72.0,
+                "width": 78.0,
+                "height": 35.0
+              },
+              "interactions": [
+                {
+                  "trigger": {
+                    "type": "click"
+                  },
+                  "action": {
+                    "type": "changeTo",
+                    "to": "1:27",
                     "transition": {
                       "kind": {
                         "type": "dissolve"

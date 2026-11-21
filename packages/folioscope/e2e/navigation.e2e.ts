@@ -3,7 +3,9 @@
 // Run with `pnpm --filter folioscope test:e2e` after `vp pack` and `cargo build -p folioscope`.
 import assert from "node:assert/strict";
 import { firefox } from "playwright";
-import { copyFileSync, mkdirSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { bakeFixtures, serve } from "./serve.ts";
@@ -22,6 +24,7 @@ const site = bakeFixtures([
   "penpot/navigation.penpot",
   "xd/navigation.xd",
   "xd/scroll.xd",
+  "sketch/scroll.sketch",
   "xd/overlay.xd",
 ]);
 // Raw design files for the full player: one alone, one next to its baked .folio.
@@ -32,6 +35,15 @@ copyFileSync(join(fixtures, "figma/navigation.fig"), join(site, "navigation.fig"
 copyFileSync(join(fixtures, "sketch/text.sketch"), join(site, "raw/text.sketch"));
 mkdirSync(join(site, "fonts"));
 copyFileSync(join(fixtures, "fonts/Inter-Latin.ttf"), join(site, "fonts/Inter-Latin.ttf"));
+// The folder's manifest, as `folioscope fonts` writes it, and a stylesheet naming it Brand.
+execFileSync(process.env.FOLIOSCOPE_CLI ?? join(fixtures, "../target/debug/folioscope"), [
+  "fonts",
+  join(site, "fonts"),
+]);
+writeFileSync(
+  join(site, "fonts/fonts.css"),
+  '@font-face { font-family: "Brand"; src: url("Inter-Latin.ttf") format("truetype"); font-weight: 700; }',
+);
 const server = await serve(
   site,
   (query) => `<!doctype html><meta charset="utf-8">
@@ -90,6 +102,18 @@ try {
   assert.equal(await control("Flow").isHidden(), true);
   console.log("✓ controls: flow and page pickers, restart, back state");
 
+  // A slide moves the screen underneath a little too: both screens are animated.
+  await tab.locator('folioscope-player .frame button[aria-label="Settings button"]').click();
+  const animated = await tab.evaluate(() => {
+    const frames = document
+      .querySelector("folioscope-player")!
+      .shadowRoot!.querySelectorAll(".stage > .frame");
+    return [...frames].filter((f) => f.getAnimations().length > 0).length;
+  });
+  assert.equal(animated, 2, "the incoming and the outgoing screens both move");
+  await settledOn("Settings");
+  console.log("✓ slide in: the screen underneath moves a little too");
+
   // A framework builds the element, sets `controls`, then inserts it.
   await tab.goto(`${server.origin}/?folio=navigation`);
   await tab.evaluate(() => {
@@ -105,6 +129,28 @@ try {
     "controls set before the element is inserted show",
   );
   console.log("✓ controls: set before the element is inserted, they show");
+
+  // A framework that sets attributes as properties (Vue does, when the element has the property)
+  // must not break the element: controls, fit, preload, fonts.
+  await tab.evaluate(() => {
+    const player = document.createElement("folioscope-player") as unknown as HTMLElement &
+      Record<string, unknown>;
+    player.id = "framework";
+    for (const [key, value] of Object.entries({
+      controls: "",
+      fit: "contain",
+      preload: "all",
+      fonts: "none",
+    })) {
+      if (key in player) player[key] = value;
+      else player.setAttribute(key, value);
+    }
+    player.setAttribute("src", "/navigation.folio");
+    document.body.append(player);
+  });
+  await tab.locator("#framework .stage > .frame").waitFor();
+  assert.equal(await tab.locator("#framework .controls").isVisible(), true);
+  console.log("✓ controls: properties set by a framework do not break the element");
 
   // A click beside every hotspot flashes them, unless hotspots="never".
   const missClick = async () => {
@@ -125,9 +171,12 @@ try {
   // "While hovering" and "while pressing" hold a frame, and let go of it.
   await tab.goto(`${server.origin}/?folio=triggers`);
   await settledOn("Home"); // after the splash's 1.5 s delay
-  const button = (await tab
-    .locator('folioscope-player .frame[aria-label="Home"] .hotspot')
-    .boundingBox())!;
+  // The button, not the swipe card: the hotspot 48 px high.
+  const hotspots = tab.locator('folioscope-player .frame[aria-label="Home"] .hotspot');
+  const boxes = await Promise.all(
+    Array.from({ length: await hotspots.count() }, (_, i) => hotspots.nth(i).boundingBox()),
+  );
+  const button = boxes.find((b) => b && Math.round(b.height) === 48)!;
   await tab.mouse.move(button.x + button.width / 2, button.y + button.height / 2);
   await settledOn("Home, button hovered");
   await tab.mouse.down();
@@ -137,6 +186,23 @@ try {
   await tab.mouse.move(button.x + button.width / 2, button.y - 40);
   await settledOn("Home");
   console.log("✓ hover and press: a frame while they last, then back");
+
+  // A key trigger (Shift + right arrow) and a drag across the card open the details.
+  await tab.locator('folioscope-player .frame[aria-label="Home"]').focus();
+  await tab.keyboard.press("ArrowRight");
+  await tab.waitForTimeout(400);
+  await settledOn("Home");
+  await tab.keyboard.press("Shift+ArrowRight");
+  await settledOn("Details");
+  await tab.locator('folioscope-player .frame button[aria-label="Back"]').click();
+  await settledOn("Home");
+  const swipe = boxes.find((b) => b && Math.round(b.height) === 200)!;
+  await tab.mouse.move(swipe.x + swipe.width - 20, swipe.y + swipe.height / 2);
+  await tab.mouse.down();
+  await tab.mouse.move(swipe.x + 20, swipe.y + swipe.height / 2, { steps: 5 });
+  await tab.mouse.up();
+  await settledOn("Details");
+  console.log("✓ keys and drags: a key combination and a swipe follow their links");
 
   // Overlays open over the screen, centered on a dimmed backdrop, and close by a button or outside.
   await tab.goto(`${server.origin}/?folio=overlay`);
@@ -170,6 +236,18 @@ try {
   await settledOn("Home");
   console.log("✓ overlays: centered on a backdrop, closed by a button or a click outside");
 
+  // Swapping an overlay with smart animate: the items both menus share move to their places.
+  await tab.locator('folioscope-player .frame button[aria-label="Open menu"]').click();
+  await menu.waitFor();
+  await tab.locator('folioscope-player .overlay button[aria-label="More"]').click();
+  await tab.locator("folioscope-player .smart").waitFor();
+  await tab
+    .locator('folioscope-player .overlay[data-frame] .frame[aria-label="Menu, more"]')
+    .waitFor();
+  await tab.locator("folioscope-player .smart").waitFor({ state: "detached" });
+  await menu.waitFor({ state: "detached" });
+  console.log("✓ overlays: a swap with smart animate moves the shared layers");
+
   // A scrolling frame: the content moves under fixed layers, and "scroll to" brings a card back.
   await tab.goto(`${server.origin}/?folio=scroll`);
   await settledOn("Feed");
@@ -197,6 +275,32 @@ try {
   );
   assert.ok(Math.abs((await scrollTop()) - 112) < 1);
   console.log("✓ scroll: the content scrolls under fixed layers, scroll to reaches its target");
+
+  // A carousel scrolls sideways inside the screen; a section title sticks once scrolled to.
+  await tab.goto(
+    `${server.origin}/?folio=scroll&attributes=${encodeURIComponent('flow="Gallery flow"')}`,
+  );
+  await settledOn("Gallery");
+  const carousel = tab.locator("folioscope-player .frame .scroll.inner");
+  await carousel.evaluate((el) => el.scrollTo({ left: 800 }));
+  await tab.locator('folioscope-player .scroll.inner button[aria-label="Slide 5"]').click();
+  await settledOn("Feed");
+  await tab.goto(
+    `${server.origin}/?folio=scroll&attributes=${encodeURIComponent('flow="Gallery flow"')}`,
+  );
+  await settledOn("Gallery");
+  const sticky = await tab.evaluate(async () => {
+    const root = document.querySelector("folioscope-player")!.shadowRoot!;
+    const main = root.querySelector<HTMLElement>(".frame > .scroll")!;
+    main.scrollTo({ top: 600 });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const img = [...root.querySelectorAll<HTMLImageElement>(".frame > .scroll img")].find(
+      (i) => i.style.zIndex === "1",
+    )!;
+    return img.style.transform;
+  });
+  assert.equal(sticky, "translate(0px, 280px)", "the title holds at the top: 600 − 320");
+  console.log("✓ scroll: a frame scrolls inside the screen, and a sticky title holds at the top");
 
   // Fullscreen on a wide screen: the prototype fits the height, centered, with the controls visible.
   const wide = await browser.newPage({ viewport: { width: 1600, height: 900 } });
@@ -241,9 +345,30 @@ try {
   assert.equal(await stateOf(pushButton), "State=Default");
   await zones.nth(toggleSwitch).locator("button").click();
   assert.equal(await stateOf(toggleSwitch), "On=true");
+  // The knob slides: smart animate between the switch's states.
+  await zones.nth(toggleSwitch).locator(".smart").waitFor();
+  await zones.nth(toggleSwitch).locator(".smart").waitFor({ state: "detached" });
   await zones.nth(toggleSwitch).locator("button").click();
   assert.equal(await stateOf(toggleSwitch), "On=false");
   console.log("✓ components: variants change while hovering, while pressing and on click");
+
+  // A component nested in another's state plays on its own; "after delay" works in a state.
+  const cardZone = tab.locator('folioscope-player .component[data-state^="Open="]').first();
+  await cardZone.locator(":scope > button").first().click();
+  assert.equal(await cardZone.getAttribute("data-state"), "Open=true");
+  const inner = cardZone.locator(".component");
+  assert.equal(await inner.getAttribute("data-state"), "On=false");
+  await inner.locator("button").click();
+  assert.equal(await inner.getAttribute("data-state"), "On=true");
+  assert.equal(await cardZone.getAttribute("data-state"), "Open=true", "the card stays open");
+  await cardZone.locator(':scope > button[aria-label="Fold"]').click();
+  assert.equal(await cardZone.getAttribute("data-state"), "Open=false");
+  await tab.waitForFunction(() =>
+    [
+      ...document.querySelector("folioscope-player")!.shadowRoot!.querySelectorAll(".component"),
+    ].some((c) => c.getAttribute("data-state") === "Shown=false"),
+  );
+  console.log("✓ nested components: a component in another's state, and after delay in a state");
 
   // Smart animate: the parts of both frames, paired by name, move and fade; then the new frame.
   await tab.goto(`${server.origin}/?folio=smart-animate`);
@@ -251,14 +376,18 @@ try {
   await tab.locator('folioscope-player .frame button[aria-label="Open"]').click();
   const smart = tab.locator("folioscope-player .smart");
   await smart.waitFor();
-  assert.equal(await smart.locator("img").count(), 8); // 4 parts on each side
-  // Mid-way, the card has left its place on Home (24, 128) for the header of Details (0, 0).
+  // Every part of both frames, nested ones included; two paired plain boxes make one.
+  assert.ok((await smart.locator(":scope > *").count()) >= 12);
   await tab.waitForTimeout(200);
-  const card = await smart
-    .locator("img")
-    .nth(2)
-    .evaluate((img) => getComputedStyle(img).transform);
-  assert.notEqual(card, "none");
+  const transforms = await smart
+    .locator(":scope > *")
+    .evaluateAll((els) => els.map((el) => getComputedStyle(el).transform));
+  // Mid-way, parts are between their places: some are turning (a matrix with b ≠ 0).
+  const turning = transforms.filter((t) => {
+    const m = /matrix\(([^)]+)\)/.exec(t)?.[1]?.split(",").map(Number);
+    return m && Math.abs(m[1]!) > 0.05 && Math.abs(m[1]!) < 0.95;
+  });
+  assert.ok(turning.length >= 1, "the arrow turns");
   await settledOn("Details");
   await smart.waitFor({ state: "detached" });
   await tab.locator('folioscope-player .frame button[aria-label="Back"]').click();
@@ -311,6 +440,26 @@ try {
   await settledOn("Details");
   console.log("✓ xd: an artboard taller than its viewport scrolls");
 
+  // The same with a .sketch prototype viewport, under a header fixed in place.
+  await tab.goto(`${server.origin}/?folio=sketch-scroll`);
+  await settledOn("Feed");
+  const sketchScroller = tab.locator("folioscope-player .frame .scroll");
+  const viewport = (await sketchScroller.boundingBox())!;
+  assert.ok(Math.abs(viewport.height - 812) < 1, "the frame is as tall as the prototype viewport");
+  const sketchLayers = await tab.evaluate(
+    () =>
+      document.querySelector("folioscope-player")!.shadowRoot!.querySelectorAll(".frame img")
+        .length,
+  );
+  assert.equal(sketchLayers, 3, "background, scrolling content, fixed header");
+  await tab.mouse.move(viewport.x + viewport.width / 2, viewport.y + viewport.height / 2);
+  await tab.mouse.wheel(0, 2000);
+  await tab.locator('folioscope-player .content button[aria-label="Open details"]').click();
+  await settledOn("Details");
+  console.log(
+    "✓ sketch: an artboard taller than its prototype viewport scrolls under fixed layers",
+  );
+
   // An .xd overlay opens where XD puts it (a bottom sheet) and "previous artboard" closes it.
   await tab.goto(`${server.origin}/?folio=xd-overlay`);
   await settledOn("Home");
@@ -358,6 +507,15 @@ try {
   await settledOn("Home");
   assert.deepEqual(stages.slice(2), ["download", "cache"]);
   console.log("✓ full player: a raw .fig plays, baked in the browser, then from the cache");
+
+  // A file the visitor drops: a blob: URL, whose format the bake reads from its contents.
+  await tab.goto(`${server.origin}/?src=about:blank`);
+  await tab.evaluate(async () => {
+    const bytes = await (await fetch("/raw/navigation.fig")).blob();
+    document.querySelector("folioscope-player")!.setAttribute("src", URL.createObjectURL(bytes));
+  });
+  await settledOn("Home");
+  console.log("✓ full player: a dropped file (a blob: URL) plays");
 
   // Fonts for a raw .sketch, which stores no glyphs: given as children, by a shared set, or by
   // registerFont(). Which fonts the bake lacks is told by folioscope:font-missing.
@@ -420,6 +578,23 @@ try {
   assert.equal((await seen()).missing.length, 2, "nothing more is missing after the second bake");
   console.log("✓ fonts: <folioscope-font>, a family or a pattern, a shared set and registerFont()");
 
+  // A folder with its manifest, a regular expression, a stylesheet; fonts the design does not use
+  // are not fetched.
+  await open({ children: '<folioscope-font base="/fonts/" match="/^Brand$/"></folioscope-font>' });
+  await loaded(1);
+  assert.deepEqual((await seen()).missing, []);
+  await open({ children: '<folioscope-font css="/fonts/fonts.css"></folioscope-font>' });
+  await loaded(1);
+  assert.deepEqual((await seen()).missing, []);
+  await open({
+    children: `${inter}></folioscope-font><folioscope-font family="Unused" src="/fonts/nowhere.ttf"></folioscope-font>`,
+  });
+  await loaded(1);
+  assert.deepEqual((await seen()).missing, ["Brand-Bold"], "the unused font is not fetched");
+  console.log(
+    "✓ fonts: a folder's manifest, a stylesheet, a regular expression, only what is used",
+  );
+
   // Without a poster, the frame's baked placeholder shows while its layers load.
   const slow = await browser.newPage();
   await slow.route("**/layers/**", async (route) => {
@@ -433,6 +608,43 @@ try {
   await slow.locator('folioscope-player .frame[aria-label="Home"]').waitFor();
   await placeholder.waitFor({ state: "detached" });
   console.log("✓ placeholder: a blurred preview until the first frame is decoded");
+
+  // Accessibility: axe finds nothing serious in the player, on several prototypes, with its
+  // controls; with prefers-reduced-motion, a transition is a cut.
+  const axe = readFileSync(createRequire(import.meta.url).resolve("axe-core/axe.min.js"), "utf8");
+  for (const folio of ["navigation", "overlay", "components", "scroll"]) {
+    await tab.goto(`${server.origin}/?folio=${folio}&controls`);
+    await tab.locator("folioscope-player .stage > .frame").first().waitFor();
+    await tab.addScriptTag({ content: axe });
+    const violations = await tab.evaluate(async () => {
+      const result = await (
+        window as unknown as {
+          axe: {
+            run(
+              context: object,
+              options: object,
+            ): Promise<{ violations: { id: string; impact: string }[] }>;
+          };
+        }
+      ).axe.run({ include: [["folioscope-player"]] }, { resultTypes: ["violations"] });
+      return result.violations
+        .filter((v) => v.impact === "serious" || v.impact === "critical")
+        .map((v) => v.id);
+    });
+    assert.deepEqual(violations, [], `${folio}: ${violations.join(", ")}`);
+  }
+  const reduced = await browser.newPage({
+    reducedMotion: "reduce",
+    viewport: { width: 375, height: 812 },
+  });
+  await reduced.goto(`${server.origin}/?folio=navigation`);
+  await reduced.locator('folioscope-player .frame button[aria-label="Open details"]').click();
+  const animations = await reduced.evaluate(
+    () => document.querySelector("folioscope-player")!.shadowRoot!.getAnimations().length,
+  );
+  assert.equal(animations, 0, "no animation when motion is reduced");
+  await reduced.close();
+  console.log("✓ accessibility: axe finds nothing serious; reduced motion plays no transition");
 
   assert.deepEqual(errors, []);
 } finally {

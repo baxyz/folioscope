@@ -19,11 +19,9 @@ It is **not a viewer** for design files: no canvas to pan, no layers to inspect,
 > prototype links you designed, so the mockup moves again. And yes, the "folio" is a nod to
 > _portfolio_, where it all started.
 
-> [!WARNING]
-> **Status: early development.** `.fig` prototypes bake and play, with click, timed, hover and
-> press links, overlays, scrolling and interactive components; `.sketch`, `.xd` and `.penpot`
-> prototypes too, with their links and transitions (overlays for `.sketch` and `.penpot`). See the
-> [project plan](PROJECT.md) and its roadmap.
+What plays for each format, and what is left, is on the
+[Roadmap](https://folioscope.baxyz.dev/roadmap) and
+[Compatibility](https://folioscope.baxyz.dev/compatibility) pages.
 
 ## Usage
 
@@ -53,9 +51,11 @@ playing whatever happens to the design tool that made them.
 
 ## Documentation
 
-- Website: <https://folioscope.baxyz.dev> (coming with v0.1)
-- [Project plan](PROJECT.md) — architecture, `.folio` format, fonts, roadmap
-- [Architecture decision records](docs/adr/)
+- Website: <https://folioscope.baxyz.dev>: getting started, demos, compatibility, roadmap
+- [Architecture](docs/architecture.md): the pipeline and its choices
+- Specs: [the `.folio` format](docs/spec/folio.md), [the bake](docs/spec/bake.md),
+  [the player](docs/spec/player.md)
+- [Development](docs/development.md): stack, tests, fixtures, publishing
 
 ## License
 

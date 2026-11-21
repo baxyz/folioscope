@@ -5,10 +5,12 @@
     "moduleResolution": "bundler",
     "strict": true,
     "noEmit": true,
+    // Node runs the scripts and tests as they are, `.ts` imports included.
+    "allowImportingTsExtensions": true,
     "skipLibCheck": true,
     "types": ["vitepress/client"],
     // Type-checks against the player's sources, so no build is needed first.
     "paths": { "folioscope": ["../../packages/folioscope/src/index.ts"] }
   },
-  "include": [".vitepress/**/*.ts", "scripts/**/*.ts"]
+  "include": [".vitepress/**/*.ts", "scripts/**/*.ts", "data/**/*.ts", "e2e/**/*.ts"]
 }

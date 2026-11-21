@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `.xd` → IR v1 (ADR 0008): artboards as frames, the home artboard as the flow's start, and
+//! `.xd` → IR v1 (docs/spec/folio.md): artboards as frames, the home artboard as the flow's start, and
 //! every node with an interaction as a hotspot. See `docs/format-xd.md`.
 
 use std::collections::{HashMap, HashSet};
@@ -48,6 +48,7 @@ pub fn to_ir(file: &XdFile) -> Document {
                         },
                     ),
                     fixed: false,
+                    scroller: None,
                 });
             }
             if let (Some(tree), Some(all)) = (file.artboards.get(&entry.id), interactions) {
@@ -91,8 +92,10 @@ pub fn to_ir(file: &XdFile) -> Document {
                         height: entry.bounds.height,
                     },
                     fixed: Vec::new(),
+                    sticky: Vec::new(),
                 }),
                 components: Vec::new(),
+                scrollers: Vec::new(),
             }
         })
         .collect();
@@ -209,6 +212,7 @@ fn collect(
             bounds,
             interactions: interactions_of(list, bounds),
             fixed: false,
+            scroller: None,
         });
     }
     for child in children(node) {
@@ -231,11 +235,16 @@ fn interactions_of(list: &Value, hotspot: Rect) -> Vec<Interaction> {
 fn trigger(interaction: &Value) -> Trigger {
     match interaction["triggerEvent"].as_str().unwrap_or("") {
         "tap" => Trigger::Click,
+        // XD's hover (desktop prototypes): the link is followed while the pointer is over it.
+        "hover" => Trigger::Hover,
         "time" => Trigger::AfterDelay {
             delay_ms: millis(&interaction["properties"]["delay"]),
         },
         "drag" => Trigger::Drag,
-        "keys-gamepad" => Trigger::Key,
+        // Which keys is not read yet: an .xd file with one would show where XD keeps them.
+        "keys-gamepad" => Trigger::Other {
+            name: "keys-gamepad".to_owned(),
+        },
         other => Trigger::Other {
             name: other.to_owned(),
         },

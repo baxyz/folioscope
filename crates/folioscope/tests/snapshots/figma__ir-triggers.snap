@@ -1,5 +1,5 @@
 ---
-source: crates/folioscope-core/tests/fig.rs
+source: crates/folioscope/tests/figma.rs
 expression: "serde_json::to_string_pretty(&ir).unwrap()"
 ---
 {
@@ -69,6 +69,41 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
           },
           "hotspots": [
             {
+              "node": "1:2",
+              "name": "Home",
+              "bounds": {
+                "x": 0.0,
+                "y": 0.0,
+                "width": 375.0,
+                "height": 812.0
+              },
+              "interactions": [
+                {
+                  "trigger": {
+                    "type": "key",
+                    "codes": [
+                      16,
+                      39
+                    ]
+                  },
+                  "action": {
+                    "type": "navigate",
+                    "to": "1:12",
+                    "transition": {
+                      "kind": {
+                        "type": "slideIn",
+                        "from": "right"
+                      },
+                      "durationMs": 300,
+                      "easing": {
+                        "type": "easeOut"
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            {
               "node": "1:6",
               "name": "Button",
               "bounds": {
@@ -108,6 +143,37 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                         "type": "instant"
                       },
                       "durationMs": 0,
+                      "easing": {
+                        "type": "easeOut"
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "node": "1:14",
+              "name": "Swipe card",
+              "bounds": {
+                "x": 24.0,
+                "y": 160.0,
+                "width": 327.0,
+                "height": 200.0
+              },
+              "interactions": [
+                {
+                  "trigger": {
+                    "type": "drag"
+                  },
+                  "action": {
+                    "type": "navigate",
+                    "to": "1:12",
+                    "transition": {
+                      "kind": {
+                        "type": "slideIn",
+                        "from": "right"
+                      },
+                      "durationMs": 300,
                       "easing": {
                         "type": "easeOut"
                       }
@@ -170,6 +236,38 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
             "height": 812.0
           },
           "hotspots": []
+        },
+        {
+          "id": "1:12",
+          "name": "Details",
+          "bounds": {
+            "x": 1900.0,
+            "y": 0.0,
+            "width": 375.0,
+            "height": 812.0
+          },
+          "hotspots": [
+            {
+              "node": "1:16",
+              "name": "Back",
+              "bounds": {
+                "x": 16.0,
+                "y": 56.0,
+                "width": 80.0,
+                "height": 32.0
+              },
+              "interactions": [
+                {
+                  "trigger": {
+                    "type": "click"
+                  },
+                  "action": {
+                    "type": "back"
+                  }
+                }
+              ]
+            }
+          ]
         }
       ]
     }

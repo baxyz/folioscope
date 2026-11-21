@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `.penpot` → IR v1 (ADR 0008): pages, top-level boards as frames, named flows, and the
+//! `.penpot` → IR v1 (docs/spec/folio.md): pages, top-level boards as frames, named flows, and the
 //! interactions of every shape. Penpot keeps geometry in page coordinates; the IR wants frame
 //! coordinates. Overlay settings live on Penpot's interactions, and on the IR's destination frame.
 
@@ -47,6 +47,7 @@ fn page(page: &PenpotPage) -> Page {
                 overlay: None,
                 scroll: None,
                 components: Vec::new(),
+                scrollers: Vec::new(),
             }
         })
         .collect();
@@ -122,6 +123,7 @@ fn collect(shape: &Value, origin: (f32, f32), page: &PenpotPage, out: &mut Vec<H
             bounds,
             interactions,
             fixed: false,
+            scroller: None,
         });
     }
     for child in children(shape, page) {
@@ -247,8 +249,14 @@ fn transition(animation: &Value) -> Transition {
     };
     let kind = match kind {
         "dissolve" => TransitionKind::Dissolve,
-        "slide" if animation["way"] == "out" => TransitionKind::SlideOut { to: opposite },
-        "slide" => TransitionKind::SlideIn { from: side },
+        // With its offset effect, a slide moves the screen underneath too; without, it moves only
+        // the screen that comes or goes.
+        "slide" if animation["way"] == "out" && animation["offsetEffect"] == true => {
+            TransitionKind::SlideOut { to: opposite }
+        }
+        "slide" if animation["way"] == "out" => TransitionKind::MoveOut { to: opposite },
+        "slide" if animation["offsetEffect"] == true => TransitionKind::SlideIn { from: side },
+        "slide" => TransitionKind::MoveIn { from: side },
         "push" => TransitionKind::Push { from: side },
         other => TransitionKind::Other {
             name: other.to_owned(),

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! `.fig` → IR v1 (ADR 0008): pages, flows, top-level frames and their hotspots.
+//! `.fig` → IR v1 (docs/spec/folio.md): pages, flows, top-level frames and their hotspots.
 
 use crate::figma::FigFile;
 use helpers4::geometry::{self, Matrix};
@@ -11,7 +11,7 @@ use std::collections::HashMap;
 
 use crate::ir::{
     Action, Component, ComponentState, Document, Easing, Flow, Frame, Hotspot, Interaction,
-    OverlayPosition, OverlaySettings, Page, Point, Rect, Scroll, ScrollDirection, Side,
+    OverlayPosition, OverlaySettings, Page, Point, Rect, Scroll, ScrollDirection, Scroller, Side,
     SourceFormat, Transition, TransitionKind, Trigger,
 };
 use crate::kiwi::Value;
@@ -77,8 +77,9 @@ fn page(tree: &Tree<'_>, canvas: &Node<'_>) -> Page {
         .iter()
         .map(|frame| {
             let mut walk = Walk::new(tree);
-            walk.node(frame, Affine::IDENTITY, false, &mut Vec::new(), false);
-            let (mut hotspots, components) = (walk.hotspots, walk.components);
+            walk.node(frame, Affine::IDENTITY, false, &mut Vec::new(), 0);
+            let (mut hotspots, components, scrollers) =
+                (walk.hotspots, walk.components, walk.scrollers);
             resolve_scroll_targets(tree, frame, &mut hotspots);
             let (x, y) = translation(frame.value);
             let (width, height) = size(frame.value);
@@ -95,6 +96,7 @@ fn page(tree: &Tree<'_>, canvas: &Node<'_>) -> Page {
                 overlay: overlay(frame.value),
                 scroll: scroll(tree, frame),
                 components,
+                scrollers,
             }
         })
         .collect();
@@ -107,6 +109,9 @@ fn page(tree: &Tree<'_>, canvas: &Node<'_>) -> Page {
     }
 }
 
+/// How deep interactive components nest inside each other's states.
+const MAX_NESTING: u8 = 3;
+
 /// Hotspots and interactive components of one frame.
 struct Walk<'t, 'a> {
     tree: &'t Tree<'a>,
@@ -116,6 +121,9 @@ struct Walk<'t, 'a> {
     changes_state: HashMap<NodeId, bool>,
     /// The instances walked through, whose overrides apply below them.
     overrides: Overrides,
+    /// Frames inside the screen that scroll, and the one being walked through.
+    scrollers: Vec<Scroller>,
+    scroller: Option<String>,
 }
 
 impl<'t, 'a> Walk<'t, 'a> {
@@ -126,20 +134,23 @@ impl<'t, 'a> Walk<'t, 'a> {
             components: Vec::new(),
             changes_state: HashMap::new(),
             overrides: Overrides::default(),
+            scrollers: Vec::new(),
+            scroller: None,
         }
     }
 
     /// Walks `node`'s subtree; `to_frame` maps the node's own coordinates to the frame's (or the
     /// component state's), `fixed` says the node is in a fixed child of a scrolling frame, `path`
     /// lists the instances above it. Instances are walked through their component's children;
-    /// interactive ones become components, unless `in_state` (no nesting).
+    /// interactive ones become components, nested in a component's state up to
+    /// [`MAX_NESTING`] deep (`in_state` counts how deep).
     fn node(
         &mut self,
         node: &Node<'a>,
         to_frame: Affine,
         fixed: bool,
         path: &mut Vec<String>,
-        in_state: bool,
+        in_state: u8,
     ) {
         // Inside instances, the node as the instances above it show it.
         let resolved = self.overrides.resolve(node);
@@ -154,10 +165,10 @@ impl<'t, 'a> Walk<'t, 'a> {
         }
         let symbol = symbol_of(node).and_then(|id| self.tree.get(id));
         if let Some(symbol) = symbol
-            && !in_state
+            && in_state < MAX_NESTING
             && (has_change_to(&interactions(node)) || self.changes_state(symbol))
         {
-            let component = self.component(node, symbol, to_frame, fixed, path);
+            let component = self.component(node, symbol, to_frame, fixed, path, in_state);
             self.components.push(component);
             return;
         }
@@ -176,6 +187,7 @@ impl<'t, 'a> Walk<'t, 'a> {
                 bounds: to_frame.bounding_box(width, height),
                 interactions: own,
                 fixed,
+                scroller: self.scroller.clone(),
             });
         }
         // Only the top-level frame's direct children can be fixed.
@@ -186,10 +198,35 @@ impl<'t, 'a> Walk<'t, 'a> {
             self.overrides.enter(node, node.value);
         }
         let children: Vec<&Node<'a>> = self.tree.children(source).collect();
+        // A frame inside the screen whose content scrolls: its children are walked in its
+        // content's coordinates, and their hotspots scroll with it. One level of them.
+        let inner = (node.kind == "FRAME" && !top && self.scroller.is_none() && in_state == 0)
+            .then(|| scroll(self.tree, node))
+            .flatten();
+        let outer = to_frame;
+        let scrolls = inner.is_some();
+        let to_frame = if let Some(inner) = inner {
+            let (width, height) = size(node.value);
+            self.scrollers.push(Scroller {
+                id: node.id.to_string(),
+                name: node.name.to_owned(),
+                bounds: outer.bounding_box(width, height),
+                direction: inner.direction,
+                content: inner.content,
+                sticky: inner.sticky,
+            });
+            self.scroller = Some(node.id.to_string());
+            Affine::IDENTITY
+        } else {
+            to_frame
+        };
         for child in children {
             let to_frame = to_frame.then(Affine::of(&self.overrides.resolve(child)));
             let fixed = fixed || (top && is_fixed(child));
             self.node(child, to_frame, fixed, path, in_state);
+        }
+        if scrolls {
+            self.scroller = None;
         }
         if symbol.is_some() {
             path.pop();
@@ -205,12 +242,13 @@ impl<'t, 'a> Walk<'t, 'a> {
         to_frame: Affine,
         fixed: bool,
         path: &[String],
+        depth: u8,
     ) -> Component {
         let (width, height) = size(instance.value);
         let mut states: Vec<ComponentState> = Vec::new();
         let mut queue = vec![symbol.id];
         while let Some(variant) = queue.pop() {
-            // Every reachable variant, each once: the bake decides how many it draws (ADR 0007).
+            // Every reachable variant, each once: the bake decides how many it draws (docs/spec/folio.md).
             if states.iter().any(|s| s.variant == variant.to_string()) {
                 continue;
             }
@@ -218,8 +256,9 @@ impl<'t, 'a> Walk<'t, 'a> {
                 continue;
             };
             let mut walk = Walk::new(self.tree);
-            walk.node(variant, Affine::IDENTITY, false, &mut Vec::new(), true);
+            walk.node(variant, Affine::IDENTITY, false, &mut Vec::new(), depth + 1);
             let mut hotspots = walk.hotspots;
+            let nested = walk.components;
             // The instance's own interactions replace its first variant's.
             let overrides = interactions(instance);
             if variant.id == symbol.id && !overrides.is_empty() {
@@ -233,6 +272,7 @@ impl<'t, 'a> Walk<'t, 'a> {
                         bounds: Affine::IDENTITY.bounding_box(w, h),
                         interactions: overrides,
                         fixed: false,
+                        scroller: None,
                     },
                 );
             }
@@ -251,11 +291,20 @@ impl<'t, 'a> Walk<'t, 'a> {
             } else {
                 size(variant.value)
             };
+            // The variant's own hotspot covers the state: the instance's size, not the
+            // component's.
+            for hotspot in hotspots
+                .iter_mut()
+                .filter(|h| h.node == variant.id.to_string())
+            {
+                hotspot.bounds = Affine::IDENTITY.bounding_box(w, h);
+            }
             states.push(ComponentState {
                 variant: variant.id.to_string(),
                 name: variant.name.to_owned(),
                 bounds: Affine::IDENTITY.bounding_box(w, h),
                 hotspots,
+                components: nested,
             });
         }
         let mut id = path.to_vec();
@@ -358,6 +407,7 @@ fn scroll(tree: &Tree<'_>, frame: &Node<'_>) -> Option<Scroll> {
     let (width, height) = size(frame.value);
     let (mut right, mut bottom) = (width, height);
     let mut fixed = Vec::new();
+    let mut sticky = Vec::new();
     for child in tree.children(frame.id) {
         if matches!(child.value.get("visible"), Some(Value::Bool(false))) {
             continue;
@@ -365,6 +415,9 @@ fn scroll(tree: &Tree<'_>, frame: &Node<'_>) -> Option<Scroll> {
         if is_fixed(child) {
             fixed.push(child.id.to_string());
             continue;
+        }
+        if child.value.get("scrollBehavior").and_then(Value::as_str) == Some("STICKY_SCROLLS") {
+            sticky.push(child.id.to_string());
         }
         let (w, h) = size(child.value);
         let bounds = Affine::of(child.value).bounding_box(w, h);
@@ -385,6 +438,7 @@ fn scroll(tree: &Tree<'_>, frame: &Node<'_>) -> Option<Scroll> {
             height: bottom,
         },
         fixed,
+        sticky,
     })
 }
 
@@ -436,7 +490,15 @@ fn trigger(event: Option<&Value>) -> Trigger {
             delay_ms: seconds_to_ms(event.and_then(|e| e.get("transitionTimeout"))),
         },
         Some("DRAG") => Trigger::Drag,
-        Some("ON_KEY_DOWN") => Trigger::Key,
+        Some("ON_KEY_DOWN") => Trigger::Key {
+            codes: event
+                .and_then(|e| e.get("keyTrigger"))
+                .and_then(|k| k.get("keyCodes"))
+                .map_or(&[][..], Value::as_array)
+                .iter()
+                .filter_map(|code| u32::try_from(code.as_i32()?).ok())
+                .collect(),
+        },
         Some(other) => Trigger::Other {
             name: other.to_owned(),
         },

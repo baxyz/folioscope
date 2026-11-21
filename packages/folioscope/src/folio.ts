@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-/** `index.json` of a `.folio` folder, as `folioscope bake` writes it (ADR 0004, ADR 0008). */
+/** `index.json` of a `.folio` folder, as `folioscope bake` writes it (docs/spec/folio.md). */
 export interface FolioIndex {
   folio: number;
   irVersion: number;
@@ -48,8 +48,29 @@ export interface FolioFrame {
   };
   /** Interactive component instances, whose variants change in place. */
   components?: FolioComponent[];
-  /** For smart animate: the background (named `""`), then each direct child, by name. */
-  parts?: { name: string; layer: Layer }[];
+  /** Frames inside the screen whose content scrolls in place. */
+  scrollers?: {
+    id: string;
+    name: string;
+    /** Where it shows, in the frame's coordinates. */
+    bounds: Rect;
+    direction: "vertical" | "horizontal" | "both";
+    /** What scrolls, from its corner. */
+    content: Rect;
+    sticky?: string[];
+  }[];
+  /**
+   * For smart animate: the background (named `""`), then each layer by its path (`Card/Title`),
+   * drawn without its own parts.
+   */
+  parts?: {
+    name: string;
+    layer: Layer;
+    /** `[a, b, c, d, e, f]`: where it goes in the frame, its top-left corner at the origin. */
+    matrix?: [number, number, number, number, number, number];
+    /** A plain rounded rectangle, animated as a box. */
+    shape?: { fill: string; radius: number };
+  }[];
 }
 
 /** An instance switching between variants ("change to"), each a state with its own layer. */
@@ -70,6 +91,10 @@ export interface FolioComponent {
     /** In the state's coordinates. */
     hotspots: Hotspot[];
     layer: Layer;
+    /** Interactive components inside this state, in its coordinates. */
+    components?: FolioComponent[];
+    /** For smart animate between states: as a frame's `parts`, in the state's coordinates. */
+    parts?: FolioFrame["parts"];
   }[];
 }
 
@@ -99,11 +124,15 @@ export interface Point {
  */
 export interface Layer {
   src: string;
-  /** File extension: `webp`; `avif` for large, photo-like layers; `svg` for flat ones (ADR 0006). */
+  /** File extension: `webp`; `avif` for large, photo-like layers; `svg` for flat ones (docs/spec/bake.md). */
   format: "webp" | "avif" | "svg";
   bounds: Rect;
   /** The frame's scrolling content: moves with the scroll, under the layers that follow. */
   scrolls?: boolean;
+  /** In a frame that scrolls inside the screen, by its id; `bounds` are in its content. */
+  scroller?: string;
+  /** Scrolls with its content, then sticks at its scroller's top (or left) edge. */
+  sticky?: boolean;
 }
 
 export interface Hotspot {
@@ -113,6 +142,8 @@ export interface Hotspot {
   interactions: Interaction[];
   /** In a fixed child of a scrolling frame: stays in place while the content scrolls. */
   fixed?: boolean;
+  /** In a frame that scrolls inside the screen, by its id; `bounds` are in its content. */
+  scroller?: string;
 }
 
 export interface Interaction {
@@ -123,7 +154,9 @@ export interface Interaction {
 export type Trigger =
   | { type: "click" | "hover" | "press" | "mouseEnter" | "mouseLeave" | "mouseDown" | "mouseUp" }
   | { type: "afterDelay"; delayMs: number }
-  | { type: "drag" | "key" }
+  | { type: "drag" }
+  /** Browser key codes pressed together; any key when absent. */
+  | { type: "key"; codes?: number[] }
   | { type: "other"; name: string };
 
 export type Action =

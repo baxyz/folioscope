@@ -1,5 +1,5 @@
 ---
-source: crates/folioscope-core/tests/figma.rs
+source: crates/folioscope/tests/figma.rs
 expression: "serde_json::to_string_pretty(&ir).unwrap()"
 ---
 {
@@ -74,6 +74,73 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
               "bounds": {
                 "x": 24.0,
                 "y": 248.0,
+                "width": 232.0,
+                "height": 48.0
+              },
+              "interactions": [
+                {
+                  "trigger": {
+                    "type": "click"
+                  },
+                  "action": {
+                    "type": "close"
+                  }
+                }
+              ]
+            },
+            {
+              "node": "1:18",
+              "name": "More",
+              "bounds": {
+                "x": 200.0,
+                "y": 200.0,
+                "width": 56.0,
+                "height": 32.0
+              },
+              "interactions": [
+                {
+                  "trigger": {
+                    "type": "click"
+                  },
+                  "action": {
+                    "type": "swapOverlay",
+                    "to": "1:10",
+                    "transition": {
+                      "kind": {
+                        "type": "smartAnimate"
+                      },
+                      "durationMs": 300,
+                      "easing": {
+                        "type": "easeOut"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "overlay": {
+            "position": "center",
+            "closeOnClickOutside": true,
+            "backdrop": "#00000066"
+          }
+        },
+        {
+          "id": "1:10",
+          "name": "Menu, more",
+          "bounds": {
+            "x": 800.0,
+            "y": 0.0,
+            "width": 280.0,
+            "height": 448.0
+          },
+          "hotspots": [
+            {
+              "node": "1:16",
+              "name": "Close",
+              "bounds": {
+                "x": 24.0,
+                "y": 376.0,
                 "width": 232.0,
                 "height": 48.0
               },

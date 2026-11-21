@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { createHash } from "node:crypto";
 import { constants, zstdCompressSync } from "node:zlib";
 import { zipSync } from "fflate";
 import { solidPng } from "./png.ts";
@@ -10,6 +11,7 @@ import {
   type FigDocument,
   type FigGuid,
   type FigNode,
+  type FigPaint,
 } from "openfig-core";
 
 export interface Box {
@@ -19,15 +21,23 @@ export interface Box {
   height: number;
 }
 
-export type Trigger = "ON_CLICK" | "ON_HOVER" | "ON_PRESS" | "AFTER_TIMEOUT";
+export type Trigger =
+  | "ON_CLICK"
+  | "ON_HOVER"
+  | "ON_PRESS"
+  | "AFTER_TIMEOUT"
+  | "DRAG"
+  | "ON_KEY_DOWN";
 
 export type Action =
   | { kind: "navigate"; to: FigGuid; transition?: Transition }
   | { kind: "overlay"; to: FigGuid; transition?: Transition }
   | { kind: "scrollTo"; to: FigGuid; transition?: Transition }
   | { kind: "changeTo"; to: FigGuid; transition?: Transition }
+  | { kind: "swap"; to: FigGuid; transition?: Transition }
   | { kind: "back" }
-  | { kind: "close" };
+  | { kind: "close" }
+  | { kind: "url"; url: string; newTab?: boolean };
 
 export interface OverlaySettings {
   position: "CENTER" | "TOP_CENTER" | "BOTTOM_CENTER";
@@ -60,6 +70,8 @@ function position(index: number): string {
 /** Builds a `.fig` file node by node, on top of openfig-core's empty document. */
 export class FigmaBuilder {
   readonly doc: FigDocument = createEmptyFigDoc();
+  /** Image fills' files, by the hex SHA-1 of their bytes, as Figma names them. */
+  private readonly images = new Map<string, Uint8Array>();
   private nextLocalId = 1;
   private pageNamed = false;
   private readonly childCount = new Map<string, number>();
@@ -206,15 +218,113 @@ export class FigmaBuilder {
     });
   }
 
-  /** An instance of `component`, with no override. */
-  instance(parent: FigGuid, component: FigGuid, name: string, box: Box): FigGuid {
+  /**
+   * A text that grows with its content, in Inter Regular. Figma stores the outline of each glyph
+   * it laid out; this one stores none, so the bake lays it out with the fonts it is given.
+   */
+  text(parent: FigGuid, name: string, box: Box, characters: string, fill: string, size = 16) {
     return this.add(parent, {
+      type: "TEXT",
+      name,
+      size: { x: box.width, y: box.height },
+      transform: { m00: 1, m01: 0, m02: box.x, m10: 0, m11: 1, m12: box.y },
+      fillPaints: [solid(fill)],
+      textData: { characters },
+      fontName: { family: "Inter", style: "Regular", postscript: "" },
+      fontSize: size,
+      textAutoResize: "WIDTH_AND_HEIGHT",
+      textAlignHorizontal: "LEFT",
+    } as unknown as Omit<FigNode, "guid" | "parentIndex">);
+  }
+
+  /**
+   * Lays a frame's children out in a row (auto layout), hugging them, with `padding` around
+   * (horizontal, vertical) and `spacing` between.
+   */
+  row(frame: FigGuid, padding: [number, number], spacing = 0): void {
+    Object.assign(this.node(frame), {
+      stackMode: "HORIZONTAL",
+      stackSpacing: spacing,
+      stackHorizontalPadding: padding[0],
+      stackPaddingRight: padding[0],
+      stackVerticalPadding: padding[1],
+      stackPaddingBottom: padding[1],
+      stackPrimarySizing: "RESIZE_TO_FIT_WITH_IMPLICIT_SIZE",
+      stackCounterSizing: "RESIZE_TO_FIT_WITH_IMPLICIT_SIZE",
+      stackCounterAlignItems: "CENTER",
+    });
+  }
+
+  /** Overrides the characters of `text`, a node of the instance's component. */
+  overrideText(instance: FigGuid, text: FigGuid, characters: string): void {
+    this.node(instance).symbolData.symbolOverrides.push({
+      guidPath: { guids: [text] },
+      textData: { characters },
+    });
+  }
+
+  /**
+   * An instance of `component`, with no override. Like Figma, it carries the component's own
+   * look (fills, corners, auto layout): only its children come from the component.
+   */
+  instance(parent: FigGuid, component: FigGuid, name: string, box: Box): FigGuid {
+    const source = this.node(component);
+    const look = Object.fromEntries(
+      Object.entries(source).filter(
+        ([field]) => ["fillPaints", "cornerRadius"].includes(field) || field.startsWith("stack"),
+      ),
+    );
+    return this.add(parent, {
+      ...structuredClone(look),
       type: "INSTANCE",
       name,
       size: { x: box.width, y: box.height },
       transform: { m00: 1, m01: 0, m02: box.x, m10: 0, m11: 1, m12: box.y },
       symbolData: { symbolID: component, symbolOverrides: [] },
       frameMaskDisabled: false,
+    });
+  }
+
+  /**
+   * An image paint of `png` (`width` × `height` pixels): `STRETCH`, `FIT`, `FILL` or `TILE`, with
+   * a tile `scale`, or a crop `transform` for `STRETCH`.
+   */
+  imagePaint(
+    png: Uint8Array,
+    width: number,
+    height: number,
+    mode: "STRETCH" | "FIT" | "FILL" | "TILE",
+    extra: { scale?: number; transform?: object } = {},
+  ) {
+    const sha1 = createHash("sha1").update(png).digest();
+    this.images.set(sha1.toString("hex"), png);
+    return {
+      type: "IMAGE",
+      opacity: 1,
+      visible: true,
+      blendMode: "NORMAL",
+      image: { hash: new Uint8Array(sha1), name: "image" },
+      imageScaleMode: mode,
+      originalImageWidth: width,
+      originalImageHeight: height,
+      ...extra,
+    } as unknown as FigPaint;
+  }
+
+  /** Sets fields of a node as Figma stores them (paints, effects, blend mode…). */
+  set(node: FigGuid, fields: Partial<FigNode>): void {
+    Object.assign(this.node(node), fields);
+  }
+
+  /** An ellipse filling its box. */
+  ellipse(parent: FigGuid, name: string, box: Box, fill: string): FigGuid {
+    return this.add(parent, {
+      type: "ELLIPSE",
+      name,
+      size: { x: box.width, y: box.height },
+      transform: { m00: 1, m01: 0, m02: box.x, m10: 0, m11: 1, m12: box.y },
+      fillPaints: [solid(fill)],
+      strokeWeight: 0,
     });
   }
 
@@ -228,7 +338,14 @@ export class FigmaBuilder {
     };
   }
 
-  on(node: FigGuid, trigger: Trigger, action: Action, timeoutMs = 0): void {
+  /** An interaction; `keyCodes` (browser key codes) for `ON_KEY_DOWN`. */
+  on(
+    node: FigGuid,
+    trigger: Trigger,
+    action: Action,
+    timeoutMs = 0,
+    keyCodes: number[] = [],
+  ): void {
     const target = this.node(node);
     target.prototypeInteractions ??= [];
     target.prototypeInteractions.push({
@@ -236,6 +353,9 @@ export class FigmaBuilder {
       event: {
         interactionType: trigger,
         ...(trigger === "AFTER_TIMEOUT" ? { transitionTimeout: timeoutMs / 1000 } : {}),
+        ...(trigger === "ON_KEY_DOWN"
+          ? { keyTrigger: { keyCodes, triggerDevice: "KEYBOARD" } }
+          : {}),
       },
       actions: [prototypeAction(action)],
       isDeleted: false,
@@ -257,6 +377,9 @@ export class FigmaBuilder {
       "canvas.fig": [canvasFig, stored],
       "thumbnail.png": [thumbnail, stored],
       "meta.json": [new TextEncoder().encode(JSON.stringify(meta)), stored],
+      ...Object.fromEntries(
+        [...this.images].map(([hash, png]) => [`images/${hash}`, [png, stored] as const]),
+      ),
     });
   }
 
@@ -314,6 +437,41 @@ export class FigmaBuilder {
   }
 }
 
+/** A gradient paint: `type` `GRADIENT_LINEAR`, `_RADIAL`, `_ANGULAR` or `_DIAMOND`, across the box. */
+export function gradient(type: string, from: string, to: string) {
+  return {
+    type,
+    opacity: 1,
+    visible: true,
+    blendMode: "NORMAL",
+    // Node space (0–1) to gradient space: the identity, so the gradient spans the whole box.
+    transform: { m00: 1, m01: 0, m02: 0, m10: 0, m11: 1, m12: 0 },
+    stops: [
+      { color: hexToFigColor(from), position: 0 },
+      { color: hexToFigColor(to), position: 1 },
+    ],
+  };
+}
+
+/** An effect: a shadow (drop or inner) or a blur (foreground or background). */
+export function effect(
+  type: "DROP_SHADOW" | "INNER_SHADOW" | "FOREGROUND_BLUR" | "BACKGROUND_BLUR",
+  radius: number,
+  offsetY = 0,
+  color = "#00000040",
+) {
+  return {
+    type,
+    visible: true,
+    radius,
+    spread: 0,
+    offset: { x: 0, y: offsetY },
+    color: hexToFigColor(color),
+    blendMode: "NORMAL",
+    showShadowBehindNode: false,
+  };
+}
+
 function solid(hex: string) {
   return {
     type: "SOLID",
@@ -330,6 +488,7 @@ function prototypeAction(action: Action) {
     case "overlay":
     case "scrollTo":
     case "changeTo":
+    case "swap":
       return {
         connectionType: "INTERNAL_NODE",
         transitionNodeID: action.to,
@@ -338,6 +497,7 @@ function prototypeAction(action: Action) {
           overlay: "OVERLAY",
           scrollTo: "SCROLL_TO",
           changeTo: "SWAP_STATE",
+          swap: "SWAP",
         }[action.kind],
         ...transition(action.transition),
       };
@@ -345,6 +505,12 @@ function prototypeAction(action: Action) {
       return { connectionType: "BACK" };
     case "close":
       return { connectionType: "CLOSE" };
+    case "url":
+      return {
+        connectionType: "URL",
+        connectionURL: action.url,
+        openUrlInNewTab: action.newTab ?? true,
+      };
   }
 }
 

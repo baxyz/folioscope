@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Text laid out from fonts (ADR 0011), where the design file stores no glyph outlines: parley
+//! Text laid out from fonts (docs/spec/bake.md), where the design file stores no glyph outlines: parley
 //! shapes the characters and breaks the lines, skrifa gives each glyph's outline, drawn as an SVG
 //! path like the outlines a `.fig` stores.
 
@@ -52,6 +52,42 @@ pub struct Typesetter {
     library: FontLibrary,
     fonts: FontContext,
     layouts: LayoutContext<()>,
+    rich: LayoutContext<usize>,
+}
+
+/// A run of a [`Rich`] text in its own style: bytes `range` of the text.
+#[derive(Debug, Clone)]
+pub struct Span<'t> {
+    pub range: std::ops::Range<usize>,
+    pub family: &'t str,
+    pub weight: f32,
+    pub italic: bool,
+    pub size: f32,
+    pub letter_spacing: f32,
+    pub underline: bool,
+    pub strikethrough: bool,
+}
+
+/// A paragraph whose runs have styles of their own.
+#[derive(Debug, Clone)]
+pub struct Rich<'t> {
+    pub text: &'t str,
+    pub spans: Vec<Span<'t>>,
+    pub line_height: Option<f32>,
+    pub align: Align,
+    pub width: Option<f32>,
+}
+
+/// A [`Rich`] text laid out: one path per span (glyphs, then underline and strikethrough as
+/// rectangles), and the size it takes.
+#[derive(Debug, Clone)]
+pub struct SetRich {
+    pub paths: Vec<String>,
+    pub width: f32,
+    pub height: f32,
+    pub baseline: f32,
+    /// The spans whose family no font answers to: they are not drawn.
+    pub missing: Vec<usize>,
 }
 
 impl Typesetter {
@@ -76,6 +112,7 @@ impl Typesetter {
                 source_cache: SourceCache::default(),
             },
             layouts: LayoutContext::new(),
+            rich: LayoutContext::new(),
         }
     }
 
@@ -166,6 +203,131 @@ impl Typesetter {
             height,
             baseline,
         })
+    }
+}
+
+impl Typesetter {
+    /// Lays out a text whose runs have styles of their own. Runs without a font are left out and
+    /// listed in [`SetRich::missing`].
+    #[must_use]
+    #[allow(clippy::too_many_lines)] // styles in, then one pass over the laid-out runs
+    pub fn set_rich(&mut self, rich: &Rich<'_>) -> SetRich {
+        let mut missing = Vec::new();
+        let families: Vec<Option<String>> = rich
+            .spans
+            .iter()
+            .enumerate()
+            .map(|(i, span)| {
+                let face = self.library.resolve(span.family, span.weight, span.italic);
+                if face.is_none() {
+                    missing.push(i);
+                }
+                face.map(|f| f.family.clone())
+            })
+            .collect();
+        let mut builder = self
+            .rich
+            .ranged_builder(&mut self.fonts, rich.text, 1.0, false);
+        if let Some(height) = rich.line_height {
+            builder.push_default(StyleProperty::LineHeight(LineHeight::Absolute(height)));
+        }
+        // Text no span covers gets an unreachable brush, and is not drawn.
+        builder.push_default(StyleProperty::Brush(usize::MAX));
+        for (i, span) in rich.spans.iter().enumerate() {
+            let range = span.range.clone();
+            let family = families[i].as_deref().unwrap_or(span.family);
+            builder.push(
+                StyleProperty::FontFamily(FontFamily::from(family)),
+                range.clone(),
+            );
+            builder.push(StyleProperty::FontSize(span.size), range.clone());
+            builder.push(
+                StyleProperty::FontWeight(FontWeight::new(span.weight)),
+                range.clone(),
+            );
+            if span.italic {
+                builder.push(StyleProperty::FontStyle(FontStyle::Italic), range.clone());
+            }
+            builder.push(
+                StyleProperty::LetterSpacing(span.letter_spacing),
+                range.clone(),
+            );
+            builder.push(StyleProperty::Underline(span.underline), range.clone());
+            builder.push(
+                StyleProperty::Strikethrough(span.strikethrough),
+                range.clone(),
+            );
+            builder.push(StyleProperty::Brush(i), range);
+        }
+        let mut layout: Layout<usize> = builder.build(rich.text);
+        layout.break_all_lines(rich.width);
+        let alignment = match rich.align {
+            Align::Left => Alignment::Left,
+            Align::Center => Alignment::Center,
+            Align::Right => Alignment::Right,
+            Align::Justify => Alignment::Justify,
+        };
+        layout.align(alignment, AlignmentOptions::default());
+        let mut paths = vec![String::new(); rich.spans.len()];
+        let baseline = layout
+            .lines()
+            .next()
+            .map_or(0.0, |line| line.metrics().baseline);
+        for line in layout.lines() {
+            for item in line.items() {
+                let PositionedLayoutItem::GlyphRun(glyphs) = item else {
+                    continue;
+                };
+                let style = glyphs.style();
+                let index = style.brush;
+                if index >= paths.len() || missing.contains(&index) {
+                    continue;
+                }
+                let run = glyphs.run();
+                let size = run.font_size();
+                let d = &mut paths[index];
+                let data = run.font();
+                if let Ok(font) = FontRef::from_index(data.data.as_ref(), data.index) {
+                    let outlines = font.outline_glyphs();
+                    let coords: Vec<F2Dot14> = run
+                        .normalized_coords()
+                        .iter()
+                        .map(|c| F2Dot14::from_bits(c.to_bits()))
+                        .collect();
+                    let location = LocationRef::new(&coords);
+                    for glyph in glyphs.positioned_glyphs() {
+                        let Some(outline) = outlines.get(GlyphId::new(glyph.id)) else {
+                            continue;
+                        };
+                        let mut pen = SvgPen {
+                            d,
+                            x: glyph.x,
+                            y: glyph.y,
+                        };
+                        let _ = outline
+                            .draw(DrawSettings::unhinted(Size::new(size), location), &mut pen);
+                    }
+                }
+                // Decorations, from the font size: below the baseline, and through the x-height.
+                let (x, width, y) = (glyphs.offset(), glyphs.advance(), glyphs.baseline());
+                let thickness = (size / 14.0).max(1.0);
+                if style.underline.is_some() {
+                    let top = y + size * 0.1;
+                    let _ = write!(d, "M{x} {top}h{width}v{thickness}h{}Z", -width);
+                }
+                if style.strikethrough.is_some() {
+                    let top = y - size * 0.3;
+                    let _ = write!(d, "M{x} {top}h{width}v{thickness}h{}Z", -width);
+                }
+            }
+        }
+        SetRich {
+            paths,
+            width: layout.width(),
+            height: layout.height(),
+            baseline,
+            missing,
+        }
     }
 }
 
@@ -279,6 +441,40 @@ mod tests {
             .unwrap();
         // Three lines of 24 px instead of one.
         assert!(bottom(&wrapped) > bottom(&one_line) + 40.0);
+    }
+
+    #[test]
+    fn rich_text_draws_each_span_with_its_decorations() {
+        let mut typesetter = typesetter();
+        let span = |range, weight, underline| Span {
+            range,
+            family: "Inter",
+            weight,
+            italic: false,
+            size: 16.0,
+            letter_spacing: 0.0,
+            underline,
+            strikethrough: false,
+        };
+        let set = typesetter.set_rich(&Rich {
+            text: "Lunch dinner",
+            spans: vec![
+                span(0..6, 400.0, false),
+                span(6..12, 700.0, true),
+                Span {
+                    family: "Unknown",
+                    ..span(12..12, 400.0, false)
+                },
+            ],
+            line_height: Some(24.0),
+            align: Align::Left,
+            width: None,
+        });
+        assert_eq!(set.paths.len(), 3);
+        assert!(set.paths[0].contains('M') && set.paths[1].contains('M'));
+        // The underline: a rectangle as wide as the run, below its baseline.
+        assert!(set.paths[1].contains('h') && !set.paths[0].contains('h'));
+        assert_eq!(set.missing, [2]);
     }
 
     #[test]

@@ -2,7 +2,8 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { FigmaBuilder } from "./figma.ts";
+import { effect, FigmaBuilder, gradient } from "./figma.ts";
+import { checkerPng } from "./png.ts";
 import { PenpotBuilder } from "./penpot.ts";
 import { SketchBuilder } from "./sketch.ts";
 import { XdBuilder } from "./xd.ts";
@@ -62,6 +63,23 @@ function smartAnimate(): FigmaBuilder {
     transition: { type: "SMART_ANIMATE", durationMs: 400, easing: "INOUT_CUBIC" },
   });
 
+  // A frame whose children move on their own, and an arrow that turns a quarter.
+  const panel = figma.frame(home, "Panel", { x: 24, y: 300, width: 200, height: 120 }, GREY);
+  figma.rect(panel, "Label", { x: 16, y: 16, width: 120, height: 24 }, "#FFFFFF", 4);
+  figma.ellipse(panel, "Dot", { x: 150, y: 60, width: 24, height: 24 }, "#16A34A");
+  figma.rect(home, "Arrow", { x: 280, y: 140, width: 48, height: 8 }, "#111827", 4);
+  const panel2 = figma.frame(details, "Panel", { x: 24, y: 620, width: 327, height: 80 }, GREY);
+  figma.rect(panel2, "Label", { x: 180, y: 28, width: 120, height: 24 }, "#FFFFFF", 4);
+  figma.ellipse(panel2, "Dot", { x: 16, y: 28, width: 24, height: 24 }, "#16A34A");
+  const arrow = figma.rect(
+    details,
+    "Arrow",
+    { x: 340, y: 360, width: 48, height: 8 },
+    "#111827",
+    4,
+  );
+  figma.set(arrow, { transform: { m00: 0, m01: -1, m02: 340, m10: 1, m11: 0, m12: 360 } });
+
   figma.rect(details, "Card", { x: 0, y: 0, width: 375, height: 320 }, BLUE, 0);
   figma.rect(details, "Body", { x: 24, y: 352, width: 327, height: 240 }, GREY, 12);
   const back = figma.rect(details, "Back", { x: 16, y: 56, width: 80, height: 32 }, "#FFFFFF", 16);
@@ -91,6 +109,26 @@ function overlay(): FigmaBuilder {
   }
   const close = figma.rect(menu, "Close", { x: 24, y: 248, width: 232, height: 48 }, BLUE, 24);
   figma.on(close, "ON_CLICK", { kind: "close" });
+
+  // "More" swaps the menu for a taller one, with smart animate: the shared items move.
+  const more = figma.frame(
+    page,
+    "Menu, more",
+    { x: 800, y: 0, width: 280, height: 448 },
+    "#FFFFFF",
+  );
+  figma.overlay(more, { position: "CENTER", closeOnClickOutside: true, backdrop: "#00000066" });
+  for (let i = 0; i < 5; i++) {
+    figma.rect(more, `Item ${i + 1}`, { x: 24, y: 24 + i * 64, width: 232, height: 48 }, GREY, 8);
+  }
+  const less = figma.rect(more, "Close", { x: 24, y: 376, width: 232, height: 48 }, BLUE, 24);
+  figma.on(less, "ON_CLICK", { kind: "close" });
+  const expand = figma.rect(menu, "More", { x: 200, y: 200, width: 56, height: 32 }, "#DBEAFE", 8);
+  figma.on(expand, "ON_CLICK", {
+    kind: "swap",
+    to: more,
+    transition: { type: "SMART_ANIMATE", durationMs: 300 },
+  });
 
   return figma;
 }
@@ -136,6 +174,45 @@ function scroll(): FigmaBuilder {
   figma.fixed(figma.rect(feed, "Header", { x: 0, y: 0, width: 375, height: 96 }, "#FFFFFF"));
   figma.fixed(figma.rect(feed, "Tab bar", { x: 0, y: 728, width: 375, height: 84 }, "#FFFFFF"));
 
+  // A second screen: a carousel that scrolls sideways inside it, and a section title that
+  // sticks at the top once the screen scrolls to it.
+  const gallery = figma.frame(page, "Gallery", { x: 475, y: 0, ...PHONE }, "#FFFFFF");
+  figma.flowStart(gallery, "Gallery flow");
+  figma.scrollable(gallery);
+  const carousel = figma.frame(
+    gallery,
+    "Carousel",
+    { x: 16, y: 96, width: 343, height: 200 },
+    GREY,
+  );
+  figma.scrollable(carousel, "HORIZONTAL");
+  for (let i = 0; i < 5; i++) {
+    const slide = figma.rect(
+      carousel,
+      `Slide ${i + 1}`,
+      { x: i * 216, y: 0, width: 200, height: 200 },
+      i % 2 ? "#DBEAFE" : BLUE,
+      16,
+    );
+    if (i === 4) figma.on(slide, "ON_CLICK", { kind: "navigate", to: feed });
+  }
+  const section = figma.rect(
+    gallery,
+    "Section",
+    { x: 0, y: 320, width: 375, height: 48 },
+    "#111827",
+  );
+  figma.set(section, { scrollBehavior: "STICKY_SCROLLS" });
+  for (let i = 0; i < 8; i++) {
+    figma.rect(
+      gallery,
+      `Row ${i + 1}`,
+      { x: 16, y: 384 + i * 160, width: 343, height: 144 },
+      GREY,
+      12,
+    );
+  }
+
   return figma;
 }
 
@@ -164,6 +241,24 @@ function triggers(): FigmaBuilder {
   const hoveredButton = figma.rect(hovered, "Button", button, "#1D4ED8", 24);
   figma.on(hoveredButton, "ON_PRESS", { kind: "navigate", to: pressed });
   figma.rect(pressed, "Button", button, "#1E3A8A", 24);
+
+  // Shift + right arrow, or a swipe on the card, opens the details; Escape-free back.
+  const details = figma.frame(page, "Details", { x: 1900, y: 0, ...PHONE }, "#F9FAFB");
+  figma.on(
+    home,
+    "ON_KEY_DOWN",
+    { kind: "navigate", to: details, transition: { type: "SLIDE_FROM_RIGHT", durationMs: 300 } },
+    0,
+    [16, 39],
+  );
+  const card = figma.rect(home, "Swipe card", { x: 24, y: 160, width: 327, height: 200 }, GREY, 16);
+  figma.on(card, "DRAG", {
+    kind: "navigate",
+    to: details,
+    transition: { type: "SLIDE_FROM_RIGHT", durationMs: 300 },
+  });
+  const back = figma.rect(details, "Back", { x: 16, y: 56, width: 80, height: 32 }, GREY, 8);
+  figma.on(back, "ON_CLICK", { kind: "back" });
 
   return figma;
 }
@@ -211,13 +306,94 @@ function components(): FigmaBuilder {
   const on = figma.variant(switches, "On=true", { x: 24, y: 72, ...track }, "#16A34A", 18);
   figma.rect(on, "Knob", knob(32), "#FFFFFF", 14);
   const toggle = { type: "DISSOLVE", durationMs: 200 } as const;
-  figma.on(off, "ON_CLICK", { kind: "changeTo", to: on, transition: toggle });
-  figma.on(on, "ON_CLICK", { kind: "changeTo", to: off, transition: toggle });
+  // The switch's knob slides from one state to the other: smart animate between states.
+  const slide = { type: "SMART_ANIMATE", durationMs: 200 } as const;
+  figma.on(off, "ON_CLICK", { kind: "changeTo", to: on, transition: slide });
+  figma.on(on, "ON_CLICK", { kind: "changeTo", to: off, transition: slide });
+
+  // A card that expands on click, with a switch inside its expanded state: an interactive
+  // component nested in another's state.
+  const card = { width: 327, height: 120 };
+  const cards = figma.componentSet(
+    library,
+    "Card",
+    { x: 0, y: 240, width: 375, height: 312 },
+    "Open",
+    ["false", "true"],
+  );
+  const closed = figma.variant(cards, "Open=false", { x: 24, y: 24, ...card }, GREY, 16);
+  const opened = figma.variant(cards, "Open=true", { x: 24, y: 168, ...card }, "#DBEAFE", 16);
+  figma.on(closed, "ON_CLICK", { kind: "changeTo", to: opened, transition: toggle });
+  const fold = figma.rect(opened, "Fold", { x: 16, y: 16, width: 120, height: 32 }, BLUE, 8);
+  figma.on(fold, "ON_CLICK", { kind: "changeTo", to: closed, transition: toggle });
+  figma.instance(opened, off, "Inner switch", { x: 247, y: 68, ...track });
+
+  // A toast that hides itself after a delay: "after delay" inside a state.
+  const toasts = figma.componentSet(
+    library,
+    "Toast",
+    { x: 400, y: 240, width: 280, height: 168 },
+    "Shown",
+    ["true", "false"],
+  );
+  const shown = figma.variant(
+    toasts,
+    "Shown=true",
+    { x: 24, y: 24, width: 232, height: 48 },
+    "#111827",
+    12,
+  );
+  const hidden = figma.variant(
+    toasts,
+    "Shown=false",
+    { x: 24, y: 96, width: 232, height: 48 },
+    "#FFFFFF",
+    12,
+  );
+  figma.on(shown, "AFTER_TIMEOUT", { kind: "changeTo", to: hidden, transition: toggle }, 1000);
+
+  // A chip whose label the instance changes: in its other state, laid out again around the
+  // longer label (auto layout that hugs its content). The label is 16 px Inter, 19 px tall.
+  const chips = figma.componentSet(
+    library,
+    "Chip",
+    { x: 700, y: 0, width: 160, height: 132 },
+    "Selected",
+    ["false", "true"],
+  );
+  // The selected chip has more room around its label: another size than the one shown.
+  const chip = (y: number, padding: number, fill: string, color: string) => {
+    const variant = figma.variant(
+      chips,
+      `Selected=${y > 24}`,
+      { x: 24, y, width: 38 + 2 * padding, height: 35 },
+      fill,
+      18,
+    );
+    figma.row(variant, [padding, 8]);
+    const box = { x: padding, y: 8, width: 38, height: 19 };
+    return [variant, figma.text(variant, "Label", box, "Chip", color)];
+  };
+  const [unselected, label] = chip(24, 16, GREY, "#111827");
+  const [selected] = chip(72, 20, BLUE, "#FFFFFF");
+  figma.on(unselected!, "ON_CLICK", { kind: "changeTo", to: selected!, transition: toggle });
+  figma.on(selected!, "ON_CLICK", { kind: "changeTo", to: unselected!, transition: toggle });
 
   const home = figma.frame(page, "Home", { x: 0, y: 0, ...PHONE });
   figma.flowStart(home, "Components flow");
+  // Figma would store the instance's size and glyphs after laying out the override: the
+  // generator cannot, so the size is the label's width in Inter (160 px) plus the padding.
+  const filter = figma.instance(home, unselected!, "Filter", {
+    x: 24,
+    y: 300,
+    width: 192,
+    height: 35,
+  });
+  figma.overrideText(filter, label!, "Only the open tickets");
   figma.instance(home, idle, "Button", { x: 88, y: 640, ...size });
   figma.instance(home, off, "Switch", { x: 156, y: 400, ...track });
+  figma.instance(home, closed, "Card", { x: 24, y: 120, ...card });
+  figma.instance(home, shown, "Toast", { x: 72, y: 720, width: 232, height: 48 });
 
   return figma;
 }
@@ -264,6 +440,89 @@ function flowsAndPages(): FigmaBuilder {
   return figma;
 }
 
+/**
+ * The `.fig` drawing features, and an "open link" action: linear, radial, angular and diamond
+ * gradients, drop and inner shadows, a layer blur, a background blur, a blend mode.
+ */
+function figmaFeatures(): FigmaBuilder {
+  const figma = new FigmaBuilder();
+  const page = figma.page("Prototype");
+  const home = figma.frame(page, "Home", { x: 0, y: 0, ...PHONE });
+  figma.flowStart(home, "Features");
+
+  const kinds = ["GRADIENT_LINEAR", "GRADIENT_RADIAL", "GRADIENT_ANGULAR", "GRADIENT_DIAMOND"];
+  kinds.forEach((kind, i) => {
+    const node = figma.rect(home, kind, { x: 16 + i * 88, y: 24, width: 80, height: 80 }, BLUE, 8);
+    figma.set(node, { fillPaints: [gradient(kind, "#2563EB", "#F59E0B")] });
+  });
+  const drop = figma.rect(
+    home,
+    "Drop shadow",
+    { x: 16, y: 136, width: 160, height: 96 },
+    "#FFFFFF",
+    12,
+  );
+  figma.set(drop, {
+    effects: [effect("DROP_SHADOW", 12, 4), effect("DROP_SHADOW", 2, 1, "#0000001A")],
+  });
+  const inner = figma.rect(
+    home,
+    "Inner shadow",
+    { x: 199, y: 136, width: 160, height: 96 },
+    GREY,
+    12,
+  );
+  figma.set(inner, { effects: [effect("INNER_SHADOW", 8, 4, "#00000066")] });
+  const blurred = figma.ellipse(home, "Layer blur", { x: 16, y: 264, width: 96, height: 96 }, BLUE);
+  figma.set(blurred, { effects: [effect("FOREGROUND_BLUR", 8)] });
+  for (let i = 0; i < 9; i++) {
+    const color = i % 2 ? "#F59E0B" : "#1E3A8A";
+    figma.rect(home, `Stripe ${i + 1}`, { x: 136 + i * 25, y: 264, width: 25, height: 96 }, color);
+  }
+  const glass = figma.rect(
+    home,
+    "Frosted glass",
+    { x: 160, y: 288, width: 176, height: 48 },
+    "#FFFFFF66",
+    12,
+  );
+  figma.set(glass, { effects: [effect("BACKGROUND_BLUR", 16)] });
+  figma.ellipse(home, "Under", { x: 100, y: 392, width: 120, height: 120 }, "#3B82F6");
+  const multiply = figma.ellipse(
+    home,
+    "Multiply",
+    { x: 40, y: 392, width: 120, height: 120 },
+    "#F59E0B",
+  );
+  figma.set(multiply, { blendMode: "MULTIPLY" });
+
+  // A mask (an ellipse, by its alpha) over a rectangle; images tiled and cropped.
+  const masked = figma.frame(
+    home,
+    "Masked",
+    { x: 240, y: 392, width: 120, height: 120 },
+    "#FFFFFF",
+  );
+  const lens = figma.ellipse(masked, "Lens", { x: 0, y: 0, width: 120, height: 120 }, "#000000");
+  figma.set(lens, { mask: true, maskType: "ALPHA" });
+  figma.rect(masked, "Behind the lens", { x: 0, y: 0, width: 120, height: 120 }, "#EC4899");
+  const checker = checkerPng(8, 2, { r: 0.15, g: 0.39, b: 0.92 }, { r: 1, g: 1, b: 1 });
+  const tiled = figma.rect(home, "Tiled", { x: 16, y: 536, width: 160, height: 80 }, GREY);
+  figma.set(tiled, { fillPaints: [figma.imagePaint(checker, 16, 16, "TILE", { scale: 1 })] });
+  const cropped = figma.rect(home, "Cropped", { x: 199, y: 536, width: 160, height: 80 }, GREY);
+  figma.set(cropped, {
+    fillPaints: [
+      figma.imagePaint(checker, 16, 16, "STRETCH", {
+        transform: { m00: 0.5, m01: 0, m02: 0, m10: 0, m11: 0.5, m12: 0 },
+      }),
+    ],
+  });
+
+  const site = figma.rect(home, "Website", { x: 88, y: 640, width: 200, height: 48 }, BLUE, 24);
+  figma.on(site, "ON_CLICK", { kind: "url", url: "https://folioscope.baxyz.dev" });
+  return figma;
+}
+
 /** The `.sketch` twin of `navigation`, shaped like a converter's output that Lunacy plays. */
 function sketchNavigation(): SketchBuilder {
   const sketch = new SketchBuilder();
@@ -285,6 +544,142 @@ function sketchNavigation(): SketchBuilder {
   const back = sketch.rect(details, "Back", { x: 16, y: 56, width: 80, height: 32 }, GREY, 8);
   sketch.link(back, "back");
 
+  return sketch;
+}
+
+/**
+ * Every Sketch scenario in one file: two pages, a start point on each, links with slides and back;
+ * and the drawing features: linear and radial gradients, a drop shadow, a bitmap, a mask.
+ */
+function sketchFeatures(): SketchBuilder {
+  const sketch = new SketchBuilder();
+  const page = sketch.page("Prototype");
+  const home = sketch.artboard(page, "Home", { x: 0, y: 0, ...PHONE });
+  const details = sketch.artboard(page, "Details", { x: 475, y: 0, ...PHONE }, "#F9FAFB");
+  sketch.flowHome(home);
+
+  const banner = sketch.rect(home, "Banner", { x: 0, y: 0, width: 375, height: 160 }, BLUE);
+  sketch.gradient(banner, 0, "#2563EB", "#7C3AED");
+  const glow = sketch.oval(home, "Glow", { x: 24, y: 184, width: 96, height: 96 }, "#F59E0B");
+  sketch.gradient(glow, 1, "#FDE68A", "#F59E0B");
+  const card = sketch.rect(home, "Card", { x: 144, y: 184, width: 207, height: 96 }, "#FFFFFF", 12);
+  sketch.shadow(card, 4, 12, "#00000040");
+  sketch.bitmap(
+    home,
+    "Photo",
+    { x: 24, y: 304, width: 120, height: 80 },
+    { r: 0.9, g: 0.3, b: 0.3 },
+  );
+  const avatar = sketch.group(home, "Avatar", { x: 168, y: 304, width: 64, height: 64 });
+  sketch.mask(sketch.oval(avatar, "Circle mask", { x: 0, y: 0, width: 64, height: 64 }, "#000000"));
+  sketch.rect(avatar, "Square", { x: 0, y: 0, width: 64, height: 64 }, "#EC4899");
+  const spin = sketch.oval(home, "Angular", { x: 256, y: 304, width: 64, height: 64 }, BLUE);
+  sketch.gradient(spin, 2, "#2563EB", "#F59E0B");
+  const inner = sketch.rect(
+    home,
+    "Inner shadow",
+    { x: 24, y: 400, width: 96, height: 64 },
+    GREY,
+    12,
+  );
+  sketch.innerShadow(inner, 4, 8, "#00000066");
+  const blurred = sketch.oval(home, "Layer blur", { x: 136, y: 400, width: 64, height: 64 }, BLUE);
+  sketch.blur(blurred, 0, 4);
+  for (let i = 0; i < 6; i++) {
+    const stripe = { x: 216 + i * 22, y: 400, width: 22, height: 64 };
+    sketch.rect(home, `Stripe ${i + 1}`, stripe, i % 2 ? "#F59E0B" : "#1E3A8A");
+  }
+  const glass = sketch.rect(
+    home,
+    "Frosted glass",
+    { x: 228, y: 412, width: 108, height: 40 },
+    "#FFFFFF66",
+    8,
+  );
+  sketch.blur(glass, 3, 8);
+  sketch.rect(home, "Under", { x: 24, y: 488, width: 64, height: 64 }, "#3B82F6");
+  const multiply = sketch.oval(
+    home,
+    "Multiply",
+    { x: 56, y: 488, width: 64, height: 64 },
+    "#F59E0B",
+  );
+  sketch.blend(multiply, 2);
+  const inside = sketch.rect(
+    home,
+    "Inside border",
+    { x: 144, y: 488, width: 64, height: 64 },
+    "#FFFFFF",
+    8,
+  );
+  sketch.border(inside, "#111827", 4, 1);
+  const outside = sketch.rect(
+    home,
+    "Outside border",
+    { x: 232, y: 488, width: 64, height: 64 },
+    "#FFFFFF",
+    8,
+  );
+  sketch.border(outside, "#111827", 4, 2);
+  const faded = sketch.group(home, "Faded", { x: 312, y: 488, width: 48, height: 64 });
+  const fade = sketch.rect(faded, "Fade mask", { x: 0, y: 0, width: 48, height: 64 }, "#000000");
+  sketch.gradient(fade, 0, "#000000FF", "#00000000");
+  sketch.alphaMask(fade);
+  sketch.rect(faded, "Faded square", { x: 0, y: 0, width: 48, height: 64 }, "#EC4899");
+  const tiles = sketch.rect(home, "Tiles", { x: 256, y: 160, width: 96, height: 16 }, GREY);
+  sketch.imageFill(
+    tiles,
+    checkerPng(4, 2, { r: 0.15, g: 0.39, b: 0.92 }, { r: 1, g: 1, b: 1 }),
+    0,
+    1,
+  );
+  sketch.richText(home, "Rich text", { x: 24, y: 576, width: 320, height: 48 }, [
+    { text: "Plain, ", font: "Inter-Regular", size: 18, fill: "#111827" },
+    { text: "bold blue", font: "Inter-Bold", size: 18, fill: "#2563EB", underline: true },
+    { text: ", struck", font: "Inter-Regular", size: 18, fill: "#6B7280", strike: true },
+  ]);
+
+  const open = sketch.rect(
+    home,
+    "Open details",
+    { x: 88, y: 640, width: 200, height: 48 },
+    BLUE,
+    24,
+  );
+  sketch.link(open, details, "slideFromRight");
+  const back = sketch.rect(details, "Back", { x: 16, y: 56, width: 80, height: 32 }, GREY, 8);
+  sketch.link(back, "back", "slideFromLeft");
+
+  const second = sketch.page("Second page");
+  const about = sketch.artboard(second, "About", { x: 0, y: 0, ...PHONE });
+  sketch.flowHome(about);
+  sketch.rect(about, "Logo", { x: 138, y: 300, width: 100, height: 100 }, BLUE, 50);
+  return sketch;
+}
+
+/** An artboard taller than its viewport: it scrolls under a fixed header; a link at the bottom. */
+function sketchScroll(): SketchBuilder {
+  const sketch = new SketchBuilder();
+  const page = sketch.page("Prototype");
+  const feed = sketch.artboard(page, "Feed", { x: 0, y: 0, width: 375, height: 1600 }, "#F9FAFB");
+  const details = sketch.artboard(page, "Details", { x: 475, y: 0, ...PHONE });
+  sketch.viewport(feed, "iPhone", 375, 812);
+  sketch.flowHome(feed);
+  for (let i = 0; i < 6; i++) {
+    const card = { x: 16, y: 112 + i * 240, width: 343, height: 216 };
+    sketch.rect(feed, `Card ${i + 1}`, card, i % 2 ? GREY : "#DBEAFE", 16);
+  }
+  sketch.fixed(sketch.rect(feed, "Header", { x: 0, y: 0, width: 375, height: 96 }, BLUE));
+  const open = sketch.rect(
+    feed,
+    "Open details",
+    { x: 88, y: 1520, width: 200, height: 48 },
+    BLUE,
+    24,
+  );
+  sketch.link(open, details, "slideFromRight");
+  const back = sketch.rect(details, "Back", { x: 16, y: 56, width: 80, height: 32 }, GREY, 8);
+  sketch.link(back, "back", "slideFromLeft");
   return sketch;
 }
 
@@ -337,6 +732,425 @@ function penpotNavigation(): PenpotBuilder {
   );
   penpot.back(back);
 
+  return penpot;
+}
+
+/**
+ * Every Penpot scenario in one file: two pages and three flows; a splash that leaves after a
+ * delay; click, press and hover (mouse enter and leave); overlays centred, manual and toggled,
+ * closed from inside; a link; and the drawing features: linear and radial gradients, a drop
+ * shadow, a path, an image, a masked group, dashed strokes, and text in two weights.
+ */
+function penpotFeatures(): PenpotBuilder {
+  const penpot = new PenpotBuilder("Features");
+  const page = penpot.page("Prototype");
+  const splash = penpot.board(page, "Splash", { x: 0, y: 0, ...PHONE }, "#1E3A8A");
+  const home = penpot.board(page, "Home", { x: 475, y: 0, ...PHONE });
+  const details = penpot.board(page, "Details", { x: 950, y: 0, ...PHONE }, "#F9FAFB");
+  const menu = penpot.board(page, "Menu", { x: 1425, y: 0, width: 280, height: 320 });
+  const tip = penpot.board(page, "Tip", { x: 1425, y: 400, width: 200, height: 80 }, "#111827");
+  penpot.flow(page, splash, "Main flow");
+  penpot.flow(page, home, "Skip the splash");
+
+  penpot.interact(splash, {
+    eventType: "after-delay",
+    delay: 1500,
+    actionType: "navigate",
+    destination: home.id,
+    animation: { animationType: "dissolve", duration: 300, easing: "ease-in-out" },
+  });
+
+  // Drawing.
+  penpot.shape(
+    page,
+    home,
+    "Banner",
+    "rect",
+    { x: 475, y: 0, width: 375, height: 160 },
+    {
+      fills: [
+        {
+          fillOpacity: 1,
+          fillColorGradient: {
+            type: "linear",
+            startX: 0,
+            startY: 0.5,
+            endX: 1,
+            endY: 0.5,
+            width: 1,
+            stops: [
+              { color: "#2563EB", opacity: 1, offset: 0 },
+              { color: "#7C3AED", opacity: 1, offset: 1 },
+            ],
+          },
+        },
+      ],
+    },
+  );
+  penpot.shape(
+    page,
+    home,
+    "Glow",
+    "circle",
+    { x: 499, y: 184, width: 96, height: 96 },
+    {
+      fills: [
+        {
+          fillOpacity: 1,
+          fillColorGradient: {
+            type: "radial",
+            startX: 0.5,
+            startY: 0.5,
+            endX: 1,
+            endY: 0.5,
+            width: 1,
+            stops: [
+              { color: "#FDE68A", opacity: 1, offset: 0 },
+              { color: "#F59E0B", opacity: 1, offset: 1 },
+            ],
+          },
+        },
+      ],
+    },
+  );
+  penpot.shape(
+    page,
+    home,
+    "Card",
+    "rect",
+    { x: 619, y: 184, width: 207, height: 96 },
+    {
+      r1: 12,
+      r2: 12,
+      r3: 12,
+      r4: 12,
+      shadow: [
+        {
+          id: "s",
+          style: "drop-shadow",
+          offsetX: 0,
+          offsetY: 4,
+          blur: 12,
+          spread: 0,
+          hidden: false,
+          color: { color: "#000000", opacity: 0.25 },
+        },
+      ],
+      strokes: [
+        {
+          strokeColor: "#9CA3AF",
+          strokeOpacity: 1,
+          strokeWidth: 2,
+          strokeStyle: "dashed",
+          strokeAlignment: "center",
+        },
+      ],
+    },
+  );
+  penpot.shape(
+    page,
+    home,
+    "Arrow",
+    "path",
+    { x: 499, y: 304, width: 48, height: 48 },
+    {
+      content: [
+        { command: "move-to", params: { x: 499, y: 304 } },
+        { command: "line-to", params: { x: 547, y: 328 } },
+        { command: "line-to", params: { x: 499, y: 352 } },
+        { command: "close-path", params: {} },
+      ],
+      fills: [{ fillColor: "#10B981", fillOpacity: 1 }],
+    },
+  );
+  penpot.image(
+    page,
+    home,
+    "Photo",
+    { x: 571, y: 304, width: 120, height: 80 },
+    { r: 0.9, g: 0.3, b: 0.3 },
+  );
+  const masked = penpot.shape(
+    page,
+    home,
+    "Avatar",
+    "group",
+    { x: 715, y: 304, width: 64, height: 64 },
+    {
+      maskedGroup: true,
+      fills: [],
+    },
+  );
+  // The mask is the group's first shape, at the bottom of the list: added last.
+  penpot.shape(
+    page,
+    masked,
+    "Square",
+    "rect",
+    { x: 715, y: 304, width: 64, height: 64 },
+    {
+      fills: [{ fillColor: "#EC4899", fillOpacity: 1 }],
+    },
+  );
+  penpot.shape(page, masked, "Circle mask", "circle", { x: 715, y: 304, width: 64, height: 64 });
+  // Effects: inner shadow, layer blur, blend mode, inside and outside strokes, a path stored as
+  // SVG path data, and an imported SVG element (svg-raw).
+  penpot.shape(
+    page,
+    home,
+    "Inner",
+    "rect",
+    { x: 499, y: 480, width: 64, height: 48 },
+    {
+      fills: [{ fillColor: "#E5E7EB", fillOpacity: 1 }],
+      shadow: [
+        {
+          id: "i",
+          style: "inner-shadow",
+          offsetX: 0,
+          offsetY: 4,
+          blur: 8,
+          spread: 0,
+          hidden: false,
+          color: { color: "#000000", opacity: 0.4 },
+        },
+      ],
+    },
+  );
+  penpot.shape(
+    page,
+    home,
+    "Blurred",
+    "circle",
+    { x: 579, y: 480, width: 48, height: 48 },
+    {
+      fills: [{ fillColor: "#2563EB", fillOpacity: 1 }],
+      blur: { id: "b", type: "layer-blur", value: 4, hidden: false },
+    },
+  );
+  penpot.shape(
+    page,
+    home,
+    "Screen",
+    "circle",
+    { x: 611, y: 480, width: 48, height: 48 },
+    {
+      fills: [{ fillColor: "#F59E0B", fillOpacity: 1 }],
+      blendMode: "screen",
+    },
+  );
+  penpot.shape(
+    page,
+    home,
+    "Inner stroke",
+    "rect",
+    { x: 675, y: 480, width: 48, height: 48 },
+    {
+      strokes: [
+        { strokeColor: "#111827", strokeOpacity: 1, strokeWidth: 4, strokeAlignment: "inner" },
+      ],
+    },
+  );
+  penpot.shape(
+    page,
+    home,
+    "Outer stroke",
+    "rect",
+    { x: 739, y: 480, width: 48, height: 48 },
+    {
+      strokes: [
+        {
+          strokeColor: "#111827",
+          strokeOpacity: 1,
+          strokeWidth: 4,
+          strokeAlignment: "outer",
+          strokeCapStart: "round",
+          strokeCapEnd: "round",
+        },
+      ],
+    },
+  );
+  penpot.shape(
+    page,
+    home,
+    "Check",
+    "path",
+    { x: 803, y: 480, width: 32, height: 24 },
+    {
+      content: "M803.0,492.0L813.0,502.0L835.0,480.0",
+      fills: [],
+      strokes: [
+        {
+          strokeColor: "#10B981",
+          strokeOpacity: 1,
+          strokeWidth: 3,
+          strokeCapStart: "round",
+          strokeCapEnd: "round",
+        },
+      ],
+    },
+  );
+  const svgText = penpot.shape(
+    page,
+    home,
+    "svg-text",
+    "svg-raw",
+    { x: 475, y: 0, width: 375, height: 812 },
+    {
+      svgViewbox: { x: 0, y: 0, width: 375, height: 812, x1: 0, y1: 0, x2: 375, y2: 812 },
+      content: {
+        tag: "text",
+        attrs: {
+          x: "24",
+          y: "548",
+          fontFamily: "Inter, sans-serif",
+          fontSize: "14",
+          fill: "#6B7280",
+        },
+        content: ["Imported SVG text"],
+      },
+      fills: [{ fillColor: "#6B7280" }],
+    },
+  );
+  penpot.shape(
+    page,
+    svgText,
+    "Imported SVG text",
+    "svg-raw",
+    { x: 475, y: 0, width: 375, height: 812 },
+    {
+      content: "Imported SVG text",
+    },
+  );
+  penpot.shape(
+    page,
+    home,
+    "svg-path",
+    "svg-raw",
+    { x: 475, y: 0, width: 375, height: 812 },
+    {
+      svgViewbox: { x: 0, y: 0, width: 375, height: 812, x1: 0, y1: 0, x2: 375, y2: 812 },
+      content: {
+        tag: "rect",
+        attrs: { x: "300", y: "536", width: "40", height: "16", rx: "4", fill: "#EC4899" },
+      },
+    },
+  );
+  penpot.text(page, home, "Title", { x: 499, y: 400, width: 327, height: 80 }, [
+    { text: "Hello Inter", family: "Inter", size: 24, color: "#111827" },
+    {
+      text: "Bold and blue",
+      family: '"Inter"',
+      weight: 700,
+      size: 18,
+      color: "#2563EB",
+      decoration: "underline",
+    },
+  ]);
+
+  // Prototype.
+  const open = penpot.rect(
+    page,
+    home,
+    "Open details",
+    { x: 563, y: 560, width: 200, height: 48 },
+    BLUE,
+    24,
+  );
+  penpot.navigate(open, details, {
+    animationType: "slide",
+    duration: 300,
+    easing: "ease-out",
+    way: "in",
+    direction: "left",
+  });
+  const hold = penpot.rect(
+    page,
+    home,
+    "Hold me",
+    { x: 563, y: 624, width: 200, height: 48 },
+    GREY,
+    24,
+  );
+  penpot.interact(hold, {
+    eventType: "mouse-press",
+    actionType: "navigate",
+    destination: details.id,
+  });
+  const hover = penpot.rect(
+    page,
+    home,
+    "Hover me",
+    { x: 563, y: 688, width: 200, height: 48 },
+    GREY,
+    24,
+  );
+  penpot.interact(hover, {
+    eventType: "mouse-enter",
+    actionType: "open-overlay",
+    destination: tip.id,
+    overlayPosType: "manual",
+    overlayPosition: { x: 0, y: -96 },
+    closeClickOutside: false,
+    positionRelativeTo: hover.id,
+  });
+  penpot.interact(hover, {
+    eventType: "mouse-leave",
+    actionType: "close-overlay",
+    destination: tip.id,
+  });
+  const more = penpot.rect(
+    page,
+    home,
+    "Menu button",
+    { x: 795, y: 40, width: 40, height: 40 },
+    GREY,
+    20,
+  );
+  penpot.interact(more, {
+    eventType: "click",
+    actionType: "toggle-overlay",
+    destination: menu.id,
+    overlayPosType: "center",
+    closeClickOutside: true,
+    backgroundOverlay: true,
+  });
+  const site = penpot.rect(
+    page,
+    home,
+    "Website",
+    { x: 563, y: 752, width: 200, height: 32 },
+    GREY,
+    8,
+  );
+  penpot.interact(site, {
+    eventType: "click",
+    actionType: "open-url",
+    url: "https://folioscope.baxyz.dev",
+  });
+  const close = penpot.rect(
+    page,
+    menu,
+    "Close",
+    { x: 1449, y: 248, width: 232, height: 48 },
+    BLUE,
+    24,
+  );
+  penpot.interact(close, { eventType: "click", actionType: "close-overlay", destination: menu.id });
+  const back = penpot.rect(
+    page,
+    details,
+    "Back",
+    { x: 966, y: 56, width: 80, height: 32 },
+    GREY,
+    8,
+  );
+  penpot.back(back);
+
+  const second = penpot.page("Second page");
+  const about = penpot.board(second, "About", { x: 0, y: 0, ...PHONE });
+  penpot.flow(second, about, "About flow");
+  penpot.rect(second, about, "Logo", { x: 138, y: 300, width: 100, height: 100 }, BLUE, 50);
   return penpot;
 }
 
@@ -397,6 +1211,90 @@ function xdOverlay(): XdBuilder {
   return xd;
 }
 
+/**
+ * Every XD scenario in one file: a splash that leaves after a delay, taps with slides and
+ * auto-animate, an overlay; and the drawing features: linear and radial gradients, a drop
+ * shadow, an image fill, a clip path.
+ */
+function xdFeatures(): XdBuilder {
+  const xd = new XdBuilder("Features");
+  const splash = xd.artboard("Splash", { x: 0, y: 0, ...PHONE }, "#1E3A8A");
+  const home = xd.artboard("Home", { x: 475, y: 0, ...PHONE });
+  const details = xd.artboard("Details", { x: 950, y: 0, ...PHONE }, "#F9FAFB");
+  xd.start(splash);
+  xd.link(splash, home, { trigger: "time", delay: 1.5, transition: "dissolve" });
+
+  const banner = xd.rect(home, "Banner", { x: 0, y: 0, width: 375, height: 160 }, BLUE);
+  xd.style(banner, { fill: xd.gradientFill("linear", "#2563EB", "#7C3AED") });
+  const glow = xd.circle(home, "Glow", { x: 24, y: 184, width: 96, height: 96 }, "#F59E0B");
+  xd.style(glow, { fill: xd.gradientFill("radial", "#FDE68A", "#F59E0B") });
+  const card = xd.rect(home, "Card", { x: 144, y: 184, width: 207, height: 96 }, "#FFFFFF", 12);
+  xd.style(card, xd.dropShadow(4, 12, "#000000", 0.25));
+  xd.image(home, "Photo", { x: 24, y: 304, width: 120, height: 80 }, { r: 0.9, g: 0.3, b: 0.3 });
+  xd.clippedCircle(home, "Avatar", { x: 168, y: 304, width: 64, height: 64 }, "#EC4899");
+  // Effects: an object blur, a background blur over stripes, a blend mode, an image fit whole,
+  // and underlined text.
+  const blurred = xd.circle(home, "Object blur", { x: 256, y: 304, width: 64, height: 64 }, BLUE);
+  xd.style(blurred, {
+    filters: [
+      { type: "uxdesign#blur", visible: true, params: { blurAmount: 4, backgroundEffect: false } },
+    ],
+  });
+  for (let i = 0; i < 6; i++) {
+    const stripe = { x: 24 + i * 22, y: 400, width: 22, height: 64 };
+    xd.rect(home, `Stripe ${i + 1}`, stripe, i % 2 ? "#F59E0B" : "#1E3A8A");
+  }
+  const glass = xd.rect(
+    home,
+    "Frosted glass",
+    { x: 36, y: 412, width: 108, height: 40 },
+    "#FFFFFF",
+    8,
+  );
+  xd.style(glass, {
+    opacity: 0.6,
+    filters: [
+      {
+        type: "uxdesign#blur",
+        visible: true,
+        params: { blurAmount: 8, brightnessAmount: 0, fillOpacity: 0.4, backgroundEffect: true },
+      },
+    ],
+  });
+  xd.rect(home, "Under", { x: 176, y: 400, width: 64, height: 64 }, "#3B82F6");
+  const multiply = xd.circle(
+    home,
+    "Multiply",
+    { x: 208, y: 400, width: 64, height: 64 },
+    "#F59E0B",
+  );
+  xd.style(multiply, { blendMode: "multiply" });
+  const fit = xd.image(
+    home,
+    "Fit",
+    { x: 288, y: 400, width: 64, height: 32 },
+    { r: 0.2, g: 0.6, b: 0.3 },
+  );
+  const fill = (fit.style as { fill: { pattern: { meta: { ux: Record<string, unknown> } } } }).fill;
+  fill.pattern.meta.ux.scaleBehavior = "fit";
+  const label = xd.text(home, "Underlined", { x: 24, y: 520 }, "Underlined Inter", {
+    family: "Inter",
+    style: "Regular",
+    size: 18,
+  });
+  const ranged = (label.meta as { ux: { rangedStyles: Record<string, unknown>[] } }).ux
+    .rangedStyles;
+  ranged[0]!.underline = true;
+
+  const open = xd.rect(home, "Open details", { x: 88, y: 640, width: 200, height: 48 }, BLUE, 24);
+  xd.link(open, details, { action: "auto-animate", easing: "ease-in-out", duration: 0.4 });
+  const peek = xd.rect(home, "Peek", { x: 88, y: 720, width: 200, height: 32 }, GREY, 16);
+  xd.link(peek, details, { trigger: "hover", transition: "dissolve" });
+  const back = xd.rect(details, "Back", { x: 16, y: 56, width: 80, height: 32 }, GREY, 8);
+  xd.link(back, home, { action: "previous-artboard" });
+  return xd;
+}
+
 /** Text in Inter, which an `.xd` does not carry: a bake draws nothing without the font. */
 function xdText(): XdBuilder {
   const xd = new XdBuilder("Text");
@@ -418,13 +1316,18 @@ const fixtures: Record<string, () => { toBytes(): Uint8Array }> = {
   "figma/scroll.fig": scroll,
   "figma/triggers.fig": triggers,
   "figma/flows-and-pages.fig": flowsAndPages,
+  "figma/features.fig": figmaFeatures,
   "sketch/navigation.sketch": sketchNavigation,
   "sketch/text.sketch": sketchText,
+  "sketch/features.sketch": sketchFeatures,
+  "sketch/scroll.sketch": sketchScroll,
   "penpot/navigation.penpot": penpotNavigation,
+  "penpot/features.penpot": penpotFeatures,
   "xd/navigation.xd": xdNavigation,
   "xd/overlay.xd": xdOverlay,
   "xd/scroll.xd": xdScroll,
   "xd/text.xd": xdText,
+  "xd/features.xd": xdFeatures,
 };
 
 for (const [path, build] of Object.entries(fixtures)) {

@@ -1,5 +1,5 @@
 ---
-source: crates/folioscope-core/tests/figma.rs
+source: crates/folioscope/tests/figma.rs
 expression: "serde_json::to_string_pretty(&ir).unwrap()"
 ---
 {
@@ -12,6 +12,10 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
         {
           "name": "Scroll flow",
           "start": "1:1"
+        },
+        {
+          "name": "Gallery flow",
+          "start": "1:17"
         }
       ],
       "frames": [
@@ -76,6 +80,80 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
               "1:16"
             ]
           }
+        },
+        {
+          "id": "1:17",
+          "name": "Gallery",
+          "bounds": {
+            "x": 475.0,
+            "y": 0.0,
+            "width": 375.0,
+            "height": 812.0
+          },
+          "hotspots": [
+            {
+              "node": "1:23",
+              "name": "Slide 5",
+              "bounds": {
+                "x": 864.0,
+                "y": 0.0,
+                "width": 200.0,
+                "height": 200.0
+              },
+              "interactions": [
+                {
+                  "trigger": {
+                    "type": "click"
+                  },
+                  "action": {
+                    "type": "navigate",
+                    "to": "1:1",
+                    "transition": {
+                      "kind": {
+                        "type": "instant"
+                      },
+                      "durationMs": 0,
+                      "easing": {
+                        "type": "easeOut"
+                      }
+                    }
+                  }
+                }
+              ],
+              "scroller": "1:18"
+            }
+          ],
+          "scroll": {
+            "direction": "vertical",
+            "content": {
+              "x": 0.0,
+              "y": 0.0,
+              "width": 375.0,
+              "height": 1648.0
+            },
+            "sticky": [
+              "1:25"
+            ]
+          },
+          "scrollers": [
+            {
+              "id": "1:18",
+              "name": "Carousel",
+              "bounds": {
+                "x": 16.0,
+                "y": 96.0,
+                "width": 343.0,
+                "height": 200.0
+              },
+              "direction": "horizontal",
+              "content": {
+                "x": 0.0,
+                "y": 0.0,
+                "width": 1064.0,
+                "height": 200.0
+              }
+            }
+          ]
         }
       ]
     }

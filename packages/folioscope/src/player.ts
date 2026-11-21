@@ -2,6 +2,7 @@
 import { FolioscopePlayer, TAG_NAME } from "./element.ts";
 
 export { FolioscopePlayer, TAG_NAME };
+export { FolioscopeFontSet, type FontRegistration } from "./element.ts";
 export { Runtime, type Step } from "./runtime.ts";
 export type * from "./folio.ts";
 

@@ -4,6 +4,7 @@
 
 #[cfg(feature = "bake")]
 pub mod bake;
+pub mod families;
 pub mod figma;
 pub mod ir;
 /// The Kiwi decoder `.fig` files are read with, from helpers4.
