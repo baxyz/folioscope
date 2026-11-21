@@ -56,6 +56,15 @@ pub fn placeholder(svg: &str) -> Result<String, RenderError> {
     Ok(helpers4::hex::base64_encode(&hash))
 }
 
+/// The size an SVG document declares, in CSS pixels; none when it does not parse.
+#[must_use]
+pub fn svg_size(svg: &str) -> Option<(f32, f32)> {
+    let size = usvg::Tree::from_str(svg, &usvg::Options::default())
+        .ok()?
+        .size();
+    Some((size.width(), size.height()))
+}
+
 /// Renders an SVG document at `scale` times its size.
 ///
 /// # Errors

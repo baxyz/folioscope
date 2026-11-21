@@ -4,10 +4,12 @@
 //! yet). Shapes come from the geometry Figma stores with each node, text from its glyph outlines,
 //! so no font is needed.
 //!
-//! Not handled yet: instance overrides, radial and angular gradients, blend modes, blurs, image
-//! transforms and tiling, auto-layout changes since the file was saved.
+//! Where the file stores no layout, for a variant other than the one an instance shows, the bake
+//! lays out again what the instance's overrides change: texts that grow with their content, and
+//! the auto-layout frames that hug them ([`Ctx::fit`]).
 
-use std::collections::{BTreeSet, HashMap};
+use std::borrow::Cow;
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fmt::Write;
 
 use crate::figma::instance::Overrides;
@@ -60,7 +62,8 @@ pub fn render_node_without(tree: &Tree<'_>, id: NodeId, hidden: &[NodeId]) -> Op
 /// Renders one state of an interactive component: the instance at the end of `path` (the
 /// instances from the frame down to it) showing `variant`, through every instance's overrides.
 /// The variant it shows in the file is drawn as the instance; another variant is drawn in its
-/// place at the variant's own size, with the overrides that still apply (layout is not redone).
+/// place at the variant's own size, with the overrides that still apply, its texts and the
+/// auto-layout frames that hug them laid out again ([`Ctx::fit`]).
 #[must_use]
 pub fn render_component_state<'t>(
     tree: &'t Tree<'_>,
@@ -112,7 +115,7 @@ pub fn render_component_state<'t>(
             value: &other,
         }
     };
-    let size = size(&overrides.resolve(root));
+    let other_variant = shows != Some(variant);
     let mut ctx = Ctx {
         tree,
         defs: String::new(),
@@ -124,8 +127,14 @@ pub fn render_component_state<'t>(
         typesetter,
         missing_fonts: BTreeSet::new(),
         shifts: HashMap::new(),
+        resized: HashMap::new(),
+        relaid: HashSet::new(),
         backdrop: Backdrop::default(),
     };
+    if other_variant {
+        ctx.fit(root);
+    }
+    let size = size(&ctx.resolve(root));
     ctx.node(root, true);
     Some(svg(&ctx, size))
 }
@@ -211,6 +220,8 @@ fn render(
         typesetter: None,
         missing_fonts: BTreeSet::new(),
         shifts: HashMap::new(),
+        resized: HashMap::new(),
+        relaid: HashSet::new(),
         backdrop: Backdrop {
             root: Some(node.id),
             ..Backdrop::default()
@@ -221,6 +232,33 @@ fn render(
 }
 
 /// Copies the `names` fields of `from` onto `to`.
+/// A rectangle with rounded corners, as SVG path data.
+fn rounded_rect(left: f32, top: f32, width: f32, height: f32, radius: f32) -> String {
+    let (width, height) = (width.max(0.0), height.max(0.0));
+    let r = radius.min(width / 2.0).min(height / 2.0).max(0.0);
+    let (right, bottom) = (left + width, top + height);
+    format!(
+        "M{} {top}H{}A{r} {r} 0 0 1 {right} {}V{}A{r} {r} 0 0 1 {} {bottom}H{}A{r} {r} 0 0 1 {left} {}V{}A{r} {r} 0 0 1 {} {top}Z",
+        left + r,
+        right - r,
+        top + r,
+        bottom - r,
+        right - r,
+        left + r,
+        bottom - r,
+        top + r,
+        left + r,
+    )
+}
+
+/// Whether an auto-layout frame's size along an axis follows its content ("hug").
+fn hugs(frame: &Value, field: &str) -> bool {
+    frame
+        .get(field)
+        .and_then(Value::as_str)
+        .is_some_and(|sizing| sizing.starts_with("RESIZE_TO_FIT"))
+}
+
 fn take_fields(to: &mut Value, from: &Value, names: &[&str]) {
     let Value::Object(fields) = to else {
         return;
@@ -263,6 +301,10 @@ struct Ctx<'t, 'a> {
     missing_fonts: BTreeSet<String>,
     /// How far auto layout moves a node of an instance from where its component has it: `(x, y)`.
     shifts: HashMap<NodeId, (f32, f32)>,
+    /// Sizes laid out again by [`Ctx::fit`], replacing the file's.
+    resized: HashMap<NodeId, (f32, f32)>,
+    /// Texts [`Ctx::fit`] measured: drawn with the font, not the file's glyphs.
+    relaid: HashSet<NodeId>,
     /// What background blurs need: see [`Backdrop`].
     backdrop: Backdrop,
 }
@@ -289,8 +331,123 @@ impl Ctx<'_, '_> {
         format!("{}{prefix}{}", self.backdrop.prefix, self.next_id)
     }
 
-    fn node(&mut self, node: &Node<'_>, root: bool) {
+    /// `node`'s fields through the instances entered, at the size [`Ctx::fit`] gave it, if any:
+    /// its stored outlines, made for the old size, are then dropped.
+    fn resolve<'v>(&self, node: &Node<'v>) -> Cow<'v, Value> {
         let resolved = self.overrides.resolve(node);
+        let Some(&(w, h)) = self.resized.get(&node.id) else {
+            return resolved;
+        };
+        let mut value = resolved.into_owned();
+        if let Value::Object(fields) = &mut value {
+            fields
+                .retain(|(name, _)| !matches!(&**name, "size" | "fillGeometry" | "strokeGeometry"));
+            fields.push((
+                "size".into(),
+                Value::Object(vec![
+                    ("x".into(), Value::Float(w)),
+                    ("y".into(), Value::Float(h)),
+                ]),
+            ));
+        }
+        Cow::Owned(value)
+    }
+
+    /// Lays out again a variant other than the one an instance shows, for the instance's
+    /// overrides, as Figma does when the instance changes variant (the file holds the layout of
+    /// the variant shown only): a text whose characters changed and that grows with its content
+    /// is measured with its font, and an auto-layout frame that hugs its content takes the size
+    /// of what it holds. Returns the node's size.
+    fn fit(&mut self, node: &Node<'_>) -> (f32, f32) {
+        let resolved = self.resolve(node).into_owned();
+        let own = size(&resolved);
+        match node.kind {
+            "TEXT" => self.fit_text(node, &resolved).unwrap_or(own),
+            "FRAME" | "SYMBOL" => self.fit_stack(node, &resolved),
+            _ => own,
+        }
+    }
+
+    fn fit_text(&mut self, node: &Node<'_>, text: &Value) -> Option<(f32, f32)> {
+        let characters = |v: &Value| v.get("textData").and_then(|t| t.get("characters")).cloned();
+        if characters(text) == characters(node.value) {
+            return None;
+        }
+        let grows = text.get("textAutoResize").and_then(Value::as_str);
+        if !matches!(grows, Some("WIDTH_AND_HEIGHT" | "HEIGHT")) {
+            return None;
+        }
+        let style = TextStyle::of(text)?;
+        let set = self.typesetter.as_deref_mut()?.set(&style.paragraph())?;
+        let width = if grows == Some("HEIGHT") {
+            size(text).0
+        } else {
+            set.width
+        };
+        self.relaid.insert(node.id);
+        self.resized.insert(node.id, (width, set.height));
+        Some((width, set.height))
+    }
+
+    fn fit_stack(&mut self, node: &Node<'_>, frame: &Value) -> (f32, f32) {
+        let own = size(frame);
+        let children: Vec<NodeId> = self.tree.children(node.id).map(|c| c.id).collect();
+        let mut sizes = Vec::new();
+        for &id in &children {
+            let Some(child) = self.tree.get(id) else {
+                continue;
+            };
+            let fitted = self.fit(child);
+            let child = self.resolve(child);
+            if !matches!(child.get("visible"), Some(Value::Bool(false)))
+                && child.get("stackPositioning").and_then(Value::as_str) != Some("ABSOLUTE")
+            {
+                sizes.push(fitted);
+            }
+        }
+        let horizontal = match frame.get("stackMode").and_then(Value::as_str) {
+            Some("HORIZONTAL") => true,
+            Some("VERTICAL") => false,
+            _ => return own,
+        };
+        if !children.iter().any(|id| self.resized.contains_key(id)) {
+            return own;
+        }
+        let number = |k: &str| frame.get(k).and_then(Value::as_f32);
+        let left = number("stackHorizontalPadding").unwrap_or(0.0);
+        let top = number("stackVerticalPadding").unwrap_or(0.0);
+        let padding = (
+            left + number("stackPaddingRight").unwrap_or(left),
+            top + number("stackPaddingBottom").unwrap_or(top),
+        );
+        let spacing = number("stackSpacing").unwrap_or(0.0);
+        let gaps: f32 = sizes.iter().skip(1).map(|_| spacing).sum();
+        let (along, across): (Vec<f32>, Vec<f32>) = sizes
+            .iter()
+            .map(|&(w, h)| if horizontal { (w, h) } else { (h, w) })
+            .unzip();
+        let along = along.iter().sum::<f32>() + gaps;
+        let across = across.iter().copied().fold(0.0, f32::max);
+        let (mut w, mut h) = own;
+        let (primary, counter) = if horizontal {
+            ((&mut w, padding.0), (&mut h, padding.1))
+        } else {
+            ((&mut h, padding.1), (&mut w, padding.0))
+        };
+        if hugs(frame, "stackPrimarySizing") {
+            *primary.0 = along + primary.1;
+        }
+        if hugs(frame, "stackCounterSizing") {
+            *counter.0 = across + counter.1;
+        }
+        if (w - own.0).abs() > 0.5 || (h - own.1).abs() > 0.5 {
+            self.resized.insert(node.id, (w, h));
+        }
+        (w, h)
+    }
+
+    fn node(&mut self, node: &Node<'_>, root: bool) {
+        let resolved = self.resolve(node);
         let node = &Node {
             id: node.id,
             kind: node.kind,
@@ -372,7 +529,11 @@ impl Ctx<'_, '_> {
                 self.children(node, root);
             }
             if paint {
-                self.paint_geometry(v, "strokeGeometry", "strokePaints", false);
+                if self.resized.contains_key(&node.id) {
+                    self.stroke_bounds(v);
+                } else {
+                    self.paint_geometry(v, "strokeGeometry", "strokePaints", false);
+                }
             }
         }
 
@@ -413,6 +574,8 @@ impl Ctx<'_, '_> {
             typesetter: None,
             missing_fonts: BTreeSet::new(),
             shifts: HashMap::new(),
+            resized: HashMap::new(),
+            relaid: HashSet::new(),
             backdrop: Backdrop {
                 root: None,
                 prefix: prefix.clone(),
@@ -480,7 +643,7 @@ impl Ctx<'_, '_> {
             let Some(child) = self.tree.get(child) else {
                 continue;
             };
-            let resolved = self.overrides.resolve(child);
+            let resolved = self.resolve(child);
             if !matches!(resolved.get("mask"), Some(Value::Bool(true))) {
                 self.node(child, false);
                 continue;
@@ -525,10 +688,12 @@ impl Ctx<'_, '_> {
             Some("VERTICAL") => false,
             _ => return,
         };
-        if parent
-            .get("stackPrimaryAlignItems")
-            .and_then(Value::as_str)
-            .is_some_and(|align| align != "MIN")
+        // A stack that hugs its content along its axis has no room to align it in.
+        if !hugs(parent, "stackPrimarySizing")
+            && parent
+                .get("stackPrimaryAlignItems")
+                .and_then(Value::as_str)
+                .is_some_and(|align| align != "MIN")
         {
             return;
         }
@@ -547,7 +712,7 @@ impl Ctx<'_, '_> {
             let Some(child) = self.tree.get(id) else {
                 continue;
             };
-            let child = self.overrides.resolve(child);
+            let child = self.resolve(child);
             if matches!(child.get("visible"), Some(Value::Bool(false)))
                 || child.get("stackPositioning").and_then(Value::as_str) == Some("ABSOLUTE")
             {
@@ -575,6 +740,52 @@ impl Ctx<'_, '_> {
         for (id, by) in shifts {
             self.shifts
                 .insert(id, if horizontal { (by, 0.0) } else { (0.0, by) });
+        }
+    }
+
+    /// The stroke of a node laid out again, whose stored stroke outline no longer fits: a ring
+    /// along its rounded bounds, inside, centred on or outside them as the stroke is aligned.
+    fn stroke_bounds(&mut self, v: &Value) {
+        let weight = v.get("strokeWeight").and_then(Value::as_f32).unwrap_or(0.0);
+        if weight <= 0.0 {
+            return;
+        }
+        let (w, h) = size(v);
+        let r = v.get("cornerRadius").and_then(Value::as_f32).unwrap_or(0.0);
+        let (outward, inward) = match v.get("strokeAlign").and_then(Value::as_str) {
+            Some("INSIDE") => (0.0, weight),
+            Some("OUTSIDE") => (weight, 0.0),
+            _ => (weight / 2.0, weight / 2.0),
+        };
+        let ring = format!(
+            "{}{}",
+            rounded_rect(
+                -outward,
+                -outward,
+                w + 2.0 * outward,
+                h + 2.0 * outward,
+                r + outward
+            ),
+            rounded_rect(
+                inward,
+                inward,
+                w - 2.0 * inward,
+                h - 2.0 * inward,
+                r - inward
+            )
+        );
+        let paints: Vec<Value> = paints_of(self.tree, v, "strokePaints")
+            .iter()
+            .filter(|p| visible(p))
+            .cloned()
+            .collect();
+        for paint in paints {
+            if let Some(fill) = self.paint(&paint, w, h) {
+                let _ = write!(
+                    self.body,
+                    r#"<path d="{ring}" fill-rule="evenodd" {fill}/>"#
+                );
+            }
         }
     }
 
@@ -668,8 +879,14 @@ impl Ctx<'_, '_> {
             _ => glyphs.len(),
         };
         // The file's glyphs, unless they were laid out in another font (a variant other than
-        // the one stored, with another style) and the right one was given.
-        if stale_glyphs(v) {
+        // the one stored, with another style) and the right one was given, the text was laid out
+        // again ([`Ctx::fit`]), or a file written by another tool stored none.
+        let unstored = glyphs.is_empty()
+            && v.get("textData")
+                .and_then(|t| t.get("characters"))
+                .and_then(Value::as_str)
+                .is_some_and(|c| !c.is_empty());
+        if stale_glyphs(v) || unstored || self.relaid.contains(&node.id) {
             let path = self.lay_out(v).unwrap_or_default();
             if !path.is_empty()
                 && let Some(base) = base
