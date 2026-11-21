@@ -9,13 +9,13 @@
     <div class="pickers">
       <label>
         <span>Against</span>
-        <select v-model="chosen" :disabled="running" name="scenario">
+        <select v-model="chosen" name="scenario">
           <option v-for="s in scenarios" :key="s.id" :value="s.id">{{ s.title }}</option>
         </select>
       </label>
       <label>
         <span>Network</span>
-        <select v-model="network" :disabled="running || worker !== 'on'" name="network">
+        <select v-model="network" :disabled="worker !== 'on'" name="network">
           <option v-for="p in profiles" :key="p.id" :value="p.id">{{ p.label }}</option>
         </select>
       </label>
@@ -62,7 +62,7 @@
               :controls.attr="''"
               @folioscope:navigate="shown('left')"
               @folioscope:progress="stage = $event.detail.stage"
-              @folioscope:error="failed = String($event.detail.error)"
+              @folioscope:error="fail('left', $event.detail.error)"
             ></folioscope-player>
             <video
               v-else-if="left.kind === 'video'"
@@ -74,6 +74,7 @@
               playsinline
               controls
               @loadeddata="shown('left')"
+              @error="fail('left', 'the video could not be played')"
             ></video>
             <div v-else class="images">
               <img
@@ -82,6 +83,7 @@
                 :src="image.src"
                 :alt="image.alt"
                 @load="imageLoaded"
+                @error="fail('left', `${image.src} could not be loaded`)"
               />
             </div>
           </template>
@@ -91,7 +93,8 @@
           <div>
             <dt>First screen</dt>
             <dd>
-              {{ time(sides.left.shown) }} <small>({{ leftEvent }})</small>
+              {{ sides.left.error ? "failed" : time(sides.left.shown) }}
+              <small>({{ sides.left.error ?? leftEvent }})</small>
             </dd>
           </div>
           <div>
@@ -110,7 +113,7 @@
           <div v-if="left.kind === 'raw'">
             <dt>In your browser</dt>
             <dd>
-              {{ failed ?? stages[stage] ?? "–" }}
+              {{ sides.left.error ? "failed" : (stages[stage] ?? "–") }}
             </dd>
           </div>
           <div>
@@ -136,13 +139,17 @@
             :poster="`${scenario.folio}/poster.webp`"
             :controls.attr="''"
             @folioscope:navigate="shown('right')"
+            @folioscope:error="fail('right', $event.detail.error)"
           ></folioscope-player>
           <p v-else class="idle">Press Play.</p>
         </div>
         <dl class="stats">
           <div>
             <dt>First screen</dt>
-            <dd>{{ time(sides.right.shown) }} <small>(drawn, links live)</small></dd>
+            <dd>
+              {{ sides.right.error ? "failed" : time(sides.right.shown) }}
+              <small>({{ sides.right.error ?? "drawn, links live" }})</small>
+            </dd>
           </div>
           <div>
             <dt>Data</dt>
@@ -196,7 +203,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 
 type Left =
   | { kind: "figma"; embed: string; megabytes: number; requests: number }
@@ -290,18 +297,19 @@ const running = ref(false);
 const run = ref(0);
 const now = ref(0);
 const stage = ref("");
-const failed = ref<string | null>(null);
 /** The page's service worker: what slows and counts the network. */
 const worker = ref<"starting" | "on" | "off">("starting");
 
 interface Side {
   shown: number | null;
+  /** Why it could not show: the run stops waiting for it. */
+  error: string | null;
   bytes: number;
   files: number;
 }
 const sides = reactive<{ left: Side; right: Side }>({
-  left: { shown: null, bytes: 0, files: 0 },
-  right: { shown: null, bytes: 0, files: 0 },
+  left: { shown: null, error: null, bytes: 0, files: 0 },
+  right: { shown: null, error: null, bytes: 0, files: 0 },
 });
 
 const leftTitle = computed(
@@ -360,11 +368,36 @@ function tick() {
 }
 
 function shown(side: "left" | "right") {
-  if (sides[side].shown !== null) return;
+  if (sides[side].shown !== null || sides[side].error !== null) return;
   sides[side].shown = performance.now() - t0;
   if (worker.value !== "on") countFromTimings();
-  if (sides.left.shown !== null && sides.right.shown !== null) running.value = false;
+  finishIfDone();
 }
+
+function fail(side: "left" | "right", error: unknown) {
+  if (sides[side].shown !== null || sides[side].error !== null) return;
+  sides[side].error = error instanceof Error ? error.message : String(error);
+  finishIfDone();
+}
+
+function finishIfDone() {
+  const done = (s: Side) => s.shown !== null || s.error !== null;
+  if (done(sides.left) && done(sides.right)) running.value = false;
+}
+
+function resetSides() {
+  for (const side of [sides.left, sides.right]) {
+    Object.assign(side, { shown: null, error: null, bytes: 0, files: 0 });
+  }
+}
+
+// Another choice stops the run on screen: Play starts the new one.
+watch([chosen, network], () => {
+  cancelAnimationFrame(frame);
+  running.value = false;
+  started.value = false;
+  resetSides();
+});
 
 function imageLoaded() {
   if (--imagesLeft === 0) shown("left");
@@ -437,10 +470,8 @@ async function play() {
   started.value = false;
   await nextTick();
   run.value++;
-  Object.assign(sides.left, { shown: null, bytes: 0, files: 0 });
-  Object.assign(sides.right, { shown: null, bytes: 0, files: 0 });
+  resetSides();
   stage.value = "";
-  failed.value = null;
   imagesLeft = left.value.kind === "images" ? left.value.images.length : 0;
   // The full player keeps its bakes in the Cache API: forgotten, so it bakes again.
   if (left.value.kind === "raw") await globalThis.caches?.delete("folioscope").catch(() => false);
@@ -470,14 +501,20 @@ async function startWorker() {
     return;
   }
   container.addEventListener("message", onWorkerMessage);
+  // Messages from the worker wait in a queue until this, in Firefox when listening this way.
+  container.startMessages();
   try {
     // Scope `/`: the full player's worker, under /assets/, has to be reached too.
     registration = await container.register("/comparison-sw.js", { scope: "/" });
     if (!container.controller) {
-      await new Promise((resolve, reject) => {
+      // A page loaded before the worker, or past it (a hard reload; Firefox at times), is not
+      // controlled: the active worker is asked to claim it.
+      const changed = new Promise((resolve, reject) => {
         container.addEventListener("controllerchange", resolve, { once: true });
         setTimeout(reject, 5000);
       });
+      (await container.ready).active?.postMessage({ type: "claim" });
+      await changed;
     }
     worker.value = "on";
   } catch {
