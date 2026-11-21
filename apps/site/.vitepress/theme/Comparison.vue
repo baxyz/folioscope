@@ -63,7 +63,10 @@
               @folioscope:navigate="shown('left')"
               @folioscope:progress="stage = $event.detail.stage"
               @folioscope:error="fail('left', $event.detail.error)"
-            ></folioscope-player>
+            >
+              <!-- A raw file's text needs its font: fetched and counted too. -->
+              <folioscope-font :src="left.font"></folioscope-font>
+            </folioscope-player>
             <video
               v-else-if="left.kind === 'video'"
               :key="`video-${run}`"
@@ -207,7 +210,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 
 type Left =
   | { kind: "figma"; embed: string; megabytes: number; requests: number }
-  | { kind: "raw"; src: string }
+  | { kind: "raw"; src: string; font: string }
   | { kind: "video"; src: string }
   | { kind: "images"; images: { src: string; alt: string }[] };
 
@@ -242,8 +245,12 @@ const scenarios: Scenario[] = [
     id: "raw",
     title: "The raw .fig, baked in the browser",
     about:
-      "The same player can take the design file itself: it loads the full player, 6 MB of WebAssembly, and bakes the file in your browser. Here, against the bake made once at build time.",
-    left: { kind: "raw", src: "/comparison/smart-animate.fig" },
+      "The same player can take the design file itself: it loads the full player, 6 MB of WebAssembly, and the fonts of the file's text, and bakes the file in your browser. Here, against the bake made once at build time.",
+    left: {
+      kind: "raw",
+      src: "/comparison/smart-animate.fig",
+      font: "/comparison/Inter-Latin.woff",
+    },
     folio: smartAnimate,
     phone: true,
   },
