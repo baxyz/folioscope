@@ -1,6 +1,6 @@
 ---
 title: API reference
-description: Every attribute, property, method, event and export of the folioscope package.
+description: "Every attribute, property, method, event and export of the folioscope package."
 ---
 
 # API reference
@@ -11,9 +11,54 @@ event and export of the code.
 
 ## `<folioscope-player>`
 
-```html
+### Examples
+
+::: code-group
+
+```html [Baked]
+<!-- A baked .folio folder, its first screen as an image until the player is ready -->
 <folioscope-player src="/app.folio" poster="/app.folio/poster.webp" controls></folioscope-player>
 ```
+
+```html [Fast start]
+<!-- The description fetched with the page; the whole page's screens fetched ahead -->
+<link rel="preload" href="/app.folio/index.json" as="fetch" crossorigin />
+<folioscope-player
+  src="/app.folio"
+  poster="/app.folio/poster.webp"
+  preload="all"
+></folioscope-player>
+```
+
+```html [A given flow]
+<!-- Starts on the "Checkout" flow of the "Mobile" page; links always outlined -->
+<folioscope-player
+  src="/app.folio"
+  page="Mobile"
+  flow="Checkout"
+  hotspots="always"
+></folioscope-player>
+```
+
+```html [Design size]
+<!-- Pixel for pixel, no scaling: the element takes the design's width -->
+<folioscope-player src="/app.folio" fit="none" style="width: 390px"></folioscope-player>
+```
+
+```html [Raw file]
+<!-- Baked in the browser by the full player; a .fig needs no font -->
+<folioscope-player src="/designs/app.fig" controls></folioscope-player>
+```
+
+```html [Raw file, fonts]
+<!-- A .sketch names its fonts: give them; only those its text uses are fetched -->
+<folioscope-player src="/designs/app.sketch">
+  <folioscope-font src="/fonts/Inter.var.woff2"></folioscope-font>
+  <folioscope-font src="/fonts/Inter.var.woff2" match="SF Pro*, Helvetica*"></folioscope-font>
+</folioscope-player>
+```
+
+:::
 
 ### Attributes
 
@@ -65,8 +110,56 @@ CSS parts: `viewport`, `controls`. Custom properties: `--folioscope-controls-bac
 
 ## `<folioscope-font>` and `<folioscope-fonts>`
 
-Children of a player, or of a `<folioscope-fonts id="…">` shared by `fonts="…"`. Close them
-explicitly: `/>` does not close an element in HTML.
+Fonts for raw design files baked in the browser (a `.folio` folder needs none). Children of a
+player, or of a `<folioscope-fonts id="…">` shared by `fonts="…"`. Close them explicitly: `/>`
+does not close an element in HTML. When to use which: [Fonts](/guide/fonts).
+
+### Examples
+
+::: code-group
+
+```html [One file]
+<!-- The file says its family: it serves the text set in that family -->
+<folioscope-font src="/fonts/Inter.var.woff2"></folioscope-font>
+```
+
+```html [A family]
+<!-- Fetched only if the design uses "Brand", for its bold italic -->
+<folioscope-font
+  src="/fonts/Brand-BoldItalic.woff2"
+  family="Brand"
+  weight="700"
+  style="italic"
+></folioscope-font>
+```
+
+```html [Stand-ins]
+<!-- A free font for fonts you may not serve: globs, or one regular expression -->
+<folioscope-font src="/fonts/Inter.var.woff2" match="SF Pro*, -apple-system"></folioscope-font>
+<folioscope-font src="/fonts/Arimo.var.woff2" match="/^Helvetica( Neue)?$/i"></folioscope-font>
+```
+
+```html [A folder]
+<!-- folioscope-fonts.json, written by `folioscope fonts public/fonts` -->
+<folioscope-font base="/fonts/"></folioscope-font>
+```
+
+```html [A stylesheet]
+<!-- The @font-face rules of a stylesheet -->
+<folioscope-font css="/styles/fonts.css"></folioscope-font>
+```
+
+```html [Shared]
+<folioscope-fonts id="brand">
+  <folioscope-font base="/fonts/"></folioscope-font>
+</folioscope-fonts>
+<folioscope-player src="/designs/home.sketch" fonts="brand"></folioscope-player>
+<folioscope-player src="/designs/cart.sketch" fonts="brand"></folioscope-player>
+```
+
+:::
+
+### Attributes
 
 | Attribute | What it says                                                                         |
 | --------- | ------------------------------------------------------------------------------------ |
@@ -92,11 +185,27 @@ From `folioscope`:
 | `Runtime`, `Step`           | The prototype's state machine, without the DOM: `frame`, `top`, `canGoBack`, `run()`, `goTo()`, `hold()`, `release()`, `close()`, `back()`, `restart()` |
 | `FolioIndex`, `FolioFrame`… | The types of a `.folio` folder's `index.json` ([format](https://github.com/baxyz/folioscope/blob/main/docs/spec/folio.md))                              |
 
+```js
+import { FolioscopeFontSet } from "folioscope";
+
+const player = document.querySelector("folioscope-player");
+player.addEventListener("folioscope:load", (event) => console.log(event.detail.pages));
+player.addEventListener("folioscope:navigate", (event) => console.log("on", event.detail.name));
+player.goTo("1:2"); // a screen, by its id in index.json
+player.restart(); // back to the flow's first screen
+
+// Fonts shared by every player of the page, for raw files
+const fonts = new FolioscopeFontSet()
+  .add({ base: "/fonts/" })
+  .add({ src: "/fonts/Inter.woff2", match: "SF Pro*" });
+for (const p of document.querySelectorAll("folioscope-player")) p.fonts = fonts;
+```
+
 From `folioscope/full`: `bakeInBrowser(url, { density, fonts, onProgress })`, which bakes a raw
 design file into the files of a `.folio` folder, in a worker; the player calls it itself.
 
 From `folioscope/vite`: `folioscope(options)`, the Vite plugin (see
-[Getting started](/guide/getting-started)): `include`, `base`, `cacheDir`, `avif`, `svg`,
+[Bake with Vite](/guide/vite)): `include`, `base`, `cacheDir`, `avif`, `svg`,
 `maxStates`, `fonts`.
 
 ## Command line
