@@ -26,9 +26,18 @@ for (const name of [
   const [file, folio] = name.includes("/")
     ? [name, name.replace("/", "-").replace(/\.\w+$/, "")]
     : [`figma/${name}.fig`, name];
-  execFileSync(cli, ["bake", `${repo}fixtures/${file}`, `${demos}${folio}.folio`], {
-    stdio: "inherit",
-  });
+  // With the fixtures' font, Inter, for the text the files store no glyphs for.
+  execFileSync(
+    cli,
+    [
+      "bake",
+      `${repo}fixtures/${file}`,
+      `${demos}${folio}.folio`,
+      "--fonts",
+      `${repo}fixtures/fonts`,
+    ],
+    { stdio: "inherit" },
+  );
 }
 
 // The comparison page's material, from the smart animate fixture: the raw file, for the full
