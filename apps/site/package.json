@@ -8,12 +8,15 @@
     "dev": "vitepress dev --host --port 4323 --strictPort",
     "build": "vitepress build",
     "preview": "vitepress preview --host --port 4323",
-    "bake-demos": "node scripts/bake-demos.ts"
+    "bake-demos": "node scripts/bake-demos.ts",
+    "test:e2e": "node e2e/comparison.e2e.ts",
+    "record-comparison": "node scripts/record-comparison.ts"
   },
   "dependencies": {
     "folioscope": "workspace:*"
   },
   "devDependencies": {
+    "playwright": "catalog:",
     "vitepress": "2.0.0-alpha.20",
     "vue": "3.5.44"
   }

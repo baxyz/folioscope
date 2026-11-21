@@ -716,7 +716,10 @@ export const FEATURES: Feature[] = [
     group: "Site",
     name: "Comparison page: Folioscope against other ways to show a prototype",
     formats: {
-      all: works("e2e: comparison", "the CO₂ prototype, Figma's embed against the .folio"),
+      all: works(
+        "e2e: comparison",
+        "Figma's embed, the raw file baked in the browser, a screen recording and one PNG per screen, each against the .folio, on the network the visitor picks",
+      ),
     },
   },
 ];
