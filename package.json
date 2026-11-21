@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "ready": "vp check && vp run -r test && vp run -r build",
-    "build": "vp run -r build",
+    "build": "node scripts/ensure-wasm.ts && vp run -r build",
     "deploy": "wrangler deploy"
   },
   "devDependencies": {
