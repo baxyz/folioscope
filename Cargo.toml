@@ -41,3 +41,9 @@ unsafe_code = "forbid"
 
 [workspace.lints.clippy]
 pedantic = { level = "warn", priority = -1 }
+
+# Dependencies are optimized in debug builds too: the image encoders (AVIF above all) run
+# hundreds of times slower unoptimized, which made every bake in tests and CI crawl. Our own
+# crates stay quick to compile.
+[profile.dev.package."*"]
+opt-level = 3
