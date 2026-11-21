@@ -72,9 +72,22 @@ export async function bakeInBrowser(
 ): Promise<BakedInBrowser> {
   const request: BakeRequest = { url, density: options.density, fonts: options.fonts ?? [] };
   const { files, missingFonts } = await requestWorker<BakeRequest, BakeResult, Stage>(
-    () => new Worker(new URL("./worker.mjs", import.meta.url), { type: "module" }),
+    () =>
+      new URL(import.meta.url).origin === globalThis.location?.origin
+        ? new Worker(new URL("./worker.mjs", import.meta.url), { type: "module" })
+        : crossOriginWorker(new URL("./worker.mjs", import.meta.url)),
     request,
     { onProgress: options.onProgress },
   );
   return { files: new Map(files), missingFonts };
+}
+
+/**
+ * A worker must come from the page's origin. Loaded from a CDN, the player starts a module of the
+ * page's own (a blob) that imports the worker from there; the worker's WebAssembly then loads
+ * from the CDN too, which allows it (CORS).
+ */
+function crossOriginWorker(url: URL): Worker {
+  const shim = new Blob([`import ${JSON.stringify(url.href)};`], { type: "text/javascript" });
+  return new Worker(URL.createObjectURL(shim), { type: "module" });
 }
