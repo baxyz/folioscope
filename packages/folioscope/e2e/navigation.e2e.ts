@@ -253,6 +253,32 @@ try {
   assert.ok(Math.abs((await scrollTop()) - 112) < 1);
   console.log("✓ scroll: the content scrolls under fixed layers, scroll to reaches its target");
 
+  // A carousel scrolls sideways inside the screen; a section title sticks once scrolled to.
+  await tab.goto(
+    `${server.origin}/?folio=scroll&attributes=${encodeURIComponent('flow="Gallery flow"')}`,
+  );
+  await settledOn("Gallery");
+  const carousel = tab.locator("folioscope-player .frame .scroll.inner");
+  await carousel.evaluate((el) => el.scrollTo({ left: 800 }));
+  await tab.locator('folioscope-player .scroll.inner button[aria-label="Slide 5"]').click();
+  await settledOn("Feed");
+  await tab.goto(
+    `${server.origin}/?folio=scroll&attributes=${encodeURIComponent('flow="Gallery flow"')}`,
+  );
+  await settledOn("Gallery");
+  const sticky = await tab.evaluate(async () => {
+    const root = document.querySelector("folioscope-player")!.shadowRoot!;
+    const main = root.querySelector<HTMLElement>(".frame > .scroll")!;
+    main.scrollTo({ top: 600 });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const img = [...root.querySelectorAll<HTMLImageElement>(".frame > .scroll img")].find(
+      (i) => i.style.zIndex === "1",
+    )!;
+    return img.style.transform;
+  });
+  assert.equal(sticky, "translate(0px, 280px)", "the title holds at the top: 600 − 320");
+  console.log("✓ scroll: a frame scrolls inside the screen, and a sticky title holds at the top");
+
   // Fullscreen on a wide screen: the prototype fits the height, centered, with the controls visible.
   const wide = await browser.newPage({ viewport: { width: 1600, height: 900 } });
   await wide.goto(`${server.origin}/?folio=navigation&controls`);

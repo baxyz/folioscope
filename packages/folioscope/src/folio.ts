@@ -48,6 +48,17 @@ export interface FolioFrame {
   };
   /** Interactive component instances, whose variants change in place. */
   components?: FolioComponent[];
+  /** Frames inside the screen whose content scrolls in place. */
+  scrollers?: {
+    id: string;
+    name: string;
+    /** Where it shows, in the frame's coordinates. */
+    bounds: Rect;
+    direction: "vertical" | "horizontal" | "both";
+    /** What scrolls, from its corner. */
+    content: Rect;
+    sticky?: string[];
+  }[];
   /**
    * For smart animate: the background (named `""`), then each layer by its path (`Card/Title`),
    * drawn without its own parts.
@@ -118,6 +129,10 @@ export interface Layer {
   bounds: Rect;
   /** The frame's scrolling content: moves with the scroll, under the layers that follow. */
   scrolls?: boolean;
+  /** In a frame that scrolls inside the screen, by its id; `bounds` are in its content. */
+  scroller?: string;
+  /** Scrolls with its content, then sticks at its scroller's top (or left) edge. */
+  sticky?: boolean;
 }
 
 export interface Hotspot {
@@ -127,6 +142,8 @@ export interface Hotspot {
   interactions: Interaction[];
   /** In a fixed child of a scrolling frame: stays in place while the content scrolls. */
   fixed?: boolean;
+  /** In a frame that scrolls inside the screen, by its id; `bounds` are in its content. */
+  scroller?: string;
 }
 
 export interface Interaction {
