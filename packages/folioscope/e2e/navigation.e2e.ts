@@ -4,7 +4,8 @@
 import assert from "node:assert/strict";
 import { firefox } from "playwright";
 import { execFileSync } from "node:child_process";
-import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { bakeFixtures, serve } from "./serve.ts";
@@ -576,6 +577,43 @@ try {
   await slow.locator('folioscope-player .frame[aria-label="Home"]').waitFor();
   await placeholder.waitFor({ state: "detached" });
   console.log("✓ placeholder: a blurred preview until the first frame is decoded");
+
+  // Accessibility: axe finds nothing serious in the player, on several prototypes, with its
+  // controls; with prefers-reduced-motion, a transition is a cut.
+  const axe = readFileSync(createRequire(import.meta.url).resolve("axe-core/axe.min.js"), "utf8");
+  for (const folio of ["navigation", "overlay", "components", "scroll"]) {
+    await tab.goto(`${server.origin}/?folio=${folio}&controls`);
+    await tab.locator("folioscope-player .stage > .frame").first().waitFor();
+    await tab.addScriptTag({ content: axe });
+    const violations = await tab.evaluate(async () => {
+      const result = await (
+        window as unknown as {
+          axe: {
+            run(
+              context: object,
+              options: object,
+            ): Promise<{ violations: { id: string; impact: string }[] }>;
+          };
+        }
+      ).axe.run({ include: [["folioscope-player"]] }, { resultTypes: ["violations"] });
+      return result.violations
+        .filter((v) => v.impact === "serious" || v.impact === "critical")
+        .map((v) => v.id);
+    });
+    assert.deepEqual(violations, [], `${folio}: ${violations.join(", ")}`);
+  }
+  const reduced = await browser.newPage({
+    reducedMotion: "reduce",
+    viewport: { width: 375, height: 812 },
+  });
+  await reduced.goto(`${server.origin}/?folio=navigation`);
+  await reduced.locator('folioscope-player .frame button[aria-label="Open details"]').click();
+  const animations = await reduced.evaluate(
+    () => document.querySelector("folioscope-player")!.shadowRoot!.getAnimations().length,
+  );
+  assert.equal(animations, 0, "no animation when motion is reduced");
+  await reduced.close();
+  console.log("✓ accessibility: axe finds nothing serious; reduced motion plays no transition");
 
   assert.deepEqual(errors, []);
 } finally {

@@ -53,6 +53,7 @@
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "axe-core": "catalog:",
     "helpers4": "catalog:",
     "playwright": "catalog:",
     "thumbhash": "0.1.1",
