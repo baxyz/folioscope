@@ -104,6 +104,20 @@ pub fn bake(
     Ok(result)
 }
 
+/// The font families the text of a design file uses (a `.sketch` also gives its PostScript
+/// names), so a page fetches only the fonts it needs.
+///
+/// # Errors
+///
+/// Throws on an unknown format or a file that cannot be decoded.
+#[wasm_bindgen]
+pub fn families(input: &[u8]) -> Result<Array, JsError> {
+    Ok(folioscope::families::families(input)?
+        .iter()
+        .map(|family| JsValue::from(family.as_str()))
+        .collect())
+}
+
 /// Summarizes the prototype of any supported design file, as `folioscope inspect` prints it.
 ///
 /// # Errors
