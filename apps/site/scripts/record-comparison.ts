@@ -7,10 +7,11 @@ import { copyFileSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { bakeFixtures, serve } from "../../../packages/folioscope/e2e/serve.ts";
+import { serve } from "../../../packages/folioscope/e2e/serve.ts";
 
 const out = fileURLToPath(new URL("../public/comparison/smart-animate.webm", import.meta.url));
-const site = bakeFixtures(["smart-animate"]);
+// The demo as `bake-demos` baked it, with its font.
+const site = fileURLToPath(new URL("../public/folio/", import.meta.url));
 const server = await serve(
   site,
   () => `<!doctype html><meta charset="utf-8"><style>body{margin:0}</style>
