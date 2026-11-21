@@ -36,18 +36,35 @@ pub struct Svg {
     pub missing_fonts: BTreeSet<String>,
 }
 
-/// Renders `id` and its descendants, at the origin, in its own coordinate space.
+/// Renders `id` and its descendants, at the origin, in its own coordinate space. The
+/// `typesetter` lays out the text whose glyphs the file did not store.
 #[must_use]
-pub fn render_node(tree: &Tree<'_>, id: NodeId) -> Option<Svg> {
+pub fn render_node<'t>(
+    tree: &'t Tree<'_>,
+    id: NodeId,
+    typesetter: Option<&'t mut Typesetter>,
+) -> Option<Svg> {
     let node = tree.get(id)?;
     let (width, height) = size(node.value);
-    Some(render(tree, node, Root::WHOLE, Vec::new(), (width, height)))
+    Some(render(
+        tree,
+        node,
+        Root::WHOLE,
+        Vec::new(),
+        (width, height),
+        typesetter,
+    ))
 }
 
 /// Like [`render_node`], leaving out the `hidden` descendants: the interactive components, drawn
 /// as layers of their own.
 #[must_use]
-pub fn render_node_without(tree: &Tree<'_>, id: NodeId, hidden: &[NodeId]) -> Option<Svg> {
+pub fn render_node_without<'t>(
+    tree: &'t Tree<'_>,
+    id: NodeId,
+    hidden: &[NodeId],
+    typesetter: Option<&'t mut Typesetter>,
+) -> Option<Svg> {
     let node = tree.get(id)?;
     let (width, height) = size(node.value);
     Some(render(
@@ -56,6 +73,7 @@ pub fn render_node_without(tree: &Tree<'_>, id: NodeId, hidden: &[NodeId]) -> Op
         Root::WHOLE,
         hidden.to_vec(),
         (width, height),
+        typesetter,
     ))
 }
 
@@ -267,15 +285,21 @@ pub enum Part<'f> {
 
 /// Renders one [`Part`] of the frame `id`, leaving out the `hidden` descendants.
 #[must_use]
-pub fn render_part(tree: &Tree<'_>, id: NodeId, part: Part<'_>, hidden: &[NodeId]) -> Option<Svg> {
+pub fn render_part<'t>(
+    tree: &'t Tree<'_>,
+    id: NodeId,
+    part: Part<'_>,
+    hidden: &[NodeId],
+    typesetter: Option<&'t mut Typesetter>,
+) -> Option<Svg> {
     let node = tree.get(id)?;
     let frame_size = size(node.value);
     let mut hidden = hidden.to_vec();
     Some(match part {
-        Part::Background => render(tree, node, Root::BACKGROUND, hidden, frame_size),
+        Part::Background => render(tree, node, Root::BACKGROUND, hidden, frame_size, typesetter),
         Part::Content { fixed, size } => {
             hidden.extend_from_slice(fixed);
-            render(tree, node, Root::CONTENT, hidden, size)
+            render(tree, node, Root::CONTENT, hidden, size, typesetter)
         }
         Part::Fixed { fixed } => {
             hidden.extend(
@@ -283,7 +307,7 @@ pub fn render_part(tree: &Tree<'_>, id: NodeId, part: Part<'_>, hidden: &[NodeId
                     .map(|c| c.id)
                     .filter(|c| !fixed.contains(c)),
             );
-            render(tree, node, Root::CONTENT, hidden, frame_size)
+            render(tree, node, Root::CONTENT, hidden, frame_size, typesetter)
         }
     })
 }
@@ -314,12 +338,13 @@ impl Root {
     };
 }
 
-fn render(
-    tree: &Tree<'_>,
+fn render<'t>(
+    tree: &'t Tree<'_>,
     node: &Node<'_>,
     root: Root,
     hidden: Vec<NodeId>,
     (width, height): (f32, f32),
+    typesetter: Option<&'t mut Typesetter>,
 ) -> Svg {
     let mut ctx = Ctx {
         tree,
@@ -329,7 +354,7 @@ fn render(
         hidden,
         root,
         overrides: Overrides::default(),
-        typesetter: None,
+        typesetter,
         missing_fonts: BTreeSet::new(),
         shifts: HashMap::new(),
         resized: HashMap::new(),
@@ -343,7 +368,6 @@ fn render(
     svg(&ctx, (width, height))
 }
 
-/// Copies the `names` fields of `from` onto `to`.
 /// A rectangle with rounded corners, as SVG path data.
 fn rounded_rect(left: f32, top: f32, width: f32, height: f32, radius: f32) -> String {
     let (width, height) = (width.max(0.0), height.max(0.0));
@@ -371,6 +395,7 @@ fn hugs(frame: &Value, field: &str) -> bool {
         .is_some_and(|sizing| sizing.starts_with("RESIZE_TO_FIT"))
 }
 
+/// Copies the `names` fields of `from` onto `to`.
 fn take_fields(to: &mut Value, from: &Value, names: &[&str]) {
     let Value::Object(fields) = to else {
         return;
