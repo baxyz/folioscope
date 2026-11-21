@@ -6,6 +6,7 @@ import Comparison from "./Comparison.vue";
 import EarlyDays from "./EarlyDays.vue";
 import FeatureMatrix from "./FeatureMatrix.vue";
 import FlipBook from "./FlipBook.vue";
+import Playground from "./Playground.vue";
 import Roadmap from "./Roadmap.vue";
 import "./style.css";
 
@@ -17,6 +18,7 @@ export default {
     app.component("Comparison", Comparison);
     app.component("FeatureMatrix", FeatureMatrix);
     app.component("FlipBook", FlipBook);
+    app.component("Playground", Playground);
     app.component("Roadmap", Roadmap);
     // The player defines <folioscope-player> in the browser only.
     if (!import.meta.env.SSR) void import("folioscope");

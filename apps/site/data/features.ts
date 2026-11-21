@@ -621,6 +621,12 @@ export const FEATURES: Feature[] = [
     },
   },
   {
+    id: "playground",
+    group: "Site",
+    name: "Playground: drop a file and play it, nothing uploaded",
+    formats: { all: works("e2e: full player: a dropped file (a blob: URL) plays") },
+  },
+  {
     id: "browser-fonts",
     group: "Player",
     name: "Fonts in the browser: <folioscope-font> (src, family, match), shared sets, registerFont()",
