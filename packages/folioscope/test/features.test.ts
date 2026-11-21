@@ -19,7 +19,7 @@ function sources(dir: string, ext: string): string {
 
 const rust = sources("crates", ".rs");
 const vitest = sources("packages/folioscope/test", ".ts");
-const e2e = sources("packages/folioscope/e2e", ".ts");
+const e2e = sources("packages/folioscope/e2e", ".ts") + sources("apps/site/e2e", ".ts");
 
 /** Whether the test a status names exists. */
 function exists(reference: string): boolean {
