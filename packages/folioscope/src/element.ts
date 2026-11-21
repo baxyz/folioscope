@@ -109,6 +109,14 @@ export class FolioscopeFontSet {
 /** A raw design file, played by the full player when no `.folio` sits next to it. */
 const RAW = /\.(fig|sketch|xd|penpot)$/i;
 
+/**
+ * Whether `src` is a raw design file: by its extension, or a `blob:` URL (a file the visitor
+ * dropped), whose format the bake reads from its contents.
+ */
+function isRaw(src: string): boolean {
+  return RAW.test(src) || src.startsWith("blob:");
+}
+
 // Keeps the module importable during SSR (VitePress build, the Vite plugin), where HTMLElement is undefined.
 const BaseElement: typeof HTMLElement =
   globalThis.HTMLElement ?? (class {} as unknown as typeof HTMLElement);
@@ -182,7 +190,7 @@ export class FolioscopePlayer extends BaseElement {
   private preloadedPage?: FolioIndex["pages"][number];
   private showing = 0;
   private resize?: ResizeObserver;
-  private readonly controls: Controls;
+  private readonly controlBar: Controls;
   /** The hovers and presses holding a frame, innermost last, with the hotspot that started each. */
   private holds: { kind: HoldKind; bounds: Rect }[] = [];
   private readonly releasePress = () => this.release((hold) => hold.kind === "press");
@@ -193,7 +201,7 @@ export class FolioscopePlayer extends BaseElement {
     this.root.innerHTML = `<style>${STYLE}${CONTROLS_STYLE}</style><div class="viewport" part="viewport"><div class="stage"></div></div>`;
     this.viewport = this.root.querySelector(".viewport")!;
     this.stage = this.root.querySelector(".stage")!;
-    this.controls = new Controls({
+    this.controlBar = new Controls({
       restart: () => this.restart(),
       back: () => this.back(),
       page: (i) =>
@@ -201,8 +209,8 @@ export class FolioscopePlayer extends BaseElement {
       flow: (i) => this.setAttribute("flow", String(i)),
       fullscreen: () => void this.requestFullscreen?.().catch(() => undefined),
     });
-    this.controls.element.hidden = !this.hasAttribute("controls");
-    this.root.append(this.controls.element);
+    this.controlBar.element.hidden = !this.hasAttribute("controls");
+    this.root.append(this.controlBar.element);
     // `hotspots="on-miss"` (the default): a click beside every hotspot shows where they are.
     this.viewport.addEventListener("click", (event) => {
       const missed = !event
@@ -215,7 +223,7 @@ export class FolioscopePlayer extends BaseElement {
       }
     });
     this.viewport.addEventListener("animationend", () => this.viewport.classList.remove("flash"));
-    this.addEventListener("fullscreenchange", () => this.fit());
+    this.addEventListener("fullscreenchange", () => this.fitStage());
     // A hover lasts while the pointer stays over the hotspot that started it.
     this.viewport.addEventListener("pointermove", (event) =>
       this.release((hold) => hold.kind === "hover" && !this.under(event, hold.bounds)),
@@ -252,13 +260,13 @@ export class FolioscopePlayer extends BaseElement {
   connectedCallback(): void {
     // A framework builds the element, sets its attributes, then inserts it: `controls` was not
     // there yet when the constructor ran, and the callback ignores changes while disconnected.
-    this.controls.element.hidden = !this.hasAttribute("controls");
+    this.controlBar.element.hidden = !this.hasAttribute("controls");
     this.fontObserver ??= new MutationObserver(() => this.fontsChanged());
     this.fontObserver.observe(this, { childList: true, attributes: true, subtree: true });
     // A press ends wherever the button is released, even outside the player.
     globalThis.addEventListener("pointerup", this.releasePress);
     globalThis.addEventListener("pointercancel", this.releasePress);
-    this.resize = new ResizeObserver(() => this.fit());
+    this.resize = new ResizeObserver(() => this.fitStage());
     this.resize.observe(this.viewport);
     if (!this.index) void this.load();
   }
@@ -273,7 +281,7 @@ export class FolioscopePlayer extends BaseElement {
 
   attributeChangedCallback(name: string, previous: string | null, value: string | null): void {
     if (previous === value || !this.isConnected) return;
-    if (name === "controls") this.controls.element.hidden = value === null;
+    if (name === "controls") this.controlBar.element.hidden = value === null;
     else if (name === "src") void this.load();
     else if (name === "fonts") this.fontsChanged();
     else if (this.index) this.startPage();
@@ -301,7 +309,7 @@ export class FolioscopePlayer extends BaseElement {
     const attempt = ++this.loading;
     this.showPoster();
     try {
-      const index = RAW.test(src) ? await this.loadRaw(src, attempt) : await this.loadFolio(src);
+      const index = isRaw(src) ? await this.loadRaw(src, attempt) : await this.loadFolio(src);
       if (!index) return;
       if (index.folio > SUPPORTED_FOLIO || index.irVersion > SUPPORTED_IR) {
         throw new Error(
@@ -338,8 +346,11 @@ export class FolioscopePlayer extends BaseElement {
    * `app.folio/`), else baked here by the full player, loaded on demand.
    */
   private async loadRaw(src: string, attempt: number): Promise<FolioIndex | undefined> {
+    // A dropped file (`blob:`) has no folder next to it.
     const sibling = src.replace(RAW, ".folio/");
-    const found = await fetch(`${sibling}index.json`).catch(() => undefined);
+    const found = RAW.test(src)
+      ? await fetch(`${sibling}index.json`).catch(() => undefined)
+      : undefined;
     if (found?.ok) {
       this.forgetBlobs();
       this.base = sibling;
@@ -391,7 +402,12 @@ export class FolioscopePlayer extends BaseElement {
     return this.fontSet;
   }
 
-  set fonts(set: FolioscopeFontSet | undefined) {
+  set fonts(set: FolioscopeFontSet | string | undefined) {
+    // Frameworks set attributes as properties when the element has one: the `fonts` attribute.
+    if (typeof set === "string") {
+      this.setAttribute("fonts", set);
+      return;
+    }
     this.unwatchFonts?.();
     this.fontSet = set;
     this.unwatchFonts = set?.watch(() => this.fontsChanged());
@@ -428,7 +444,7 @@ export class FolioscopePlayer extends BaseElement {
 
   /** Fonts came or went: a raw file already baked, or being baked, is baked again. */
   private fontsChanged(): void {
-    if (!this.baking || !this.isConnected || !RAW.test(this.src)) return;
+    if (!this.baking || !this.isConnected || !isRaw(this.src)) return;
     this.baking = false;
     this.loadedSrc = undefined;
     void this.load();
@@ -459,7 +475,7 @@ export class FolioscopePlayer extends BaseElement {
             0,
             page.flows.findIndex((f) => f.name === flowAttr),
           );
-    this.controls.load(index, page, flowIndex);
+    this.controlBar.load(index, page, flowIndex);
     this.showPoster(this.runtime.frame.placeholder);
     void this.show(this.runtime.restart());
   }
@@ -479,11 +495,11 @@ export class FolioscopePlayer extends BaseElement {
     if (!shown || seq !== this.showing) return;
     // Focus would be lost with the outgoing screen: move it to the new one, announced by name.
     if (hadFocus) shown.focus({ preventScroll: true });
-    this.controls.update(this.runtime?.canGoBack ?? false);
+    this.controlBar.update(this.runtime?.canGoBack ?? false);
     const top = step.overlays.at(-1)?.frame ?? step.frame;
     this.emit("folioscope:navigate", { frame: top.id, name: top.name });
     this.schedule(top);
-    this.preload(top);
+    this.preloadFrom(top);
   }
 
   /** Replaces the screen and its overlays; returns the frame on top. */
@@ -491,7 +507,7 @@ export class FolioscopePlayer extends BaseElement {
     const { frame } = step;
     this.viewport.style.setProperty("--w", String(frame.bounds.width));
     this.viewport.style.setProperty("--h", String(frame.bounds.height));
-    this.fit();
+    this.fitStage();
     const incoming = this.render(frame);
     const overlays = step.overlays.map((overlay) => this.renderOverlay(overlay, frame));
     await Promise.all([incoming, ...overlays].map(decoded));
@@ -664,7 +680,7 @@ export class FolioscopePlayer extends BaseElement {
    * `preload`: `neighbors` (default) fetches the frames this one links to, `all` every frame of
    * the page once, `start` and `none` nothing beyond the frame on screen.
    */
-  private preload(frame: FolioFrame): void {
+  private preloadFrom(frame: FolioFrame): void {
     const strategy = this.getAttribute("preload") ?? "neighbors";
     const page = this.runtime?.page;
     if (!page || strategy === "none" || strategy === "start") return;
@@ -712,7 +728,7 @@ export class FolioscopePlayer extends BaseElement {
    * Scales the prototype to the element's width. In fullscreen, the screen's height bounds it too,
    * and the prototype is centered.
    */
-  private fit(): void {
+  private fitStage(): void {
     const style = this.viewport.style;
     const width = Number(style.getPropertyValue("--w")) || 1;
     const height = Number(style.getPropertyValue("--h")) || 1;
