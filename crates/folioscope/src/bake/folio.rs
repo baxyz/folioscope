@@ -23,7 +23,7 @@ use crate::bake::penpot::PenpotDraw;
 use crate::bake::sketch::SketchDraw;
 use crate::bake::text::Typesetter;
 use crate::bake::xd::XdDraw;
-use crate::bake::{RenderError, render_pixmap};
+use crate::bake::{RenderError, render_pixmap, svg_size};
 use crate::xd::{XdFile, ir::to_ir as xd_ir};
 
 /// Version of the `.folio` layout, independent of the IR's.
@@ -183,7 +183,7 @@ struct FolioState<'a> {
     variant: &'a str,
     name: &'a str,
     bounds: Rect,
-    hotspots: &'a [ir::Hotspot],
+    hotspots: Vec<ir::Hotspot>,
     /// Drawn at the state's bounds, from the component's top-left corner.
     layer: Layer,
     /// Interactive components inside the state, drawn over its layer.
@@ -269,6 +269,20 @@ fn bake_component<'a>(
                 },
                 LayerError::Sink(e) => e,
             })?;
+        // A variant laid out again for the instance's overrides (a longer label) is drawn at
+        // the size it took: the state, and the variant's own hotspot, take it too.
+        let mut bounds = state.bounds;
+        let mut hotspots = state.hotspots.clone();
+        if let Some((width, height)) = svg_size(&markup)
+            && ((width - bounds.width).abs() > 0.5 || (height - bounds.height).abs() > 0.5)
+        {
+            bounds.width = width;
+            bounds.height = height;
+            for hotspot in hotspots.iter_mut().filter(|h| h.node == state.variant) {
+                hotspot.bounds.width = width;
+                hotspot.bounds.height = height;
+            }
+        }
         let mut nested = Vec::new();
         for inner in &state.components {
             nested.push(bake_component(draw, frame, inner, options, report, sink)?);
@@ -283,12 +297,12 @@ fn bake_component<'a>(
             parts,
             variant: &state.variant,
             name: &state.name,
-            bounds: state.bounds,
-            hotspots: &state.hotspots,
+            bounds,
+            hotspots,
             layer: Layer {
                 src,
                 format,
-                bounds: state.bounds,
+                bounds,
                 scrolls: false,
                 scroller: None,
                 sticky: false,

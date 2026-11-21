@@ -501,7 +501,11 @@ export const FEATURES: Feature[] = [
     group: "Drawing",
     name: "A variant other than the one in the file, with its overrides and layout",
     formats: {
-      fig: todo("drawn at its own size, without the overrides' layout"),
+      fig: unverified(
+        "rust: another_variant_is_laid_out_again_for_the_overrides",
+        "a .fig file whose instance overrides a variant's text, saved by Figma, to compare with Figma's own layout",
+        "texts that grow with their content are measured again, and the auto-layout frames that hug them follow; a child that fills its stack keeps the variant's size",
+      ),
       sketch: na,
       penpot: na,
       xd: na,

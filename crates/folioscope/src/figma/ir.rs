@@ -291,6 +291,14 @@ impl<'t, 'a> Walk<'t, 'a> {
             } else {
                 size(variant.value)
             };
+            // The variant's own hotspot covers the state: the instance's size, not the
+            // component's.
+            for hotspot in hotspots
+                .iter_mut()
+                .filter(|h| h.node == variant.id.to_string())
+            {
+                hotspot.bounds = Affine::IDENTITY.bounding_box(w, h);
+            }
             states.push(ComponentState {
                 variant: variant.id.to_string(),
                 name: variant.name.to_owned(),
