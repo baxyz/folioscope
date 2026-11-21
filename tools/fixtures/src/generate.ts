@@ -13,6 +13,46 @@ const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), "../../../fixture
 const PHONE = { width: 375, height: 812 };
 const BLUE = "#2563EB";
 const GREY = "#E5E7EB";
+const INK = "#111827";
+
+type Box = { x: number; y: number; width: number; height: number };
+
+/** A label centered in `box` (a button), in Inter Semi Bold. */
+function label(
+  figma: FigmaBuilder,
+  parent: ReturnType<FigmaBuilder["page"]>,
+  name: string,
+  box: Box,
+  text: string,
+  color = "#FFFFFF",
+  size = 16,
+) {
+  const height = Math.round(size * 1.21);
+  const at = { x: box.x, y: box.y + (box.height - height) / 2, width: box.width, height };
+  return figma.text(parent, name, at, text, color, size, { style: "Semi Bold", align: "CENTER" });
+}
+
+/** Where a line of `text` starts to look centered in `box`, for formats without alignment here. */
+function centered(box: Box, text: string, size: number) {
+  const width = Array.from(new Intl.Segmenter().segment(text)).length * size * 0.56;
+  return { x: box.x + (box.width - width) / 2, width };
+}
+
+/** A text at (x, y) that grows with its content: a title in Bold, else Regular. */
+function words(
+  figma: FigmaBuilder,
+  parent: ReturnType<FigmaBuilder["page"]>,
+  name: string,
+  at: { x: number; y: number },
+  text: string,
+  options: { size?: number; color?: string; bold?: boolean } = {},
+) {
+  const size = options.size ?? 16;
+  const box = { ...at, width: text.length * size * 0.55, height: Math.round(size * 1.21) };
+  return figma.text(parent, name, box, text, options.color ?? INK, size, {
+    style: options.bold ? "Bold" : "Regular",
+  });
+}
 
 /** Two screens, a button to go forward, a button to go back. One flow. */
 function navigation(): FigmaBuilder {
@@ -24,21 +64,23 @@ function navigation(): FigmaBuilder {
   figma.flowStart(home, "Main flow", "Open the details screen and come back");
 
   figma.rect(home, "Header", { x: 0, y: 0, width: 375, height: 96 }, GREY);
-  const open = figma.rect(
-    home,
-    "Open details",
-    { x: 88, y: 640, width: 200, height: 48 },
-    BLUE,
-    24,
-  );
+  words(figma, home, "Title", { x: 24, y: 52 }, "Home", { size: 24, bold: true });
+  words(figma, home, "Intro", { x: 24, y: 128 }, "Tap the blue button to open the details.");
+  const openBox = { x: 88, y: 640, width: 200, height: 48 };
+  const open = figma.rect(home, "Open details", openBox, BLUE, 24);
+  label(figma, home, "Open details label", openBox, "Open details →");
   figma.on(open, "ON_CLICK", {
     kind: "navigate",
     to: details,
     transition: { type: "DISSOLVE", durationMs: 300, easing: "OUT_CUBIC" },
   });
 
-  const back = figma.rect(details, "Back", { x: 16, y: 56, width: 80, height: 32 }, GREY, 8);
+  const backBox = { x: 16, y: 56, width: 80, height: 32 };
+  const back = figma.rect(details, "Back", backBox, GREY, 8);
+  label(figma, details, "Back label", backBox, "← Back", INK, 14);
   figma.on(back, "ON_CLICK", { kind: "back" });
+  words(figma, details, "Title", { x: 24, y: 120 }, "Details", { size: 24, bold: true });
+  words(figma, details, "Body", { x: 24, y: 168 }, "Back returns to the previous screen.");
 
   return figma;
 }
@@ -54,9 +96,16 @@ function smartAnimate(): FigmaBuilder {
   const details = figma.frame(page, "Details", { x: 475, y: 0, ...PHONE });
   figma.flowStart(home, "Smart animate flow");
 
-  figma.rect(home, "Title", { x: 24, y: 64, width: 200, height: 32 }, GREY, 8);
+  words(figma, home, "Title", { x: 24, y: 64 }, "Trips", { size: 28, bold: true });
   figma.rect(home, "Card", { x: 24, y: 128, width: 160, height: 120 }, BLUE, 16);
-  const open = figma.rect(home, "Open", { x: 88, y: 640, width: 200, height: 48 }, "#1E3A8A", 24);
+  words(figma, home, "Place", { x: 40, y: 208 }, "Lisbon", {
+    size: 20,
+    bold: true,
+    color: "#FFFFFF",
+  });
+  const openBox = { x: 88, y: 640, width: 200, height: 48 };
+  const open = figma.rect(home, "Open", openBox, "#1E3A8A", 24);
+  label(figma, home, "Open label", openBox, "Open the trip →");
   figma.on(open, "ON_CLICK", {
     kind: "navigate",
     to: details,
@@ -81,8 +130,17 @@ function smartAnimate(): FigmaBuilder {
   figma.set(arrow, { transform: { m00: 0, m01: -1, m02: 340, m10: 1, m11: 0, m12: 360 } });
 
   figma.rect(details, "Card", { x: 0, y: 0, width: 375, height: 320 }, BLUE, 0);
+  words(figma, details, "Place", { x: 24, y: 256 }, "Lisbon", {
+    size: 32,
+    bold: true,
+    color: "#FFFFFF",
+  });
   figma.rect(details, "Body", { x: 24, y: 352, width: 327, height: 240 }, GREY, 12);
-  const back = figma.rect(details, "Back", { x: 16, y: 56, width: 80, height: 32 }, "#FFFFFF", 16);
+  words(figma, details, "Dates", { x: 40, y: 376 }, "3 nights • 2 guests");
+  words(figma, details, "Rating", { x: 40, y: 408 }, "★★★★ by the river", { color: "#4B5563" });
+  const backBox = { x: 16, y: 56, width: 80, height: 32 };
+  const back = figma.rect(details, "Back", backBox, "#FFFFFF", 16);
+  label(figma, details, "Back label", backBox, "← Back", INK, 14);
   figma.on(back, "ON_CLICK", { kind: "back" });
 
   return figma;
@@ -98,16 +156,24 @@ function overlay(): FigmaBuilder {
   figma.flowStart(home, "Overlay flow");
   figma.overlay(menu, { position: "CENTER", closeOnClickOutside: true, backdrop: "#00000066" });
 
-  const open = figma.rect(home, "Open menu", { x: 88, y: 640, width: 200, height: 48 }, BLUE, 24);
+  words(figma, home, "Title", { x: 24, y: 64 }, "Overlay", { size: 28, bold: true });
+  words(figma, home, "Intro", { x: 24, y: 112 }, "The menu opens over this screen.");
+  const openBox = { x: 88, y: 640, width: 200, height: 48 };
+  const open = figma.rect(home, "Open menu", openBox, BLUE, 24);
+  label(figma, home, "Open menu label", openBox, "Open the menu ↑");
   figma.on(open, "ON_CLICK", {
     kind: "overlay",
     to: menu,
     transition: { type: "MOVE_FROM_BOTTOM", durationMs: 250, easing: "OUT_CUBIC" },
   });
+  const items = ["Profile", "Settings", "Help", "Language", "About"];
   for (let i = 0; i < 3; i++) {
     figma.rect(menu, `Item ${i + 1}`, { x: 24, y: 24 + i * 64, width: 232, height: 48 }, GREY, 8);
+    words(figma, menu, `Item ${i + 1} label`, { x: 40, y: 38 + i * 64 }, items[i]!);
   }
-  const close = figma.rect(menu, "Close", { x: 24, y: 248, width: 232, height: 48 }, BLUE, 24);
+  const closeBox = { x: 24, y: 248, width: 232, height: 48 };
+  const close = figma.rect(menu, "Close", closeBox, BLUE, 24);
+  label(figma, menu, "Close label", closeBox, "Close ×");
   figma.on(close, "ON_CLICK", { kind: "close" });
 
   // "More" swaps the menu for a taller one, with smart animate: the shared items move.
@@ -120,10 +186,15 @@ function overlay(): FigmaBuilder {
   figma.overlay(more, { position: "CENTER", closeOnClickOutside: true, backdrop: "#00000066" });
   for (let i = 0; i < 5; i++) {
     figma.rect(more, `Item ${i + 1}`, { x: 24, y: 24 + i * 64, width: 232, height: 48 }, GREY, 8);
+    words(figma, more, `Item ${i + 1} label`, { x: 40, y: 38 + i * 64 }, items[i]!);
   }
-  const less = figma.rect(more, "Close", { x: 24, y: 376, width: 232, height: 48 }, BLUE, 24);
+  const lessBox = { x: 24, y: 376, width: 232, height: 48 };
+  const less = figma.rect(more, "Close", lessBox, BLUE, 24);
+  label(figma, more, "Close label", lessBox, "Close ×");
   figma.on(less, "ON_CLICK", { kind: "close" });
-  const expand = figma.rect(menu, "More", { x: 200, y: 200, width: 56, height: 32 }, "#DBEAFE", 8);
+  const moreBox = { x: 184, y: 200, width: 72, height: 32 };
+  const expand = figma.rect(menu, "More", moreBox, "#DBEAFE", 8);
+  label(figma, menu, "More label", moreBox, "More ↓", BLUE, 14);
   figma.on(expand, "ON_CLICK", {
     kind: "swap",
     to: more,
@@ -150,35 +221,54 @@ function scroll(): FigmaBuilder {
   // Room below the last item for the fixed tab bar (84) and a margin.
   const height = 10 * 216 + 48 + 16 + 84 + 16;
   const content = figma.frame(feed, "Content", { x: 0, y: 112, width: 375, height }, "#F9FAFB");
-  const cards = Array.from({ length: 10 }, (_, i) =>
-    figma.rect(
+  const cards = Array.from({ length: 10 }, (_, i) => {
+    const card = figma.rect(
       content,
       `Card ${i + 1}`,
       { x: 16, y: i * 216, width: 343, height: 200 },
       i % 2 ? GREY : "#DBEAFE",
       16,
-    ),
-  );
-  const top = figma.rect(
-    content,
-    "Back to top",
-    { x: 88, y: 10 * 216, width: 200, height: 48 },
-    BLUE,
-    24,
-  );
+    );
+    words(figma, content, `Card ${i + 1} title`, { x: 32, y: i * 216 + 16 }, `Post ${i + 1}`, {
+      size: 20,
+      bold: true,
+    });
+    words(
+      figma,
+      content,
+      `Card ${i + 1} text`,
+      { x: 32, y: i * 216 + 48 },
+      "Scroll on: the header and tabs stay.",
+      {
+        color: "#4B5563",
+      },
+    );
+    return card;
+  });
+  const topBox = { x: 88, y: 10 * 216, width: 200, height: 48 };
+  const top = figma.rect(content, "Back to top", topBox, BLUE, 24);
+  label(figma, content, "Back to top label", topBox, "Back to top ↑");
   figma.on(top, "ON_CLICK", {
     kind: "scrollTo",
     to: cards[0]!,
     transition: { type: "SCROLL_ANIMATE", durationMs: 400, easing: "INOUT_CUBIC" },
   });
   figma.fixed(figma.rect(feed, "Header", { x: 0, y: 0, width: 375, height: 96 }, "#FFFFFF"));
+  figma.fixed(
+    words(figma, feed, "Header title", { x: 24, y: 52 }, "Feed", { size: 24, bold: true }),
+  );
   figma.fixed(figma.rect(feed, "Tab bar", { x: 0, y: 728, width: 375, height: 84 }, "#FFFFFF"));
+  for (const [i, tab] of ["Home", "Search", "Profile"].entries()) {
+    const box = { x: i * 125, y: 744, width: 125, height: 24 };
+    figma.fixed(label(figma, feed, `Tab ${tab}`, box, tab, i === 0 ? BLUE : "#6B7280", 14));
+  }
 
   // A second screen: a carousel that scrolls sideways inside it, and a section title that
   // sticks at the top once the screen scrolls to it.
   const gallery = figma.frame(page, "Gallery", { x: 475, y: 0, ...PHONE }, "#FFFFFF");
   figma.flowStart(gallery, "Gallery flow");
   figma.scrollable(gallery);
+  words(figma, gallery, "Title", { x: 24, y: 48 }, "Gallery  ← swipe →", { size: 24, bold: true });
   const carousel = figma.frame(
     gallery,
     "Carousel",
@@ -187,21 +277,17 @@ function scroll(): FigmaBuilder {
   );
   figma.scrollable(carousel, "HORIZONTAL");
   for (let i = 0; i < 5; i++) {
-    const slide = figma.rect(
-      carousel,
-      `Slide ${i + 1}`,
-      { x: i * 216, y: 0, width: 200, height: 200 },
-      i % 2 ? "#DBEAFE" : BLUE,
-      16,
-    );
+    const slideBox = { x: i * 216, y: 0, width: 200, height: 200 };
+    const slide = figma.rect(carousel, `Slide ${i + 1}`, slideBox, i % 2 ? "#DBEAFE" : BLUE, 16);
+    const text = i === 4 ? "Open the feed →" : `${i + 1} / 5`;
+    label(figma, carousel, `Slide ${i + 1} label`, slideBox, text, i % 2 ? BLUE : "#FFFFFF", 20);
     if (i === 4) figma.on(slide, "ON_CLICK", { kind: "navigate", to: feed });
   }
-  const section = figma.rect(
-    gallery,
-    "Section",
-    { x: 0, y: 320, width: 375, height: 48 },
-    "#111827",
-  );
+  // A frame, so that its title sticks with it.
+  const section = figma.frame(gallery, "Section", { x: 0, y: 320, width: 375, height: 48 }, INK);
+  words(figma, section, "Section title", { x: 24, y: 14 }, "Recent • sticks at the top", {
+    color: "#FFFFFF",
+  });
   figma.set(section, { scrollBehavior: "STICKY_SCROLLS" });
   for (let i = 0; i < 8; i++) {
     figma.rect(
@@ -211,6 +297,9 @@ function scroll(): FigmaBuilder {
       GREY,
       12,
     );
+    words(figma, gallery, `Row ${i + 1} title`, { x: 32, y: 400 + i * 160 }, `Photo ${i + 1}`, {
+      bold: true,
+    });
   }
 
   return figma;
@@ -222,6 +311,24 @@ function triggers(): FigmaBuilder {
   const page = figma.page("Prototype");
 
   const splash = figma.frame(page, "Splash", { x: 0, y: 0, ...PHONE }, BLUE);
+  label(
+    figma,
+    splash,
+    "Logo",
+    { x: 0, y: 360, width: 375, height: 48 },
+    "Folioscope",
+    "#FFFFFF",
+    36,
+  );
+  label(
+    figma,
+    splash,
+    "Wait",
+    { x: 0, y: 420, width: 375, height: 24 },
+    "Moving on in 1.5 s…",
+    "#DBEAFE",
+    16,
+  );
   const home = figma.frame(page, "Home", { x: 475, y: 0, ...PHONE });
   const hovered = figma.frame(page, "Home, button hovered", { x: 950, y: 0, ...PHONE });
   const pressed = figma.frame(page, "Home, button pressed", { x: 1425, y: 0, ...PHONE });
@@ -235,12 +342,18 @@ function triggers(): FigmaBuilder {
   );
   const button = { x: 88, y: 640, width: 200, height: 48 };
   const plain = figma.rect(home, "Button", button, BLUE, 24);
+  label(figma, home, "Button label", button, "Hover me, press me");
+  words(figma, home, "Title", { x: 24, y: 64 }, "Triggers", { size: 28, bold: true });
   figma.on(plain, "ON_HOVER", { kind: "navigate", to: hovered });
   figma.on(plain, "ON_PRESS", { kind: "navigate", to: pressed });
   // While hovering, the hovered screen is shown: pressing must be wired on its button too.
   const hoveredButton = figma.rect(hovered, "Button", button, "#1D4ED8", 24);
+  label(figma, hovered, "Button label", button, "Hovered… now press");
+  words(figma, hovered, "Title", { x: 24, y: 64 }, "Triggers", { size: 28, bold: true });
   figma.on(hoveredButton, "ON_PRESS", { kind: "navigate", to: pressed });
   figma.rect(pressed, "Button", button, "#1E3A8A", 24);
+  label(figma, pressed, "Button label", button, "Pressed ✓");
+  words(figma, pressed, "Title", { x: 24, y: 64 }, "Triggers", { size: 28, bold: true });
 
   // Shift + right arrow, or a swipe on the card, opens the details; Escape-free back.
   const details = figma.frame(page, "Details", { x: 1900, y: 0, ...PHONE }, "#F9FAFB");
@@ -251,14 +364,28 @@ function triggers(): FigmaBuilder {
     0,
     [16, 39],
   );
-  const card = figma.rect(home, "Swipe card", { x: 24, y: 160, width: 327, height: 200 }, GREY, 16);
+  const cardBox = { x: 24, y: 160, width: 327, height: 200 };
+  const card = figma.rect(home, "Swipe card", cardBox, GREY, 16);
+  label(figma, home, "Swipe card label", { ...cardBox, y: 220, height: 40 }, "Swipe me ←", INK, 20);
+  label(
+    figma,
+    home,
+    "Keys hint",
+    { ...cardBox, y: 270, height: 24 },
+    "or press ⇧ + →",
+    "#4B5563",
+    16,
+  );
   figma.on(card, "DRAG", {
     kind: "navigate",
     to: details,
     transition: { type: "SLIDE_FROM_RIGHT", durationMs: 300 },
   });
-  const back = figma.rect(details, "Back", { x: 16, y: 56, width: 80, height: 32 }, GREY, 8);
+  const backBox = { x: 16, y: 56, width: 80, height: 32 };
+  const back = figma.rect(details, "Back", backBox, GREY, 8);
+  label(figma, details, "Back label", backBox, "← Back", INK, 14);
   figma.on(back, "ON_CLICK", { kind: "back" });
+  words(figma, details, "Title", { x: 24, y: 120 }, "Details", { size: 24, bold: true });
 
   return figma;
 }
@@ -289,6 +416,13 @@ function components(): FigmaBuilder {
     "#1E3A8A",
     24,
   );
+  for (const [variant, text] of [
+    [idle, "Hover me"],
+    [hover, "Now press me"],
+    [pressed, "Pressed ✓"],
+  ] as const) {
+    label(figma, variant, "Label", { x: 0, y: 0, ...size }, text);
+  }
   figma.on(idle, "ON_HOVER", { kind: "changeTo", to: hover });
   figma.on(hover, "ON_PRESS", { kind: "changeTo", to: pressed });
 
@@ -323,8 +457,13 @@ function components(): FigmaBuilder {
   );
   const closed = figma.variant(cards, "Open=false", { x: 24, y: 24, ...card }, GREY, 16);
   const opened = figma.variant(cards, "Open=true", { x: 24, y: 168, ...card }, "#DBEAFE", 16);
+  words(figma, closed, "Title", { x: 16, y: 16 }, "A card", { size: 20, bold: true });
+  words(figma, closed, "Hint", { x: 16, y: 52 }, "Tap it to open ↓", { color: "#4B5563" });
+  words(figma, opened, "Hint", { x: 16, y: 76 }, "Wi-Fi", { bold: true });
   figma.on(closed, "ON_CLICK", { kind: "changeTo", to: opened, transition: toggle });
-  const fold = figma.rect(opened, "Fold", { x: 16, y: 16, width: 120, height: 32 }, BLUE, 8);
+  const foldBox = { x: 16, y: 16, width: 120, height: 32 };
+  const fold = figma.rect(opened, "Fold", foldBox, BLUE, 8);
+  label(figma, opened, "Fold label", foldBox, "Fold ↑", "#FFFFFF", 14);
   figma.on(fold, "ON_CLICK", { kind: "changeTo", to: closed, transition: toggle });
   figma.instance(opened, off, "Inner switch", { x: 247, y: 68, ...track });
 
@@ -350,6 +489,7 @@ function components(): FigmaBuilder {
     "#FFFFFF",
     12,
   );
+  label(figma, shown, "Message", { x: 0, y: 0, width: 232, height: 48 }, "Saved ✓ (hides in 1 s)");
   figma.on(shown, "AFTER_TIMEOUT", { kind: "changeTo", to: hidden, transition: toggle }, 1000);
 
   // A chip whose label the instance changes: in its other state, laid out again around the
@@ -379,7 +519,7 @@ function components(): FigmaBuilder {
     const color = selected ? "#FFFFFF" : "#111827";
     return [variant, figma.text(variant, "Label", box, "Chip", color)];
   };
-  const [unselected, label] = chip(24, false);
+  const [unselected, chipLabel] = chip(24, false);
   const [selected] = chip(72, true);
   const morph = { type: "SMART_ANIMATE", durationMs: 250, easing: "INOUT_CUBIC" } as const;
   figma.on(unselected!, "ON_CLICK", { kind: "changeTo", to: selected!, transition: morph });
@@ -395,9 +535,12 @@ function components(): FigmaBuilder {
     width: 192,
     height: 35,
   });
-  figma.overrideText(filter, label!, "Only the open tickets");
+  figma.overrideText(filter, chipLabel!, "Only the open tickets");
+  words(figma, home, "Title", { x: 24, y: 56 }, "Components", { size: 28, bold: true });
+  words(figma, home, "Filter hint", { x: 24, y: 272 }, "Filter: tap the chip");
+  words(figma, home, "Switch label", { x: 24, y: 408 }, "Notifications", { bold: true });
   figma.instance(home, idle, "Button", { x: 88, y: 640, ...size });
-  figma.instance(home, off, "Switch", { x: 156, y: 400, ...track });
+  figma.instance(home, off, "Switch", { x: 287, y: 400, ...track });
   figma.instance(home, closed, "Card", { x: 24, y: 120, ...card });
   figma.instance(home, shown, "Toast", { x: 72, y: 720, width: 232, height: 48 });
 
@@ -414,34 +557,40 @@ function flowsAndPages(): FigmaBuilder {
     const first = figma.frame(onboarding, `${name} 1`, { x: 0, y, ...PHONE });
     const second = figma.frame(onboarding, `${name} 2`, { x: 475, y, ...PHONE }, "#F9FAFB");
     figma.flowStart(first, name);
-    const next = figma.rect(first, "Next", { x: 88, y: 640, width: 200, height: 48 }, BLUE, 24);
+    const nextBox = { x: 88, y: 640, width: 200, height: 48 };
+    const next = figma.rect(first, "Next", nextBox, BLUE, 24);
+    label(figma, first, "Next label", nextBox, "Next →");
     figma.on(next, "ON_CLICK", {
       kind: "navigate",
       to: second,
       transition: { type: "PUSH_FROM_RIGHT", durationMs: 300, easing: "INOUT_CUBIC" },
     });
-    const back = figma.rect(second, "Back", { x: 16, y: 56, width: 80, height: 32 }, GREY, 8);
+    const backBox = { x: 16, y: 56, width: 80, height: 32 };
+    const back = figma.rect(second, "Back", backBox, GREY, 8);
+    label(figma, second, "Back label", backBox, "← Back", INK, 14);
     figma.on(back, "ON_CLICK", { kind: "back" });
+    words(figma, first, "Title", { x: 24, y: 64 }, `${name}, step 1`, { size: 24, bold: true });
+    words(figma, second, "Title", { x: 24, y: 120 }, `${name}, step 2`, { size: 24, bold: true });
   }
 
   const app = figma.page("App");
   const dashboard = figma.frame(app, "Dashboard", { x: 0, y: 0, ...PHONE });
   const settings = figma.frame(app, "Settings", { x: 475, y: 0, ...PHONE }, "#F9FAFB");
   figma.flowStart(dashboard, "App");
-  const gear = figma.rect(
-    dashboard,
-    "Settings button",
-    { x: 311, y: 56, width: 48, height: 48 },
-    GREY,
-    24,
-  );
+  words(figma, dashboard, "Title", { x: 24, y: 64 }, "Dashboard", { size: 24, bold: true });
+  const gearBox = { x: 311, y: 56, width: 48, height: 48 };
+  const gear = figma.rect(dashboard, "Settings button", gearBox, GREY, 24);
+  label(figma, dashboard, "Settings label", gearBox, "•••", INK, 16);
   figma.on(gear, "ON_CLICK", {
     kind: "navigate",
     to: settings,
     transition: { type: "SLIDE_FROM_RIGHT", durationMs: 300, easing: "OUT_CUBIC" },
   });
-  const done = figma.rect(settings, "Done", { x: 16, y: 56, width: 80, height: 32 }, GREY, 8);
+  const doneBox = { x: 16, y: 56, width: 80, height: 32 };
+  const done = figma.rect(settings, "Done", doneBox, GREY, 8);
+  label(figma, settings, "Done label", doneBox, "Done ✓", INK, 14);
   figma.on(done, "ON_CLICK", { kind: "back" });
+  words(figma, settings, "Title", { x: 24, y: 120 }, "Settings", { size: 24, bold: true });
 
   return figma;
 }
@@ -538,16 +687,36 @@ function sketchNavigation(): SketchBuilder {
   sketch.flowHome(home);
 
   sketch.rect(home, "Header", { x: 0, y: 0, width: 375, height: 96 }, GREY);
-  const open = sketch.rect(
+  sketch.text(home, "Title", { x: 24, y: 50, width: 200, height: 30 }, "Home", {
+    name: "Inter-Bold",
+    size: 24,
+  });
+  const openBox = { x: 88, y: 640, width: 200, height: 48 };
+  const open = sketch.rect(home, "Open details", openBox, BLUE, 24);
+  const openText = "Open details →";
+  const openAt = centered(openBox, openText, 16);
+  sketch.text(
     home,
-    "Open details",
-    { x: 88, y: 640, width: 200, height: 48 },
-    BLUE,
-    24,
+    "Open details label",
+    { ...openAt, y: 654, height: 20 },
+    openText,
+    {
+      name: "Inter-SemiBold",
+      size: 16,
+    },
+    "#FFFFFF",
   );
   sketch.link(open, details, "slideFromRight");
 
   const back = sketch.rect(details, "Back", { x: 16, y: 56, width: 80, height: 32 }, GREY, 8);
+  sketch.text(details, "Back label", { x: 30, y: 63, width: 60, height: 18 }, "← Back", {
+    name: "Inter-SemiBold",
+    size: 14,
+  });
+  sketch.text(details, "Title", { x: 24, y: 120, width: 200, height: 30 }, "Details", {
+    name: "Inter-Bold",
+    size: 24,
+  });
   sketch.link(back, "back");
 
   return sketch;
@@ -718,6 +887,9 @@ function penpotNavigation(): PenpotBuilder {
   penpot.flow(page, home, "Main flow");
 
   penpot.rect(page, home, "Header", { x: 0, y: 0, width: 375, height: 96 }, GREY);
+  penpot.text(page, home, "Title", { x: 24, y: 50, width: 200, height: 30 }, [
+    { text: "Home", family: "Inter", weight: 700, size: 24, color: INK },
+  ]);
   const open = penpot.rect(
     page,
     home,
@@ -727,6 +899,11 @@ function penpotNavigation(): PenpotBuilder {
     24,
   );
   penpot.navigate(open, details, { animationType: "dissolve", duration: 300, easing: "ease-out" });
+  const openText = "Open details →";
+  const openAt = centered({ x: 88, y: 640, width: 200, height: 48 }, openText, 16);
+  penpot.text(page, home, "Open details label", { ...openAt, y: 654, height: 20 }, [
+    { text: openText, family: "Inter", weight: 600, size: 16, color: "#FFFFFF" },
+  ]);
 
   const back = penpot.rect(
     page,
@@ -737,6 +914,12 @@ function penpotNavigation(): PenpotBuilder {
     8,
   );
   penpot.back(back);
+  penpot.text(page, details, "Back label", { x: 505, y: 63, width: 60, height: 18 }, [
+    { text: "← Back", family: "Inter", weight: 600, size: 14, color: INK },
+  ]);
+  penpot.text(page, details, "Title", { x: 499, y: 120, width: 200, height: 30 }, [
+    { text: "Details", family: "Inter", weight: 700, size: 24, color: INK },
+  ]);
 
   return penpot;
 }
@@ -1168,10 +1351,35 @@ function xdNavigation(): XdBuilder {
   xd.start(home);
 
   xd.rect(home, "Header", { x: 0, y: 0, width: 375, height: 96 }, GREY);
-  const open = xd.rect(home, "Open details", { x: 88, y: 640, width: 200, height: 48 }, BLUE, 24);
+  xd.text(home, "Title", { x: 24, y: 74 }, "Home", { family: "Inter", style: "Bold", size: 24 });
+  const openBox = { x: 88, y: 640, width: 200, height: 48 };
+  const open = xd.rect(home, "Open details", openBox, BLUE, 24);
+  const openText = "Open details →";
+  xd.text(
+    home,
+    "Open details label",
+    { x: centered(openBox, openText, 16).x, y: 670 },
+    openText,
+    {
+      family: "Inter",
+      style: "Semi Bold",
+      size: 16,
+    },
+    "#FFFFFF",
+  );
   xd.link(open, details, { transition: "slide-left", easing: "ease-out" });
 
   const back = xd.rect(details, "Back", { x: 16, y: 56, width: 80, height: 32 }, GREY, 8);
+  xd.text(details, "Back label", { x: 30, y: 77 }, "← Back", {
+    family: "Inter",
+    style: "Semi Bold",
+    size: 14,
+  });
+  xd.text(details, "Title", { x: 24, y: 144 }, "Details", {
+    family: "Inter",
+    style: "Bold",
+    size: 24,
+  });
   xd.link(back, home, { transition: "dissolve" });
   xd.circle(details, "Dot", { x: 150, y: 300, width: 75, height: 75 }, BLUE);
 
