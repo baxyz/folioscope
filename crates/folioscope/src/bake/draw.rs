@@ -314,27 +314,62 @@ impl Draw for FigmaDraw<'_, '_> {
         parts
     }
 
-    fn state_parts(&mut self, _component: &ir::Component, state: &ir::ComponentState) -> Vec<Part> {
+    fn state_parts(&mut self, component: &ir::Component, state: &ir::ComponentState) -> Vec<Part> {
         let Ok(variant) = state.variant.parse::<NodeId>() else {
             return Vec::new();
         };
-        let mut parts = Vec::new();
-        if let Some(background) = svg::render_part(self.tree, variant, svg::Part::Background, &[]) {
-            parts.push(Part {
-                name: String::new(),
-                markup: background.markup,
-                bounds: Rect {
-                    x: 0.0,
-                    y: 0.0,
-                    width: background.width,
-                    height: background.height,
-                },
-                matrix: None,
-                shape: None,
-            });
-        }
-        figma_parts(self.tree, variant, "", Matrix::IDENTITY, 1, &mut parts);
-        parts
+        let Ok(path) = component
+            .id
+            .split(';')
+            .map(str::parse)
+            .collect::<Result<Vec<NodeId>, _>>()
+        else {
+            return Vec::new();
+        };
+        // Components nested in the state are drawn on their own, over it.
+        let hidden: Vec<NodeId> = state
+            .components
+            .iter()
+            .filter_map(|c| c.id.rsplit(';').next()?.parse().ok())
+            .collect();
+        let Some((drawn, missing)) = svg::state_parts(
+            self.tree,
+            &path,
+            variant,
+            Some(&mut self.typesetter),
+            &hidden,
+        ) else {
+            return Vec::new();
+        };
+        self.missing_fonts.extend(missing);
+        drawn
+            .into_iter()
+            .map(|part| {
+                let m = part.matrix;
+                let turned = (m.a - 1.0).abs() > 1e-6
+                    || m.b.abs() > 1e-6
+                    || m.c.abs() > 1e-6
+                    || (m.d - 1.0).abs() > 1e-6;
+                #[allow(clippy::cast_possible_truncation)] // design coordinates fit in f32
+                let as_f32 = [m.a, m.b, m.c, m.d, m.e, m.f].map(|v| v as f32);
+                Part {
+                    shape: if part.split || part.name.is_empty() {
+                        None
+                    } else {
+                        plain_box(&part.value)
+                    },
+                    name: part.name,
+                    bounds: Rect {
+                        x: as_f32[4],
+                        y: as_f32[5],
+                        width: part.svg.width,
+                        height: part.svg.height,
+                    },
+                    matrix: turned.then_some(as_f32),
+                    markup: part.svg.markup,
+                }
+            })
+            .collect()
     }
 }
 
