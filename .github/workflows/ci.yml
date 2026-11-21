@@ -90,7 +90,8 @@ jobs:
       - name: Site demos are up to date with the fixtures and the bake
         run: |
           pnpm --filter @folioscope/site bake-demos
-          git diff --exit-code -- apps/site/public/folio apps/site/public/comparison
+          # The AVIF encoder picks its SIMD paths by processor: its files differ between machines.
+          git diff --exit-code -- apps/site/public/folio apps/site/public/comparison ':!*.avif'
 
   # The single status to mark as required in branch protection, so adding or renaming jobs
   # never needs a settings change.
