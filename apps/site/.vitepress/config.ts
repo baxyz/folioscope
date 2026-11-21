@@ -17,6 +17,7 @@ export default defineConfig({
     nav: [
       { text: "Getting started", link: "/guide/getting-started" },
       { text: "Demos", link: "/demos" },
+      { text: "Playground", link: "/playground" },
       { text: "Compatibility", link: "/compatibility" },
       { text: "Roadmap", link: "/roadmap" },
       { text: "Comparison", link: "/comparison" },
