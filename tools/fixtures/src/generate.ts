@@ -38,6 +38,57 @@ function centered(box: Box, text: string, size: number) {
   return { x: box.x + (box.width - width) / 2, width };
 }
 
+/** A label centered in `box`, in a `.sketch` artboard (coordinates of the artboard). */
+function sketchLabel(
+  sketch: SketchBuilder,
+  artboard: Parameters<SketchBuilder["text"]>[0],
+  box: Box,
+  text: string,
+  color = "#FFFFFF",
+  size = 16,
+) {
+  const height = Math.round(size * 1.25);
+  const at = { ...centered(box, text, size), y: box.y + (box.height - height) / 2, height };
+  return sketch.text(artboard, `${text} label`, at, text, { name: "Inter-SemiBold", size }, color);
+}
+
+/** A label centered in `box`, on a Penpot board (coordinates of the page). */
+function penpotLabel(
+  penpot: PenpotBuilder,
+  page: Parameters<PenpotBuilder["text"]>[0],
+  board: Parameters<PenpotBuilder["text"]>[1],
+  box: Box,
+  text: string,
+  color = "#FFFFFF",
+  size = 16,
+) {
+  const height = Math.round(size * 1.2);
+  const at = { ...centered(box, text, size), y: box.y + (box.height - height) / 2, height };
+  return penpot.text(page, board, `${text} label`, at, [
+    { text, family: "Inter", weight: 600, size, color },
+  ]);
+}
+
+/** A label centered in `box`, in an `.xd` artboard (its `y` is the baseline). */
+function xdLabel(
+  xd: XdBuilder,
+  artboard: Parameters<XdBuilder["text"]>[0],
+  box: Box,
+  text: string,
+  color = "#FFFFFF",
+  size = 16,
+) {
+  const at = { x: centered(box, text, size).x, y: box.y + box.height / 2 + size * 0.36 };
+  return xd.text(
+    artboard,
+    `${text} label`,
+    at,
+    text,
+    { family: "Inter", style: "Semi Bold", size },
+    color,
+  );
+}
+
 /** A text at (x, y) that grows with its content: a title in Bold, else Regular. */
 function words(
   figma: FigmaBuilder,
@@ -673,7 +724,9 @@ function figmaFeatures(): FigmaBuilder {
     ],
   });
 
-  const site = figma.rect(home, "Website", { x: 88, y: 640, width: 200, height: 48 }, BLUE, 24);
+  const siteBox = { x: 88, y: 640, width: 200, height: 48 };
+  const site = figma.rect(home, "Website", siteBox, BLUE, 24);
+  label(figma, home, "Website label", siteBox, "Open the website →");
   figma.on(site, "ON_CLICK", { kind: "url", url: "https://folioscope.baxyz.dev" });
   return figma;
 }
@@ -814,21 +867,20 @@ function sketchFeatures(): SketchBuilder {
     { text: ", struck", font: "Inter-Regular", size: 18, fill: "#6B7280", strike: true },
   ]);
 
-  const open = sketch.rect(
-    home,
-    "Open details",
-    { x: 88, y: 640, width: 200, height: 48 },
-    BLUE,
-    24,
-  );
+  const openBox = { x: 88, y: 640, width: 200, height: 48 };
+  const open = sketch.rect(home, "Open details", openBox, BLUE, 24);
+  sketchLabel(sketch, home, openBox, "Open details →");
   sketch.link(open, details, "slideFromRight");
-  const back = sketch.rect(details, "Back", { x: 16, y: 56, width: 80, height: 32 }, GREY, 8);
+  const backBox = { x: 16, y: 56, width: 80, height: 32 };
+  const back = sketch.rect(details, "Back", backBox, GREY, 8);
+  sketchLabel(sketch, details, backBox, "← Back", INK, 14);
   sketch.link(back, "back", "slideFromLeft");
 
   const second = sketch.page("Second page");
   const about = sketch.artboard(second, "About", { x: 0, y: 0, ...PHONE });
   sketch.flowHome(about);
   sketch.rect(about, "Logo", { x: 138, y: 300, width: 100, height: 100 }, BLUE, 50);
+  sketchLabel(sketch, about, { x: 0, y: 420, width: 375, height: 30 }, "A second page", INK, 20);
   return sketch;
 }
 
@@ -843,17 +895,26 @@ function sketchScroll(): SketchBuilder {
   for (let i = 0; i < 6; i++) {
     const card = { x: 16, y: 112 + i * 240, width: 343, height: 216 };
     sketch.rect(feed, `Card ${i + 1}`, card, i % 2 ? GREY : "#DBEAFE", 16);
+    sketchLabel(sketch, feed, card, `Post ${i + 1}: scroll on`, INK, 18);
   }
   sketch.fixed(sketch.rect(feed, "Header", { x: 0, y: 0, width: 375, height: 96 }, BLUE));
-  const open = sketch.rect(
-    feed,
-    "Open details",
-    { x: 88, y: 1520, width: 200, height: 48 },
-    BLUE,
-    24,
+  sketch.fixed(
+    sketchLabel(
+      sketch,
+      feed,
+      { x: 0, y: 48, width: 375, height: 30 },
+      "Feed, fixed header",
+      "#FFFFFF",
+      20,
+    ),
   );
+  const openBox = { x: 88, y: 1520, width: 200, height: 48 };
+  const open = sketch.rect(feed, "Open details", openBox, BLUE, 24);
+  sketchLabel(sketch, feed, openBox, "Open details →");
   sketch.link(open, details, "slideFromRight");
-  const back = sketch.rect(details, "Back", { x: 16, y: 56, width: 80, height: 32 }, GREY, 8);
+  const backBox = { x: 16, y: 56, width: 80, height: 32 };
+  const back = sketch.rect(details, "Back", backBox, GREY, 8);
+  sketchLabel(sketch, details, backBox, "← Back", INK, 14);
   sketch.link(back, "back", "slideFromLeft");
   return sketch;
 }
@@ -938,6 +999,16 @@ function penpotFeatures(): PenpotBuilder {
   const details = penpot.board(page, "Details", { x: 950, y: 0, ...PHONE }, "#F9FAFB");
   const menu = penpot.board(page, "Menu", { x: 1425, y: 0, width: 280, height: 320 });
   const tip = penpot.board(page, "Tip", { x: 1425, y: 400, width: 200, height: 80 }, "#111827");
+  penpotLabel(
+    penpot,
+    page,
+    splash,
+    { x: 0, y: 380, width: 375, height: 40 },
+    "Penpot, 1.5 s…",
+    "#FFFFFF",
+    28,
+  );
+  penpotLabel(penpot, page, tip, { x: 1425, y: 400, width: 200, height: 80 }, "A tip, on hover");
   penpot.flow(page, splash, "Main flow");
   penpot.flow(page, home, "Skip the splash");
 
@@ -1253,6 +1324,11 @@ function penpotFeatures(): PenpotBuilder {
     way: "in",
     direction: "left",
   });
+  penpotLabel(penpot, page, home, { x: 563, y: 560, width: 200, height: 48 }, "Open details →");
+  penpotLabel(penpot, page, home, { x: 563, y: 624, width: 200, height: 48 }, "Hold me", INK);
+  penpotLabel(penpot, page, home, { x: 563, y: 688, width: 200, height: 48 }, "Hover me", INK);
+  penpotLabel(penpot, page, home, { x: 563, y: 752, width: 200, height: 32 }, "Website →", INK, 14);
+  penpotLabel(penpot, page, home, { x: 795, y: 40, width: 40, height: 40 }, "•••", INK);
   const hold = penpot.rect(
     page,
     home,
@@ -1326,6 +1402,7 @@ function penpotFeatures(): PenpotBuilder {
     24,
   );
   penpot.interact(close, { eventType: "click", actionType: "close-overlay", destination: menu.id });
+  penpotLabel(penpot, page, menu, { x: 1449, y: 248, width: 232, height: 48 }, "Close ×");
   const back = penpot.rect(
     page,
     details,
@@ -1335,6 +1412,7 @@ function penpotFeatures(): PenpotBuilder {
     8,
   );
   penpot.back(back);
+  penpotLabel(penpot, page, details, { x: 966, y: 56, width: 80, height: 32 }, "← Back", INK, 14);
 
   const second = penpot.page("Second page");
   const about = penpot.board(second, "About", { x: 0, y: 0, ...PHONE });
@@ -1500,11 +1578,18 @@ function xdFeatures(): XdBuilder {
     .rangedStyles;
   ranged[0]!.underline = true;
 
-  const open = xd.rect(home, "Open details", { x: 88, y: 640, width: 200, height: 48 }, BLUE, 24);
+  const openBox = { x: 88, y: 640, width: 200, height: 48 };
+  const open = xd.rect(home, "Open details", openBox, BLUE, 24);
+  xdLabel(xd, home, openBox, "Open details →");
   xd.link(open, details, { action: "auto-animate", easing: "ease-in-out", duration: 0.4 });
-  const peek = xd.rect(home, "Peek", { x: 88, y: 720, width: 200, height: 32 }, GREY, 16);
+  const peekBox = { x: 88, y: 720, width: 200, height: 32 };
+  const peek = xd.rect(home, "Peek", peekBox, GREY, 16);
+  xdLabel(xd, home, peekBox, "Peek: hover me", INK, 14);
   xd.link(peek, details, { trigger: "hover", transition: "dissolve" });
-  const back = xd.rect(details, "Back", { x: 16, y: 56, width: 80, height: 32 }, GREY, 8);
+  xdLabel(xd, splash, { x: 0, y: 380, width: 375, height: 40 }, "Adobe XD, 1.5 s…", "#FFFFFF", 28);
+  const backBox = { x: 16, y: 56, width: 80, height: 32 };
+  const back = xd.rect(details, "Back", backBox, GREY, 8);
+  xdLabel(xd, details, backBox, "← Back", INK, 14);
   xd.link(back, home, { action: "previous-artboard" });
   return xd;
 }
