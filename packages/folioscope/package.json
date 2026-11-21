@@ -47,7 +47,7 @@
     "dev": "vp pack --watch",
     "test": "vp test",
     "check": "vp check",
-    "test:e2e": "node e2e/navigation.e2e.ts",
+    "test:e2e": "node e2e/navigation.e2e.ts && node e2e/cdn.e2e.ts",
     "test:budget": "node e2e/budget.e2e.ts",
     "build:wasm": "node scripts/build-wasm.ts"
   },
