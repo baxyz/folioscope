@@ -2,7 +2,8 @@
 
 `folioscope::bake` (Rust, feature `bake`) turns a design file into a [`.folio`](folio.md) folder. It
 runs natively in the CLI and as WebAssembly in the Vite plugin and the full player, with the same
-output byte for byte.
+output byte for byte, AVIF images aside: their encoder picks processor-specific paths, so an AVIF
+layer can differ between machines (same size, same look, other bytes).
 
 ```text
 design file ──► importer ──► IR (prototype graph) ──┐
