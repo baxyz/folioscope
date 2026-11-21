@@ -439,7 +439,7 @@ export const FEATURES: Feature[] = [
     group: "Drawing",
     name: "Masks and clip paths",
     formats: {
-      fig: works("rust: frame_renders_to_svg_and_png"),
+      fig: unverified("rust: figma_masks_and_images", FIG_CHECK),
       sketch: works("rust: sketch_draws_shapes"),
       penpot: works("rust: penpot_draws_shapes"),
       xd: works("rust: xd_draws_shapes"),
@@ -450,7 +450,11 @@ export const FEATURES: Feature[] = [
     group: "Drawing",
     name: "Masks by transparency (alpha)",
     formats: {
-      fig: todo("Figma's alpha masks are drawn as outline masks"),
+      fig: unverified(
+        "rust: figma_masks_and_images",
+        FIG_CHECK,
+        "alpha and luminance; an outline mask is drawn by its alpha",
+      ),
       sketch: unverified("rust: sketch_borders_and_masks", SKETCH_CHECK),
       penpot: na,
       xd: na,
@@ -472,8 +476,8 @@ export const FEATURES: Feature[] = [
     group: "Drawing",
     name: "Image fills: tile and crop",
     formats: {
-      fig: todo("tiled and cropped image fills are drawn filling the shape"),
-      sketch: todo("tiled image fills are drawn filling the shape"),
+      fig: unverified("rust: figma_masks_and_images", FIG_CHECK),
+      sketch: unverified("rust: sketch_tiles", SKETCH_CHECK, "tiles"),
       penpot: na,
       xd: na,
     },
