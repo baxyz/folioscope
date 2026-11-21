@@ -85,10 +85,12 @@ jobs:
       - run: pnpm --filter folioscope test:e2e
       - name: First frame in under a second on 4G
         run: pnpm --filter folioscope test:budget
+      - name: Comparison page, on the built site
+        run: pnpm --filter @folioscope/site test:e2e
       - name: Site demos are up to date with the fixtures and the bake
         run: |
           pnpm --filter @folioscope/site bake-demos
-          git diff --exit-code -- apps/site/public/folio
+          git diff --exit-code -- apps/site/public/folio apps/site/public/comparison
 
   # The single status to mark as required in branch protection, so adding or renaming jobs
   # never needs a settings change.
