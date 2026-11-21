@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { createHash } from "node:crypto";
 import { constants, zstdCompressSync } from "node:zlib";
 import { zipSync } from "fflate";
 import { solidPng } from "./png.ts";
@@ -10,6 +11,7 @@ import {
   type FigDocument,
   type FigGuid,
   type FigNode,
+  type FigPaint,
 } from "openfig-core";
 
 export interface Box {
@@ -68,6 +70,8 @@ function position(index: number): string {
 /** Builds a `.fig` file node by node, on top of openfig-core's empty document. */
 export class FigmaBuilder {
   readonly doc: FigDocument = createEmptyFigDoc();
+  /** Image fills' files, by the hex SHA-1 of their bytes, as Figma names them. */
+  private readonly images = new Map<string, Uint8Array>();
   private nextLocalId = 1;
   private pageNamed = false;
   private readonly childCount = new Map<string, number>();
@@ -226,6 +230,32 @@ export class FigmaBuilder {
     });
   }
 
+  /**
+   * An image paint of `png` (`width` × `height` pixels): `STRETCH`, `FIT`, `FILL` or `TILE`, with
+   * a tile `scale`, or a crop `transform` for `STRETCH`.
+   */
+  imagePaint(
+    png: Uint8Array,
+    width: number,
+    height: number,
+    mode: "STRETCH" | "FIT" | "FILL" | "TILE",
+    extra: { scale?: number; transform?: object } = {},
+  ) {
+    const sha1 = createHash("sha1").update(png).digest();
+    this.images.set(sha1.toString("hex"), png);
+    return {
+      type: "IMAGE",
+      opacity: 1,
+      visible: true,
+      blendMode: "NORMAL",
+      image: { hash: new Uint8Array(sha1), name: "image" },
+      imageScaleMode: mode,
+      originalImageWidth: width,
+      originalImageHeight: height,
+      ...extra,
+    } as unknown as FigPaint;
+  }
+
   /** Sets fields of a node as Figma stores them (paints, effects, blend mode…). */
   set(node: FigGuid, fields: Partial<FigNode>): void {
     Object.assign(this.node(node), fields);
@@ -292,6 +322,9 @@ export class FigmaBuilder {
       "canvas.fig": [canvasFig, stored],
       "thumbnail.png": [thumbnail, stored],
       "meta.json": [new TextEncoder().encode(JSON.stringify(meta)), stored],
+      ...Object.fromEntries(
+        [...this.images].map(([hash, png]) => [`images/${hash}`, [png, stored] as const]),
+      ),
     });
   }
 

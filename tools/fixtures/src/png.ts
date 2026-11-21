@@ -1,16 +1,47 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { crc32, deflateSync } from "node:zlib";
 
+/** A checkerboard PNG of `cells` × `cells` squares of `size` pixels, in two colours. */
+export function checkerPng(
+  size: number,
+  cells: number,
+  a: { r: number; g: number; b: number },
+  b: { r: number; g: number; b: number },
+) {
+  const side = size * cells;
+  const pixel = (x: number, y: number) =>
+    (Math.floor(x / size) + Math.floor(y / size)) % 2 ? b : a;
+  return png(side, side, pixel);
+}
+
 /** A PNG of a single color: 8-bit RGB, unfiltered rows. */
 export function solidPng(
   width: number,
   height: number,
   color: { r: number; g: number; b: number },
 ) {
-  const rgb = [color.r, color.g, color.b].map((c) => Math.round(c * 255));
-  const row = Buffer.alloc(1 + width * 3);
-  for (let x = 0; x < width; x++) row.set(rgb, 1 + x * 3);
-  const raw = Buffer.concat(Array.from({ length: height }, () => row));
+  return png(width, height, () => color);
+}
+
+/** A PNG of `width` × `height` pixels, each of the colour `pixel` gives. */
+function png(
+  width: number,
+  height: number,
+  pixel: (x: number, y: number) => { r: number; g: number; b: number },
+) {
+  const raw = Buffer.concat(
+    Array.from({ length: height }, (_, y) => {
+      const row = Buffer.alloc(1 + width * 3);
+      for (let x = 0; x < width; x++) {
+        const c = pixel(x, y);
+        row.set(
+          [c.r, c.g, c.b].map((v) => Math.round(v * 255)),
+          1 + x * 3,
+        );
+      }
+      return row;
+    }),
+  );
   const chunk = (type: string, data: Buffer) => {
     const head = Buffer.alloc(8);
     head.writeUInt32BE(data.length, 0);

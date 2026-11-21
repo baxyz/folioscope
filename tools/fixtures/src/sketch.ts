@@ -269,6 +269,21 @@ export class SketchBuilder {
     };
   }
 
+  /** Replaces a layer's first fill with an image: tiled (0, at `scale`), fill (1), stretch (2), fit (3). */
+  imageFill(layer: Layer, png: Uint8Array, mode: 0 | 1 | 2 | 3, scale = 1): void {
+    const ref = `images/${this.id().toLowerCase()}.png`;
+    this.images.set(ref, png);
+    const fill = (layer as FileFormat.Rectangle).style!.fills![0]!;
+    fill.fillType = 4 as FileFormat.FillType;
+    fill.patternFillType = mode as FileFormat.PatternFillType;
+    fill.patternTileScale = scale;
+    (fill as unknown as { image: object }).image = {
+      _class: "MSJSONFileReference",
+      _ref_class: "MSImageData",
+      _ref: ref,
+    };
+  }
+
   /** Adds an inner shadow. */
   innerShadow(layer: Layer, offsetY: number, blur: number, hex: string): void {
     (layer as FileFormat.Rectangle).style!.innerShadows!.push({

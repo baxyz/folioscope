@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { effect, FigmaBuilder, gradient } from "./figma.ts";
+import { checkerPng } from "./png.ts";
 import { PenpotBuilder } from "./penpot.ts";
 import { SketchBuilder } from "./sketch.ts";
 import { XdBuilder } from "./xd.ts";
@@ -420,6 +421,28 @@ function figmaFeatures(): FigmaBuilder {
   );
   figma.set(multiply, { blendMode: "MULTIPLY" });
 
+  // A mask (an ellipse, by its alpha) over a rectangle; images tiled and cropped.
+  const masked = figma.frame(
+    home,
+    "Masked",
+    { x: 240, y: 392, width: 120, height: 120 },
+    "#FFFFFF",
+  );
+  const lens = figma.ellipse(masked, "Lens", { x: 0, y: 0, width: 120, height: 120 }, "#000000");
+  figma.set(lens, { mask: true, maskType: "ALPHA" });
+  figma.rect(masked, "Behind the lens", { x: 0, y: 0, width: 120, height: 120 }, "#EC4899");
+  const checker = checkerPng(8, 2, { r: 0.15, g: 0.39, b: 0.92 }, { r: 1, g: 1, b: 1 });
+  const tiled = figma.rect(home, "Tiled", { x: 16, y: 536, width: 160, height: 80 }, GREY);
+  figma.set(tiled, { fillPaints: [figma.imagePaint(checker, 16, 16, "TILE", { scale: 1 })] });
+  const cropped = figma.rect(home, "Cropped", { x: 199, y: 536, width: 160, height: 80 }, GREY);
+  figma.set(cropped, {
+    fillPaints: [
+      figma.imagePaint(checker, 16, 16, "STRETCH", {
+        transform: { m00: 0.5, m01: 0, m02: 0, m10: 0, m11: 0.5, m12: 0 },
+      }),
+    ],
+  });
+
   const site = figma.rect(home, "Website", { x: 88, y: 640, width: 200, height: 48 }, BLUE, 24);
   figma.on(site, "ON_CLICK", { kind: "url", url: "https://folioscope.baxyz.dev" });
   return figma;
@@ -528,6 +551,13 @@ function sketchFeatures(): SketchBuilder {
   sketch.gradient(fade, 0, "#000000FF", "#00000000");
   sketch.alphaMask(fade);
   sketch.rect(faded, "Faded square", { x: 0, y: 0, width: 48, height: 64 }, "#EC4899");
+  const tiles = sketch.rect(home, "Tiles", { x: 256, y: 160, width: 96, height: 16 }, GREY);
+  sketch.imageFill(
+    tiles,
+    checkerPng(4, 2, { r: 0.15, g: 0.39, b: 0.92 }, { r: 1, g: 1, b: 1 }),
+    0,
+    1,
+  );
   sketch.richText(home, "Rich text", { x: 24, y: 576, width: 320, height: 48 }, [
     { text: "Plain, ", font: "Inter-Regular", size: 18, fill: "#111827" },
     { text: "bold blue", font: "Inter-Bold", size: 18, fill: "#2563EB", underline: true },
