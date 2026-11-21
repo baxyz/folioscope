@@ -24,6 +24,7 @@ fn generated_fixture_converts_to_ir() {
     insta::assert_snapshot!("ir-navigation", serde_json::to_string_pretty(&ir).unwrap());
 }
 
+#[cfg(feature = "bake")]
 mod features {
     //! `fixtures/sketch/features.sketch`: every Sketch scenario, one test per feature.
     use folioscope::bake::draw::Draw;
@@ -103,6 +104,7 @@ mod features {
     }
 }
 
+#[cfg(feature = "bake")]
 mod effects {
     //! The effects of `fixtures/sketch/features.sketch`, drawn with Inter.
     use folioscope::bake::draw::Draw;
