@@ -42,26 +42,7 @@ impl Ctx<'_, '_> {
                 self.defs.push_str("</linearGradient>");
                 Some(format!(r#"fill="url(#{id})" fill-opacity="{opacity}""#))
             }
-            "IMAGE" => {
-                let Some(Value::Bytes(hash)) = paint.get("image").and_then(|i| i.get("hash"))
-                else {
-                    return None;
-                };
-                let bytes = self.tree.image(hash)?;
-                let aspect = match paint.get("imageScaleMode").and_then(Value::as_str) {
-                    Some("FIT") => "xMidYMid meet",
-                    Some("STRETCH") => "none",
-                    _ => "xMidYMid slice",
-                };
-                let id = self.id("p");
-                let _ = write!(
-                    self.defs,
-                    r#"<pattern id="{id}" patternUnits="userSpaceOnUse" width="{w}" height="{h}"><image href="data:{};base64,{}" width="{w}" height="{h}" preserveAspectRatio="{aspect}"/></pattern>"#,
-                    mime(bytes),
-                    helpers4::hex::base64_encode(bytes)
-                );
-                Some(format!(r#"fill="url(#{id})" fill-opacity="{opacity}""#))
-            }
+            "IMAGE" => self.image_paint(paint, w, h, opacity),
             kind @ ("GRADIENT_RADIAL" | "GRADIENT_ANGULAR" | "GRADIENT_DIAMOND") => {
                 let m = unit_to_node(paint.get("transform"), w, h)?;
                 let stops = stops(paint);
@@ -94,6 +75,58 @@ impl Ctx<'_, '_> {
             }
             _ => None,
         }
+    }
+
+    /// An image fill: stretched, fit, filled, tiled, or cropped (stretched with a transform).
+    fn image_paint(&mut self, paint: &Value, w: f32, h: f32, opacity: f32) -> Option<String> {
+        let Some(Value::Bytes(hash)) = paint.get("image").and_then(|i| i.get("hash")) else {
+            return None;
+        };
+        let bytes = self.tree.image(hash)?;
+        let href = format!(
+            "data:{};base64,{}",
+            mime(bytes),
+            helpers4::hex::base64_encode(bytes)
+        );
+        let id = self.id("p");
+        let mode = paint.get("imageScaleMode").and_then(Value::as_str);
+        let number = |k: &str| paint.get(k).and_then(Value::as_f32);
+        match mode {
+            // Tiles at the image's own size, times its scale, from the node's corner.
+            Some("TILE") => {
+                let (iw, ih) = number("originalImageWidth")
+                    .zip(number("originalImageHeight"))
+                    .or_else(|| image_size(bytes))?;
+                let scale = number("scale").unwrap_or(1.0);
+                let (tw, th) = (iw * scale, ih * scale);
+                let _ = write!(
+                    self.defs,
+                    r#"<pattern id="{id}" patternUnits="userSpaceOnUse" width="{tw}" height="{th}"><image href="{href}" width="{tw}" height="{th}" preserveAspectRatio="none"/></pattern>"#
+                );
+            }
+            // A stretched image with a transform is a crop: the image's unit square,
+            // placed by the inverse of the paint transform.
+            Some("STRETCH") if paint.get("transform").is_some() => {
+                let m = unit_to_node(paint.get("transform"), w, h)?;
+                let _ = write!(
+                    self.defs,
+                    r#"<pattern id="{id}" patternUnits="userSpaceOnUse" width="{w}" height="{h}"><image href="{href}" width="1" height="1" preserveAspectRatio="none" transform="matrix({} {} {} {} {} {})"/></pattern>"#,
+                    m[0], m[1], m[2], m[3], m[4], m[5]
+                );
+            }
+            _ => {
+                let aspect = match mode {
+                    Some("FIT") => "xMidYMid meet",
+                    Some("STRETCH") => "none",
+                    _ => "xMidYMid slice",
+                };
+                let _ = write!(
+                    self.defs,
+                    r#"<pattern id="{id}" patternUnits="userSpaceOnUse" width="{w}" height="{h}"><image href="{href}" width="{w}" height="{h}" preserveAspectRatio="{aspect}"/></pattern>"#
+                );
+            }
+        }
+        Some(format!(r#"fill="url(#{id})" fill-opacity="{opacity}""#))
     }
 
     /// Opens the groups that draw a node's visible effects: drop shadows, inner shadows and layer
@@ -252,6 +285,40 @@ fn gradient_line(
         (p.x as f32 * width, p.y as f32 * height)
     };
     Some((in_node(0.0, 0.5), in_node(1.0, 0.5)))
+}
+
+/// The pixel size of a PNG or JPEG image, from its header.
+pub(crate) fn image_size(bytes: &[u8]) -> Option<(f32, f32)> {
+    let be16 = |at: usize| {
+        Some(f32::from(u16::from_be_bytes([
+            *bytes.get(at)?,
+            *bytes.get(at + 1)?,
+        ])))
+    };
+    let be32 = |at: usize| {
+        let b: [u8; 4] = bytes.get(at..at + 4)?.try_into().ok()?;
+        #[allow(clippy::cast_precision_loss)] // image sides fit in f32
+        Some(u32::from_be_bytes(b) as f32)
+    };
+    if bytes.starts_with(b"\x89PNG") {
+        return Some((be32(16)?, be32(20)?));
+    }
+    if bytes.starts_with(&[0xFF, 0xD8]) {
+        // Walk the JPEG segments up to a start of frame (SOF0 to SOF15, but DHT, JPG and DAC).
+        let mut at = 2;
+        while at + 9 < bytes.len() {
+            if bytes[at] != 0xFF {
+                return None;
+            }
+            let marker = bytes[at + 1];
+            let length = usize::from(u16::from_be_bytes([bytes[at + 2], bytes[at + 3]]));
+            if (0xC0..=0xCF).contains(&marker) && !matches!(marker, 0xC4 | 0xC8 | 0xCC) {
+                return Some((be16(at + 7)?, be16(at + 5)?));
+            }
+            at += 2 + length;
+        }
+    }
+    None
 }
 
 pub(crate) fn mime(bytes: &[u8]) -> &'static str {

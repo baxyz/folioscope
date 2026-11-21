@@ -22,7 +22,7 @@ use crate::bake::text::{Align, Paragraph, Typesetter};
 use helpers4::geometry::Matrix;
 
 mod paint;
-pub(crate) use paint::mime;
+pub(crate) use paint::{image_size, mime};
 mod path;
 
 pub struct Svg {
@@ -474,10 +474,34 @@ impl Ctx<'_, '_> {
         if instance {
             self.overrides.enter(node, node.value);
         }
+        // A mask is not drawn: it masks the siblings above it, up to the end of the parent.
+        let mut masks = 0;
         for child in children {
-            if let Some(child) = self.tree.get(child) {
+            let Some(child) = self.tree.get(child) else {
+                continue;
+            };
+            let resolved = self.overrides.resolve(child);
+            if !matches!(resolved.get("mask"), Some(Value::Bool(true))) {
                 self.node(child, false);
+                continue;
             }
+            let start = self.body.len();
+            self.node(child, false);
+            let drawn = self.body.split_off(start);
+            let id = self.id("m");
+            let kind = match resolved.get("maskType").and_then(Value::as_str) {
+                Some("LUMINANCE") => "luminance",
+                _ => "alpha",
+            };
+            let _ = write!(
+                self.defs,
+                r#"<mask id="{id}" mask-type="{kind}" maskUnits="userSpaceOnUse" x="-100000" y="-100000" width="200000" height="200000">{drawn}</mask>"#
+            );
+            let _ = write!(self.body, r#"<g mask="url(#{id})">"#);
+            masks += 1;
+        }
+        for _ in 0..masks {
+            self.body.push_str("</g>");
         }
         if instance {
             self.overrides.leave();
