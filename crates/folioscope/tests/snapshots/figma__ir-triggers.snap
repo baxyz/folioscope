@@ -42,7 +42,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                   },
                   "action": {
                     "type": "navigate",
-                    "to": "1:2",
+                    "to": "1:4",
                     "transition": {
                       "kind": {
                         "type": "dissolve"
@@ -59,7 +59,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
           ]
         },
         {
-          "id": "1:2",
+          "id": "1:4",
           "name": "Home",
           "bounds": {
             "x": 475.0,
@@ -69,7 +69,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
           },
           "hotspots": [
             {
-              "node": "1:2",
+              "node": "1:4",
               "name": "Home",
               "bounds": {
                 "x": 0.0,
@@ -88,7 +88,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                   },
                   "action": {
                     "type": "navigate",
-                    "to": "1:12",
+                    "to": "1:20",
                     "transition": {
                       "kind": {
                         "type": "slideIn",
@@ -104,7 +104,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
               ]
             },
             {
-              "node": "1:6",
+              "node": "1:8",
               "name": "Button",
               "bounds": {
                 "x": 88.0,
@@ -119,7 +119,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                   },
                   "action": {
                     "type": "navigate",
-                    "to": "1:3",
+                    "to": "1:5",
                     "transition": {
                       "kind": {
                         "type": "instant"
@@ -137,7 +137,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                   },
                   "action": {
                     "type": "navigate",
-                    "to": "1:4",
+                    "to": "1:6",
                     "transition": {
                       "kind": {
                         "type": "instant"
@@ -152,7 +152,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
               ]
             },
             {
-              "node": "1:14",
+              "node": "1:22",
               "name": "Swipe card",
               "bounds": {
                 "x": 24.0,
@@ -167,7 +167,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                   },
                   "action": {
                     "type": "navigate",
-                    "to": "1:12",
+                    "to": "1:20",
                     "transition": {
                       "kind": {
                         "type": "slideIn",
@@ -185,7 +185,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
           ]
         },
         {
-          "id": "1:3",
+          "id": "1:5",
           "name": "Home, button hovered",
           "bounds": {
             "x": 950.0,
@@ -195,7 +195,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
           },
           "hotspots": [
             {
-              "node": "1:9",
+              "node": "1:13",
               "name": "Button",
               "bounds": {
                 "x": 88.0,
@@ -210,7 +210,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                   },
                   "action": {
                     "type": "navigate",
-                    "to": "1:4",
+                    "to": "1:6",
                     "transition": {
                       "kind": {
                         "type": "instant"
@@ -227,7 +227,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
           ]
         },
         {
-          "id": "1:4",
+          "id": "1:6",
           "name": "Home, button pressed",
           "bounds": {
             "x": 1425.0,
@@ -238,7 +238,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
           "hotspots": []
         },
         {
-          "id": "1:12",
+          "id": "1:20",
           "name": "Details",
           "bounds": {
             "x": 1900.0,
@@ -248,7 +248,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
           },
           "hotspots": [
             {
-              "node": "1:16",
+              "node": "1:26",
               "name": "Back",
               "bounds": {
                 "x": 16.0,

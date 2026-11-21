@@ -15,7 +15,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
         },
         {
           "name": "Gallery flow",
-          "start": "1:17"
+          "start": "1:42"
         }
       ],
       "frames": [
@@ -30,7 +30,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
           },
           "hotspots": [
             {
-              "node": "1:13",
+              "node": "1:33",
               "name": "Back to top",
               "bounds": {
                 "x": 88.0,
@@ -76,13 +76,17 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
               "height": 2436.0
             },
             "fixed": [
-              "1:15",
-              "1:16"
+              "1:36",
+              "1:37",
+              "1:38",
+              "1:39",
+              "1:40",
+              "1:41"
             ]
           }
         },
         {
-          "id": "1:17",
+          "id": "1:42",
           "name": "Gallery",
           "bounds": {
             "x": 475.0,
@@ -92,7 +96,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
           },
           "hotspots": [
             {
-              "node": "1:23",
+              "node": "1:53",
               "name": "Slide 5",
               "bounds": {
                 "x": 864.0,
@@ -120,7 +124,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                   }
                 }
               ],
-              "scroller": "1:18"
+              "scroller": "1:44"
             }
           ],
           "scroll": {
@@ -132,12 +136,12 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
               "height": 1648.0
             },
             "sticky": [
-              "1:25"
+              "1:56"
             ]
           },
           "scrollers": [
             {
-              "id": "1:18",
+              "id": "1:44",
               "name": "Carousel",
               "bounds": {
                 "x": 16.0,

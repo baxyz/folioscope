@@ -26,7 +26,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
           },
           "hotspots": [
             {
-              "node": "1:5",
+              "node": "1:6",
               "name": "Open",
               "bounds": {
                 "x": 88.0,
@@ -68,7 +68,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
           },
           "hotspots": [
             {
-              "node": "1:17",
+              "node": "1:22",
               "name": "Back",
               "bounds": {
                 "x": 16.0,

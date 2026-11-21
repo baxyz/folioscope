@@ -125,7 +125,12 @@ export class PenpotBuilder {
         ...(run.decoration ? { textDecoration: `${run.decoration} ${run.color}` } : {}),
       };
     });
-    return this.shape(page, parent, name, "text", box, { positionData, fills: [] });
+    const text = this.shape(page, parent, name, "text", box, { positionData, fills: [] });
+    // Over the shapes made before it, as a label over its button: last in the list, on top.
+    const siblings = page.shapes.get(parent.id)!.shapes!;
+    siblings.splice(siblings.indexOf(text.id), 1);
+    siblings.push(text.id);
+    return text;
   }
 
   /** An image shape showing a PNG of one colour, stored as a media of the file. */
