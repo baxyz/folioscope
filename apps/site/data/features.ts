@@ -540,7 +540,9 @@ export const FEATURES: Feature[] = [
     formats: {
       fig: na,
       sketch: works("rust: sketch_text_needs_its_fonts"),
-      penpot: todo("custom fonts in objects/ are not read yet"),
+      penpot: todo(
+        "a .penpot file with a custom font, to see how Penpot exports it: none of the public files has one",
+      ),
       xd: na,
     },
   },
@@ -554,13 +556,13 @@ export const FEATURES: Feature[] = [
     id: "font-regex",
     group: "Text",
     name: "Font substitution by regular expression (/^SF Pro/i)",
-    formats: { all: todo("not read yet") },
+    formats: { all: works("rust: a_font_answers_to_regular_expressions") },
   },
   {
     id: "font-config",
     group: "Text",
-    name: "A folioscope.config file read by the CLI",
-    formats: { all: todo("not read yet") },
+    name: "A folioscope.config.json the CLI reads",
+    formats: { all: works("rust: a_configuration_file_gives_defaults_the_flags_override") },
   },
 
   // Player
@@ -619,8 +621,12 @@ export const FEATURES: Feature[] = [
   {
     id: "browser-fonts-modes",
     group: "Player",
-    name: "Fonts in the browser: base (manifest) and css modes, regex match, lazy loading, FolioscopeFontSet",
-    formats: { all: todo("not done yet") },
+    name: "Fonts in the browser: a folder's manifest, a stylesheet, regular expressions, only the fonts used, FolioscopeFontSet",
+    formats: {
+      all: works(
+        "e2e: fonts: a folder's manifest, a stylesheet, a regular expression, only what is used",
+      ),
+    },
   },
   {
     id: "dynamic-layers",
