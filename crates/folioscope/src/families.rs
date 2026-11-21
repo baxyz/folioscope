@@ -128,10 +128,7 @@ mod tests {
         assert!(xd.contains("Inter"), "{xd:?}");
         let penpot = families(&fixture("penpot/features.penpot")).unwrap();
         assert!(penpot.contains("Inter"), "{penpot:?}");
-        assert!(
-            families(&fixture("figma/navigation.fig"))
-                .unwrap()
-                .is_empty()
-        );
+        let fig = families(&fixture("figma/navigation.fig")).unwrap();
+        assert_eq!(fig.into_iter().collect::<Vec<_>>(), ["Inter"]);
     }
 }

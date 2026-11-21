@@ -105,7 +105,7 @@ From `folioscope/vite`: `folioscope(options)`, the Vite plugin (see
 folioscope bake <file> <out.folio> [--config <file>] [--no-avif] [--no-svg] [--max-states <n>]
     [--all-pages] [--fonts <path> [--family <name>] [--match <pattern>]... [--weight <n>] [--italic]]...
 folioscope inspect <file>
-folioscope render <file.fig> <node> <out.png> [scale]
+folioscope render <file.fig> <node> <out.png> [scale] [--fonts <path>]...
 folioscope fonts <folder>
 ```
 

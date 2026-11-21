@@ -15,7 +15,7 @@ design file ──► importer ──► IR (prototype graph) ──┐
 folioscope bake <file> <out.folio> [--no-avif] [--no-svg] [--max-states <n>] [--all-pages]
     [--fonts <file or folder> [--family <name>] [--match <pattern>]... [--weight <n>] [--italic]]...
 folioscope inspect <file>                  # pages, frames, flows and links, any format
-folioscope render <file.fig> <node> <out.png> [scale]   # one node, and its SVG
+folioscope render <file.fig> <node> <out.png> [scale] [--fonts <path>]...   # one node, and its SVG
 folioscope fonts <folder>                  # writes folder/folioscope-fonts.json
 ```
 
