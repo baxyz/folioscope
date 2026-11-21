@@ -34,6 +34,16 @@ pub trait Draw {
     /// One state of an interactive component.
     fn state(&mut self, component: &ir::Component, state: &ir::ComponentState) -> Option<String>;
 
+    /// The layers that scroll inside the screen and the sticky ones: each scroller's content,
+    /// and the children that stick, of a scroller or of the frame. None by default.
+    ///
+    /// # Errors
+    ///
+    /// Fails when a part of the frame cannot be drawn.
+    fn scroll_layers(&mut self, _frame: &ir::Frame) -> Result<Vec<ScrollLayer>, BakeError> {
+        Ok(Vec::new())
+    }
+
     /// Fonts some text needed and was not given (`Family Style`), over every call so far.
     fn missing_fonts(&mut self) -> BTreeSet<String>;
 
@@ -52,6 +62,17 @@ pub trait Draw {
     ) -> Vec<Part> {
         Vec::new()
     }
+}
+
+/// A layer that scrolls inside the screen, or that sticks once scrolled to.
+#[derive(Debug, Clone)]
+pub struct ScrollLayer {
+    pub markup: String,
+    /// In the scroller's content (or the frame's, for a sticky child of the frame).
+    pub bounds: Rect,
+    /// The scroller it is in, by id; none for a sticky child of the frame itself.
+    pub scroller: Option<String>,
+    pub sticky: bool,
 }
 
 /// A part of a frame that smart animate moves on its own.
@@ -109,12 +130,26 @@ impl Draw for FigmaDraw<'_, '_> {
         let missing = || BakeError::MissingFrame(frame.id.clone());
         let id: NodeId = frame.id.parse().map_err(|_| missing())?;
         let tree = self.tree;
-        // Interactive components are left out of the frame's layers: they get their own.
-        let hidden: Vec<NodeId> = frame
+        // Interactive components are left out of the frame's layers: they get their own. So are
+        // what scrolls inside the screen and what sticks.
+        let mut hidden: Vec<NodeId> = frame
             .components
             .iter()
             .filter_map(|c| c.id.rsplit(';').next()?.parse().ok())
             .collect();
+        for scroller in &frame.scrollers {
+            let scroller: NodeId = scroller.id.parse().map_err(|_| missing())?;
+            hidden.extend(tree.children(scroller).map(|c| c.id));
+        }
+        if let Some(scroll) = &frame.scroll {
+            hidden.extend(
+                scroll
+                    .sticky
+                    .iter()
+                    .filter_map(|s| s.parse::<NodeId>().ok()),
+            );
+        }
+        let simple = hidden.is_empty();
         let whole = Rect {
             x: 0.0,
             y: 0.0,
@@ -122,7 +157,7 @@ impl Draw for FigmaDraw<'_, '_> {
             height: frame.bounds.height,
         };
         let Some(scroll) = &frame.scroll else {
-            let markup = if hidden.is_empty() {
+            let markup = if simple {
                 whole_markup.to_owned()
             } else {
                 svg::render_node_without(tree, id, &hidden)
@@ -153,6 +188,77 @@ impl Draw for FigmaDraw<'_, '_> {
             parts.push((part(svg::Part::Fixed { fixed: &fixed })?, whole, false));
         }
         Ok(parts)
+    }
+
+    fn scroll_layers(&mut self, frame: &ir::Frame) -> Result<Vec<ScrollLayer>, BakeError> {
+        let missing = || BakeError::MissingFrame(frame.id.clone());
+        let tree = self.tree;
+        let components: Vec<NodeId> = frame
+            .components
+            .iter()
+            .filter_map(|c| c.id.rsplit(';').next()?.parse().ok())
+            .collect();
+        let mut layers = Vec::new();
+        // A sticky child, drawn on its own at its place in its parent's content.
+        let sticky = |layers: &mut Vec<ScrollLayer>, id: &str, scroller: Option<String>| {
+            let node: NodeId = id.parse().map_err(|_| missing())?;
+            let child = tree.get(node).ok_or_else(missing)?;
+            let svg = svg::render_node(tree, node).ok_or_else(missing)?;
+            let offset = |k: &str| {
+                child
+                    .value
+                    .get("transform")
+                    .and_then(|m| m.get(k))
+                    .and_then(Value::as_f32)
+                    .unwrap_or(0.0)
+            };
+            layers.push(ScrollLayer {
+                markup: svg.markup,
+                bounds: Rect {
+                    x: offset("m02"),
+                    y: offset("m12"),
+                    width: svg.width,
+                    height: svg.height,
+                },
+                scroller,
+                sticky: true,
+            });
+            Ok::<(), BakeError>(())
+        };
+        for scroller in &frame.scrollers {
+            let id: NodeId = scroller.id.parse().map_err(|_| missing())?;
+            let fixed: Vec<NodeId> = scroller
+                .sticky
+                .iter()
+                .filter_map(|s| s.parse().ok())
+                .collect();
+            let size = (scroller.content.width, scroller.content.height);
+            let content = svg::render_part(
+                tree,
+                id,
+                svg::Part::Content {
+                    fixed: &fixed,
+                    size,
+                },
+                &components,
+            )
+            .ok_or_else(missing)?;
+            layers.push(ScrollLayer {
+                markup: content.markup,
+                bounds: scroller.content,
+                scroller: Some(scroller.id.clone()),
+                sticky: false,
+            });
+            for child in &scroller.sticky {
+                sticky(&mut layers, child, Some(scroller.id.clone()))?;
+            }
+        }
+        if let Some(scroll) = &frame.scroll {
+            for child in &scroll.sticky {
+                sticky(&mut layers, child, None)?;
+            }
+        }
+        Ok(layers)
     }
 
     fn state(&mut self, component: &ir::Component, state: &ir::ComponentState) -> Option<String> {
