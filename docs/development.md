@@ -76,7 +76,10 @@ pull request as the feature.
 
 `folioscope.baxyz.dev`: VitePress 2 in `apps/site/`, served by a Cloudflare Worker with static
 assets (`wrangler.jsonc`), built by Workers Builds from this repository: production on `main`, a
-preview per branch. Build `pnpm run build`, deploy `pnpm exec wrangler deploy`. A Worker can set
+preview per branch. Build `pnpm run build`, deploy `pnpm exec wrangler deploy`. The build starts
+with `scripts/ensure-wasm.ts`: the site ships the full player (the Playground, raw-file demos), so
+the WebAssembly bake must be built first; on Workers Builds, whose image has no Rust, the script
+installs the pinned toolchain and wasm-bindgen. A Worker can set
 HTTP headers (COOP and COEP, for WebAssembly threads), which GitHub Pages cannot. No tracking.
 
 ## Publishing
