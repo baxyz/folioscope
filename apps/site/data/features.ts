@@ -132,7 +132,7 @@ export const FEATURES: Feature[] = [
         SKETCH_CHECK,
       ),
       penpot: todo(
-        "Penpot shows a board at its size and the browser scrolls the page; a player that keeps a device's height would scroll it",
+        "a screen height: a .penpot file stores none, and Penpot's viewer scrolls a tall board in the browser's window, its shapes fixed when scrolling (fixedScroll) staying put; Folioscope shows the whole board and the page scrolls it, fixed shapes included",
       ),
       xd: works(
         "e2e: xd: an artboard taller than its viewport scrolls",
