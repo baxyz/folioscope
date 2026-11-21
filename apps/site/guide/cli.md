@@ -89,5 +89,6 @@ Bake in the job that builds your site, before it copies `public/`:
 - run: folioscope bake designs/app.fig public/app.folio --fonts fonts
 ```
 
-A bake is reproducible: the same file and fonts give the same `.folio`, byte for byte, so you can
-also commit the folder and bake only when the design changes.
+A bake is reproducible: the same file and fonts give the same `.folio`, byte for byte (AVIF
+images aside, whose encoder takes processor-specific paths), so you can also commit the folder
+and bake only when the design changes.
