@@ -47,7 +47,11 @@ JSON is camelCase; enums are objects tagged by `type`. Ids are strings, each for
     or `manual` at the opening action's `offset` from the hotspot), `backdrop` (`#rrggbbaa`),
     `closeOnClickOutside`;
   - `scroll`: `direction` (`vertical`, `horizontal`, `both`), `content` (what scrolls, from the
-    frame's corner), `fixed` (ids of the children that stay in place);
+    frame's corner), `fixed` (ids of the children that stay in place), `sticky` (ids of the
+    children that scroll, then hold at the top edge);
+  - `scrollers`: frames inside the screen whose content scrolls: `id`, `name`, `bounds` (in the
+    frame), `direction`, `content`, `sticky`. One level; hotspots inside one carry its id in
+    `scroller`, with bounds in its content;
   - `components`: its interactive components (below);
   - `parts`: for smart animate (below).
 - **Hotspot**: the node carrying interactions, its `bounds` in frame coordinates (bounding box
@@ -75,6 +79,9 @@ runtime, never in the pixels. A layer is `{ src, format, bounds, scrolls? }`, dr
 - **a frame that scrolls is three**: its background (its own fills, at the frame's size), its
   content (every child but the fixed ones, at the content's full size, `scrolls: true`), and its
   fixed children on top. The player puts the content in a native scroller between the two.
+- **A frame that scrolls inside the screen** (a scroller) is left out of the screen's layers but
+  for its own fills, and its content is a layer of its own with `scroller` set; a sticky child is
+  a layer of its own, `sticky`, in its scroller's content (or the frame's, with `scrolls`).
 - **Overlays** are frames of their own, drawn over the screen.
 - **Smart animate**: a frame a smart animate leaves or reaches (a navigation, an overlay, a swap)
   also has `parts`: its background (named `""`), then its layers by path (`Card/Title`), three
