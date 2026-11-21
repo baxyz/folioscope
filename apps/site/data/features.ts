@@ -145,10 +145,14 @@ export const FEATURES: Feature[] = [
     group: "Prototype",
     name: "A frame that scrolls inside a screen, sticky elements",
     formats: {
-      fig: todo("not played yet"),
+      fig: unverified(
+        "e2e: scroll: a frame scrolls inside the screen, and a sticky title holds at the top",
+        FIG_CHECK,
+        "one level",
+      ),
       sketch: na,
-      penpot: todo("not played yet"),
-      xd: todo("not played yet"),
+      penpot: na,
+      xd: todo("an .xd file with a scroll group, to see how XD stores it"),
     },
   },
   {

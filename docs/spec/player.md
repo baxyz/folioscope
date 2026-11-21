@@ -49,7 +49,9 @@ plugin. Vanilla custom elements in a shadow root: no UI framework.
   mouse down and up, after delay. **Actions**: navigate, change to, scroll to, open, swap and
   toggle overlays, back, close, open a URL.
 - **Scrolling**: a scrolling frame's content sits in a native scroller between its background and
-  its fixed layers.
+  its fixed layers; a frame that scrolls inside the screen gets a native scroller of its own, in
+  the content it is part of; a sticky layer moves with its content, then holds at its scroller's
+  top (or left) edge.
 - **Overlays** are positioned over the screen, on their backdrop, and close on a click outside when
   the file says so.
 - **Preloading**: on load, the start frame, then the frames one interaction away (`neighbors`), or
