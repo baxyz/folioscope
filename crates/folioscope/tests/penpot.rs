@@ -24,6 +24,7 @@ fn generated_fixture_converts_to_ir() {
     insta::assert_snapshot!("ir-navigation", serde_json::to_string_pretty(&ir).unwrap());
 }
 
+#[cfg(feature = "bake")]
 mod features {
     //! `fixtures/penpot/features.penpot`: every Penpot scenario, one test per feature.
     use folioscope::bake::draw::Draw;
@@ -192,6 +193,7 @@ mod features {
     }
 }
 
+#[cfg(feature = "bake")]
 mod effects {
     //! The effects of `fixtures/penpot/features.penpot`.
     use folioscope::bake::draw::Draw;

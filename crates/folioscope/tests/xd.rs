@@ -149,6 +149,7 @@ fn real_prototypes_keep_their_links() {
     }
 }
 
+#[cfg(feature = "bake")]
 mod features {
     //! `fixtures/xd/features.xd`: every XD scenario, one test per feature.
     use folioscope::bake::draw::Draw;
@@ -230,6 +231,7 @@ mod features {
     }
 }
 
+#[cfg(feature = "bake")]
 mod effects {
     //! The effects of `fixtures/xd/features.xd`, drawn with Inter.
     use folioscope::bake::draw::Draw;
