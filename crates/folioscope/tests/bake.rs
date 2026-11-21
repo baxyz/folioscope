@@ -210,6 +210,7 @@ mod flat {
             overlay: None,
             scroll: None,
             components: Vec::new(),
+            scrollers: Vec::new(),
         }
     }
 

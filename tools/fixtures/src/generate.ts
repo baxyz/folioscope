@@ -174,6 +174,45 @@ function scroll(): FigmaBuilder {
   figma.fixed(figma.rect(feed, "Header", { x: 0, y: 0, width: 375, height: 96 }, "#FFFFFF"));
   figma.fixed(figma.rect(feed, "Tab bar", { x: 0, y: 728, width: 375, height: 84 }, "#FFFFFF"));
 
+  // A second screen: a carousel that scrolls sideways inside it, and a section title that
+  // sticks at the top once the screen scrolls to it.
+  const gallery = figma.frame(page, "Gallery", { x: 475, y: 0, ...PHONE }, "#FFFFFF");
+  figma.flowStart(gallery, "Gallery flow");
+  figma.scrollable(gallery);
+  const carousel = figma.frame(
+    gallery,
+    "Carousel",
+    { x: 16, y: 96, width: 343, height: 200 },
+    GREY,
+  );
+  figma.scrollable(carousel, "HORIZONTAL");
+  for (let i = 0; i < 5; i++) {
+    const slide = figma.rect(
+      carousel,
+      `Slide ${i + 1}`,
+      { x: i * 216, y: 0, width: 200, height: 200 },
+      i % 2 ? "#DBEAFE" : BLUE,
+      16,
+    );
+    if (i === 4) figma.on(slide, "ON_CLICK", { kind: "navigate", to: feed });
+  }
+  const section = figma.rect(
+    gallery,
+    "Section",
+    { x: 0, y: 320, width: 375, height: 48 },
+    "#111827",
+  );
+  figma.set(section, { scrollBehavior: "STICKY_SCROLLS" });
+  for (let i = 0; i < 8; i++) {
+    figma.rect(
+      gallery,
+      `Row ${i + 1}`,
+      { x: 16, y: 384 + i * 160, width: 343, height: 144 },
+      GREY,
+      12,
+    );
+  }
+
   return figma;
 }
 
