@@ -218,9 +218,64 @@ export class FigmaBuilder {
     });
   }
 
-  /** An instance of `component`, with no override. */
-  instance(parent: FigGuid, component: FigGuid, name: string, box: Box): FigGuid {
+  /**
+   * A text that grows with its content, in Inter Regular. Figma stores the outline of each glyph
+   * it laid out; this one stores none, so the bake lays it out with the fonts it is given.
+   */
+  text(parent: FigGuid, name: string, box: Box, characters: string, fill: string, size = 16) {
     return this.add(parent, {
+      type: "TEXT",
+      name,
+      size: { x: box.width, y: box.height },
+      transform: { m00: 1, m01: 0, m02: box.x, m10: 0, m11: 1, m12: box.y },
+      fillPaints: [solid(fill)],
+      textData: { characters },
+      fontName: { family: "Inter", style: "Regular", postscript: "" },
+      fontSize: size,
+      textAutoResize: "WIDTH_AND_HEIGHT",
+      textAlignHorizontal: "LEFT",
+    } as unknown as Omit<FigNode, "guid" | "parentIndex">);
+  }
+
+  /**
+   * Lays a frame's children out in a row (auto layout), hugging them, with `padding` around
+   * (horizontal, vertical) and `spacing` between.
+   */
+  row(frame: FigGuid, padding: [number, number], spacing = 0): void {
+    Object.assign(this.node(frame), {
+      stackMode: "HORIZONTAL",
+      stackSpacing: spacing,
+      stackHorizontalPadding: padding[0],
+      stackPaddingRight: padding[0],
+      stackVerticalPadding: padding[1],
+      stackPaddingBottom: padding[1],
+      stackPrimarySizing: "RESIZE_TO_FIT_WITH_IMPLICIT_SIZE",
+      stackCounterSizing: "RESIZE_TO_FIT_WITH_IMPLICIT_SIZE",
+      stackCounterAlignItems: "CENTER",
+    });
+  }
+
+  /** Overrides the characters of `text`, a node of the instance's component. */
+  overrideText(instance: FigGuid, text: FigGuid, characters: string): void {
+    this.node(instance).symbolData.symbolOverrides.push({
+      guidPath: { guids: [text] },
+      textData: { characters },
+    });
+  }
+
+  /**
+   * An instance of `component`, with no override. Like Figma, it carries the component's own
+   * look (fills, corners, auto layout): only its children come from the component.
+   */
+  instance(parent: FigGuid, component: FigGuid, name: string, box: Box): FigGuid {
+    const source = this.node(component);
+    const look = Object.fromEntries(
+      Object.entries(source).filter(
+        ([field]) => ["fillPaints", "cornerRadius"].includes(field) || field.startsWith("stack"),
+      ),
+    );
+    return this.add(parent, {
+      ...structuredClone(look),
       type: "INSTANCE",
       name,
       size: { x: box.width, y: box.height },

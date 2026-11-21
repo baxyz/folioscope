@@ -352,8 +352,44 @@ function components(): FigmaBuilder {
   );
   figma.on(shown, "AFTER_TIMEOUT", { kind: "changeTo", to: hidden, transition: toggle }, 1000);
 
+  // A chip whose label the instance changes: in its other state, laid out again around the
+  // longer label (auto layout that hugs its content). The label is 16 px Inter, 19 px tall.
+  const chips = figma.componentSet(
+    library,
+    "Chip",
+    { x: 700, y: 0, width: 160, height: 132 },
+    "Selected",
+    ["false", "true"],
+  );
+  // The selected chip has more room around its label: another size than the one shown.
+  const chip = (y: number, padding: number, fill: string, color: string) => {
+    const variant = figma.variant(
+      chips,
+      `Selected=${y > 24}`,
+      { x: 24, y, width: 38 + 2 * padding, height: 35 },
+      fill,
+      18,
+    );
+    figma.row(variant, [padding, 8]);
+    const box = { x: padding, y: 8, width: 38, height: 19 };
+    return [variant, figma.text(variant, "Label", box, "Chip", color)];
+  };
+  const [unselected, label] = chip(24, 16, GREY, "#111827");
+  const [selected] = chip(72, 20, BLUE, "#FFFFFF");
+  figma.on(unselected!, "ON_CLICK", { kind: "changeTo", to: selected!, transition: toggle });
+  figma.on(selected!, "ON_CLICK", { kind: "changeTo", to: unselected!, transition: toggle });
+
   const home = figma.frame(page, "Home", { x: 0, y: 0, ...PHONE });
   figma.flowStart(home, "Components flow");
+  // Figma would store the instance's size and glyphs after laying out the override: the
+  // generator cannot, so the size is the label's width in Inter (160 px) plus the padding.
+  const filter = figma.instance(home, unselected!, "Filter", {
+    x: 24,
+    y: 300,
+    width: 192,
+    height: 35,
+  });
+  figma.overrideText(filter, label!, "Only the open tickets");
   figma.instance(home, idle, "Button", { x: 88, y: 640, ...size });
   figma.instance(home, off, "Switch", { x: 156, y: 400, ...track });
   figma.instance(home, closed, "Card", { x: 24, y: 120, ...card });
