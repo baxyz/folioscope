@@ -18,9 +18,14 @@ for (const name of [
   "scroll",
   "components",
   "smart-animate",
+  "features",
   "sketch/navigation.sketch",
+  "sketch/features.sketch",
+  "sketch/scroll.sketch",
   "penpot/navigation.penpot",
+  "penpot/features.penpot",
   "xd/navigation.xd",
+  "xd/features.xd",
 ]) {
   // `sketch/navigation.sketch` bakes as `sketch-navigation.folio`; bare names are `.fig` files.
   const [file, folio] = name.includes("/")
