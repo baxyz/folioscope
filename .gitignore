@@ -35,3 +35,6 @@ temp/
 
 # WebAssembly bake, built by `pnpm --filter folioscope build:wasm`
 packages/folioscope/wasm/
+
+# Declarations the package build emits next to the site data it imports
+apps/site/data/*.d.ts

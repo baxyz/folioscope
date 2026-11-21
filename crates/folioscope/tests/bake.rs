@@ -61,7 +61,7 @@ fn navigation_bakes_to_a_folio_folder() {
 
 /// A `.fig` stores the layout of the variant an instance shows only: another variant is laid
 /// out again for the instance's overrides. The chip's label is overridden with a longer one; its
-/// selected variant (20 px on each side of the label, 78 px wide in the component) hugs it.
+/// selected variant (a check before the label, 84 px wide in the component) hugs it.
 #[test]
 fn another_variant_is_laid_out_again_for_the_overrides() {
     use folioscope::bake::folio::bake_file_into;
@@ -104,14 +104,14 @@ fn another_variant_is_laid_out_again_for_the_overrides() {
     // Without the font, the variant keeps its size, and the label is reported.
     let (missing, kept) = bake(false);
     assert!(missing.contains("Inter Regular"), "{missing:?}");
-    assert_eq!(kept["bounds"]["width"], 78.0);
+    assert_eq!(kept["bounds"]["width"], 84.0);
 
     // With it: the label measured (the shown chip is 192 px wide, with 16 px on each side), the
-    // chip 8 px wider than the one shown, and its hotspot as wide as it.
+    // chip wider than the one shown by its check and a gap (14 px), its hotspot as wide as it.
     let (missing, fitted) = bake(true);
     assert!(missing.is_empty(), "{missing:?}");
     let width = fitted["bounds"]["width"].as_f64().unwrap();
-    assert!((width - 200.0).abs() < 1.0, "{width}");
+    assert!((width - 206.0).abs() < 1.0, "{width}");
     assert_eq!(
         fitted["layer"]["bounds"]["width"],
         fitted["bounds"]["width"]

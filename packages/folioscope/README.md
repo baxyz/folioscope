@@ -1,9 +1,9 @@
 # folioscope
 
 **Flip through your prototypes.** `<folioscope-player>` plays the interactive prototype of a
-`.fig`, `.sketch` or `.penpot` file in the browser, with no account and no design tool: screens,
-clicks, hovers, overlays, scrolling, transitions. `.xd` files follow. Not a viewer for the design file: a player
-for its clickable prototype.
+`.fig`, `.sketch`, `.xd` or `.penpot` file in the browser, with no account and no design tool:
+screens, clicks, hovers, overlays, scrolling, transitions. Not a viewer for the design file: a
+player for its clickable prototype.
 
 > What plays for each format: see the [roadmap](https://folioscope.baxyz.dev/roadmap).
 
@@ -27,7 +27,7 @@ nothing else is installed, and is cached between builds.
 ## Play
 
 ```html
-<script type="module" src="https://cdn.jsdelivr.net/npm/folioscope"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/folioscope@0.1/dist/index.mjs"></script>
 <link rel="preload" href="/folio/app.folio/index.json" as="fetch" crossorigin />
 
 <folioscope-player src="/folio/app.folio" poster="/folio/app.folio/poster.webp" controls>
@@ -49,7 +49,7 @@ Details on [folioscope.baxyz.dev](https://folioscope.baxyz.dev).
 
 `@baxyz/folioscope` on [JSR](https://jsr.io) is the player only: it plays a baked `.folio` folder
 (`<folioscope-player src="/app.folio">`). The Vite plugin (`folioscope/vite`) and the full player,
-which bakes a raw `.fig`, `.sketch` or `.penpot` file in the browser, are in the npm package, with
+which bakes a raw `.fig`, `.sketch`, `.xd` or `.penpot` file in the browser, are in the npm package, with
 the WebAssembly they need. JSR packages cannot augment global types, so the tag has no
 `HTMLElementTagNameMap` typing there.
 

@@ -18,9 +18,14 @@ for (const name of [
   "scroll",
   "components",
   "smart-animate",
+  "features",
   "sketch/navigation.sketch",
+  "sketch/features.sketch",
+  "sketch/scroll.sketch",
   "penpot/navigation.penpot",
+  "penpot/features.penpot",
   "xd/navigation.xd",
+  "xd/features.xd",
 ]) {
   // `sketch/navigation.sketch` bakes as `sketch-navigation.folio`; bare names are `.fig` files.
   const [file, folio] = name.includes("/")
@@ -46,6 +51,10 @@ for (const name of [
 const comparison = fileURLToPath(new URL("../public/comparison/", import.meta.url));
 mkdirSync(comparison, { recursive: true });
 copyFileSync(`${repo}fixtures/figma/smart-animate.fig`, `${comparison}smart-animate.fig`);
+// Its text is laid out with a font, which the full player fetches too (SIL OFL 1.1, its licence
+// next to it).
+copyFileSync(`${repo}fixtures/fonts/Inter-Latin.woff`, `${comparison}Inter-Latin.woff`);
+copyFileSync(`${repo}fixtures/fonts/OFL.txt`, `${comparison}Inter-OFL.txt`);
 for (const [node, name] of [
   ["1:1", "home"],
   ["1:2", "details"],
@@ -56,6 +65,8 @@ for (const [node, name] of [
     node!,
     `${comparison}smart-animate-${name}.png`,
     "2",
+    "--fonts",
+    `${repo}fixtures/fonts`,
   ]);
   // `render` writes the SVG it rasterized next to the PNG: not part of the export.
   rmSync(`${comparison}smart-animate-${name}.png.svg`, { force: true });

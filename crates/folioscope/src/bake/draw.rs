@@ -119,7 +119,13 @@ impl<'t, 'a> FigmaDraw<'t, 'a> {
 
 impl Draw for FigmaDraw<'_, '_> {
     fn frame(&mut self, frame: &ir::Frame) -> Option<String> {
-        svg::render_node(self.tree, frame.id.parse().ok()?).map(|svg| svg.markup)
+        let svg = svg::render_node(
+            self.tree,
+            frame.id.parse().ok()?,
+            Some(&mut self.typesetter),
+        )?;
+        self.missing_fonts.extend(svg.missing_fonts);
+        Some(svg.markup)
     }
 
     fn layers(
@@ -129,7 +135,12 @@ impl Draw for FigmaDraw<'_, '_> {
     ) -> Result<Vec<(String, Rect, bool)>, BakeError> {
         let missing = || BakeError::MissingFrame(frame.id.clone());
         let id: NodeId = frame.id.parse().map_err(|_| missing())?;
-        let tree = self.tree;
+        let FigmaDraw {
+            tree,
+            typesetter,
+            missing_fonts,
+        } = self;
+        let tree = *tree;
         // Interactive components are left out of the frame's layers: they get their own. So are
         // what scrolls inside the screen and what sticks.
         let mut hidden: Vec<NodeId> = frame
@@ -160,17 +171,19 @@ impl Draw for FigmaDraw<'_, '_> {
             let markup = if simple {
                 whole_markup.to_owned()
             } else {
-                svg::render_node_without(tree, id, &hidden)
-                    .ok_or_else(missing)?
-                    .markup
+                let svg = svg::render_node_without(tree, id, &hidden, Some(typesetter))
+                    .ok_or_else(missing)?;
+                missing_fonts.extend(svg.missing_fonts);
+                svg.markup
             };
             return Ok(vec![(markup, whole, false)]);
         };
         let fixed: Vec<NodeId> = scroll.fixed.iter().filter_map(|f| f.parse().ok()).collect();
-        let part = |part| {
-            svg::render_part(tree, id, part, &hidden)
-                .map(|svg| svg.markup)
-                .ok_or_else(missing)
+        let mut part = |part| {
+            let svg = svg::render_part(tree, id, part, &hidden, Some(&mut *typesetter))
+                .ok_or_else(missing)?;
+            missing_fonts.extend(svg.missing_fonts);
+            Ok::<String, BakeError>(svg.markup)
         };
         let size = (scroll.content.width, scroll.content.height);
         let mut parts = vec![
@@ -192,7 +205,12 @@ impl Draw for FigmaDraw<'_, '_> {
 
     fn scroll_layers(&mut self, frame: &ir::Frame) -> Result<Vec<ScrollLayer>, BakeError> {
         let missing = || BakeError::MissingFrame(frame.id.clone());
-        let tree = self.tree;
+        let FigmaDraw {
+            tree,
+            typesetter,
+            missing_fonts,
+        } = self;
+        let tree = *tree;
         let components: Vec<NodeId> = frame
             .components
             .iter()
@@ -200,10 +218,15 @@ impl Draw for FigmaDraw<'_, '_> {
             .collect();
         let mut layers = Vec::new();
         // A sticky child, drawn on its own at its place in its parent's content.
-        let sticky = |layers: &mut Vec<ScrollLayer>, id: &str, scroller: Option<String>| {
+        let sticky = |layers: &mut Vec<ScrollLayer>,
+                      typesetter: &mut Typesetter,
+                      missing_fonts: &mut BTreeSet<String>,
+                      id: &str,
+                      scroller: Option<String>| {
             let node: NodeId = id.parse().map_err(|_| missing())?;
             let child = tree.get(node).ok_or_else(missing)?;
-            let svg = svg::render_node(tree, node).ok_or_else(missing)?;
+            let svg = svg::render_node(tree, node, Some(typesetter)).ok_or_else(missing)?;
+            missing_fonts.extend(svg.missing_fonts);
             let offset = |k: &str| {
                 child
                     .value
@@ -241,8 +264,10 @@ impl Draw for FigmaDraw<'_, '_> {
                     size,
                 },
                 &components,
+                Some(&mut *typesetter),
             )
             .ok_or_else(missing)?;
+            missing_fonts.extend(content.missing_fonts);
             layers.push(ScrollLayer {
                 markup: content.markup,
                 bounds: scroller.content,
@@ -250,12 +275,18 @@ impl Draw for FigmaDraw<'_, '_> {
                 sticky: false,
             });
             for child in &scroller.sticky {
-                sticky(&mut layers, child, Some(scroller.id.clone()))?;
+                sticky(
+                    &mut layers,
+                    typesetter,
+                    missing_fonts,
+                    child,
+                    Some(scroller.id.clone()),
+                )?;
             }
         }
         if let Some(scroll) = &frame.scroll {
             for child in &scroll.sticky {
-                sticky(&mut layers, child, None)?;
+                sticky(&mut layers, typesetter, missing_fonts, child, None)?;
             }
         }
         Ok(layers)
@@ -295,7 +326,13 @@ impl Draw for FigmaDraw<'_, '_> {
             return Vec::new();
         };
         let mut parts = Vec::new();
-        if let Some(background) = svg::render_part(self.tree, id, svg::Part::Background, &[]) {
+        if let Some(background) = svg::render_part(
+            self.tree,
+            id,
+            svg::Part::Background,
+            &[],
+            Some(&mut self.typesetter),
+        ) {
             let bounds = Rect {
                 x: 0.0,
                 y: 0.0,
@@ -310,31 +347,75 @@ impl Draw for FigmaDraw<'_, '_> {
                 shape: None,
             });
         }
-        figma_parts(self.tree, id, "", Matrix::IDENTITY, 1, &mut parts);
+        figma_parts(
+            self.tree,
+            &mut self.typesetter,
+            &mut self.missing_fonts,
+            id,
+            "",
+            Matrix::IDENTITY,
+            1,
+            &mut parts,
+        );
         parts
     }
 
-    fn state_parts(&mut self, _component: &ir::Component, state: &ir::ComponentState) -> Vec<Part> {
+    fn state_parts(&mut self, component: &ir::Component, state: &ir::ComponentState) -> Vec<Part> {
         let Ok(variant) = state.variant.parse::<NodeId>() else {
             return Vec::new();
         };
-        let mut parts = Vec::new();
-        if let Some(background) = svg::render_part(self.tree, variant, svg::Part::Background, &[]) {
-            parts.push(Part {
-                name: String::new(),
-                markup: background.markup,
-                bounds: Rect {
-                    x: 0.0,
-                    y: 0.0,
-                    width: background.width,
-                    height: background.height,
-                },
-                matrix: None,
-                shape: None,
-            });
-        }
-        figma_parts(self.tree, variant, "", Matrix::IDENTITY, 1, &mut parts);
-        parts
+        let Ok(path) = component
+            .id
+            .split(';')
+            .map(str::parse)
+            .collect::<Result<Vec<NodeId>, _>>()
+        else {
+            return Vec::new();
+        };
+        // Components nested in the state are drawn on their own, over it.
+        let hidden: Vec<NodeId> = state
+            .components
+            .iter()
+            .filter_map(|c| c.id.rsplit(';').next()?.parse().ok())
+            .collect();
+        let Some((drawn, missing)) = svg::state_parts(
+            self.tree,
+            &path,
+            variant,
+            Some(&mut self.typesetter),
+            &hidden,
+        ) else {
+            return Vec::new();
+        };
+        self.missing_fonts.extend(missing);
+        drawn
+            .into_iter()
+            .map(|part| {
+                let m = part.matrix;
+                let turned = (m.a - 1.0).abs() > 1e-6
+                    || m.b.abs() > 1e-6
+                    || m.c.abs() > 1e-6
+                    || (m.d - 1.0).abs() > 1e-6;
+                #[allow(clippy::cast_possible_truncation)] // design coordinates fit in f32
+                let as_f32 = [m.a, m.b, m.c, m.d, m.e, m.f].map(|v| v as f32);
+                Part {
+                    shape: if part.split || part.name.is_empty() {
+                        None
+                    } else {
+                        plain_box(&part.value)
+                    },
+                    name: part.name,
+                    bounds: Rect {
+                        x: as_f32[4],
+                        y: as_f32[5],
+                        width: part.svg.width,
+                        height: part.svg.height,
+                    },
+                    matrix: turned.then_some(as_f32),
+                    markup: part.svg.markup,
+                }
+            })
+            .collect()
     }
 }
 
@@ -344,8 +425,11 @@ const MAX_PARTS: usize = 80;
 
 /// The parts of `parent`'s visible children, then of theirs, each drawn without its own parts;
 /// `to_frame` maps `parent`'s coordinates to the frame's.
+#[allow(clippy::too_many_arguments)]
 fn figma_parts(
     tree: &Tree<'_>,
+    typesetter: &mut Typesetter,
+    missing_fonts: &mut BTreeSet<String>,
     parent: NodeId,
     path: &str,
     to_frame: Matrix,
@@ -394,9 +478,11 @@ fn figma_parts(
         } else {
             Vec::new()
         };
-        let Some(svg) = svg::render_node_without(tree, child.id, &hidden) else {
+        let Some(svg) = svg::render_node_without(tree, child.id, &hidden, Some(&mut *typesetter))
+        else {
             continue;
         };
+        missing_fonts.extend(svg.missing_fonts.iter().cloned());
         #[allow(clippy::cast_possible_truncation)] // design coordinates fit in f32
         let turned = (matrix.a - 1.0).abs() > 1e-6
             || matrix.b.abs() > 1e-6
@@ -418,7 +504,16 @@ fn figma_parts(
             shape: if nested { None } else { plain_box(child.value) },
         });
         if nested {
-            figma_parts(tree, child.id, &name, matrix, depth + 1, parts);
+            figma_parts(
+                tree,
+                typesetter,
+                missing_fonts,
+                child.id,
+                &name,
+                matrix,
+                depth + 1,
+                parts,
+            );
         }
     }
 }

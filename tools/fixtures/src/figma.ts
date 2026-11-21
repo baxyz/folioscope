@@ -219,10 +219,20 @@ export class FigmaBuilder {
   }
 
   /**
-   * A text that grows with its content, in Inter Regular. Figma stores the outline of each glyph
+   * A text in Inter: left-aligned, it grows with its content; centered or right-aligned, it keeps
+   * the width of its box. Figma stores the outline of each glyph
    * it laid out; this one stores none, so the bake lays it out with the fonts it is given.
    */
-  text(parent: FigGuid, name: string, box: Box, characters: string, fill: string, size = 16) {
+  text(
+    parent: FigGuid,
+    name: string,
+    box: Box,
+    characters: string,
+    fill: string,
+    size = 16,
+    options: { style?: string; align?: "LEFT" | "CENTER" | "RIGHT" } = {},
+  ) {
+    const align = options.align ?? "LEFT";
     return this.add(parent, {
       type: "TEXT",
       name,
@@ -230,10 +240,11 @@ export class FigmaBuilder {
       transform: { m00: 1, m01: 0, m02: box.x, m10: 0, m11: 1, m12: box.y },
       fillPaints: [solid(fill)],
       textData: { characters },
-      fontName: { family: "Inter", style: "Regular", postscript: "" },
+      fontName: { family: "Inter", style: options.style ?? "Regular", postscript: "" },
       fontSize: size,
-      textAutoResize: "WIDTH_AND_HEIGHT",
-      textAlignHorizontal: "LEFT",
+      // Aligned in its box, it keeps its width; left-aligned, it grows with its content.
+      textAutoResize: align === "LEFT" ? "WIDTH_AND_HEIGHT" : "HEIGHT",
+      textAlignHorizontal: align,
     } as unknown as Omit<FigNode, "guid" | "parentIndex">);
   }
 

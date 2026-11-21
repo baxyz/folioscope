@@ -11,12 +11,12 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
       "flows": [
         {
           "name": "Components flow",
-          "start": "1:33"
+          "start": "1:42"
         }
       ],
       "frames": [
         {
-          "id": "1:33",
+          "id": "1:42",
           "name": "Home",
           "bounds": {
             "x": 0.0,
@@ -27,7 +27,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
           "hotspots": [],
           "components": [
             {
-              "id": "1:34",
+              "id": "1:43",
               "name": "Filter",
               "bounds": {
                 "x": 24.0,
@@ -35,10 +35,10 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                 "width": 192.0,
                 "height": 35.0
               },
-              "initial": "1:27",
+              "initial": "1:35",
               "states": [
                 {
-                  "variant": "1:27",
+                  "variant": "1:35",
                   "name": "Selected=false",
                   "bounds": {
                     "x": 0.0,
@@ -48,7 +48,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                   },
                   "hotspots": [
                     {
-                      "node": "1:27",
+                      "node": "1:35",
                       "name": "Selected=false",
                       "bounds": {
                         "x": 0.0,
@@ -63,14 +63,14 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                           },
                           "action": {
                             "type": "changeTo",
-                            "to": "1:29",
+                            "to": "1:37",
                             "transition": {
                               "kind": {
-                                "type": "dissolve"
+                                "type": "smartAnimate"
                               },
-                              "durationMs": 200,
+                              "durationMs": 250,
                               "easing": {
-                                "type": "easeOut"
+                                "type": "easeInOut"
                               }
                             }
                           }
@@ -80,22 +80,22 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                   ]
                 },
                 {
-                  "variant": "1:29",
+                  "variant": "1:37",
                   "name": "Selected=true",
                   "bounds": {
                     "x": 0.0,
                     "y": 0.0,
-                    "width": 78.0,
+                    "width": 84.0,
                     "height": 35.0
                   },
                   "hotspots": [
                     {
-                      "node": "1:29",
+                      "node": "1:37",
                       "name": "Selected=true",
                       "bounds": {
                         "x": 0.0,
                         "y": 0.0,
-                        "width": 78.0,
+                        "width": 84.0,
                         "height": 35.0
                       },
                       "interactions": [
@@ -105,14 +105,14 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                           },
                           "action": {
                             "type": "changeTo",
-                            "to": "1:27",
+                            "to": "1:35",
                             "transition": {
                               "kind": {
-                                "type": "dissolve"
+                                "type": "smartAnimate"
                               },
-                              "durationMs": 200,
+                              "durationMs": 250,
                               "easing": {
-                                "type": "easeOut"
+                                "type": "easeInOut"
                               }
                             }
                           }
@@ -124,7 +124,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
               ]
             },
             {
-              "id": "1:35",
+              "id": "1:47",
               "name": "Button",
               "bounds": {
                 "x": 88.0,
@@ -232,18 +232,18 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
               ]
             },
             {
-              "id": "1:36",
+              "id": "1:48",
               "name": "Switch",
               "bounds": {
-                "x": 156.0,
+                "x": 287.0,
                 "y": 400.0,
                 "width": 64.0,
                 "height": 36.0
               },
-              "initial": "1:9",
+              "initial": "1:12",
               "states": [
                 {
-                  "variant": "1:9",
+                  "variant": "1:12",
                   "name": "On=false",
                   "bounds": {
                     "x": 0.0,
@@ -253,7 +253,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                   },
                   "hotspots": [
                     {
-                      "node": "1:9",
+                      "node": "1:12",
                       "name": "On=false",
                       "bounds": {
                         "x": 0.0,
@@ -268,7 +268,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                           },
                           "action": {
                             "type": "changeTo",
-                            "to": "1:11",
+                            "to": "1:14",
                             "transition": {
                               "kind": {
                                 "type": "smartAnimate"
@@ -285,7 +285,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                   ]
                 },
                 {
-                  "variant": "1:11",
+                  "variant": "1:14",
                   "name": "On=true",
                   "bounds": {
                     "x": 0.0,
@@ -295,7 +295,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                   },
                   "hotspots": [
                     {
-                      "node": "1:11",
+                      "node": "1:14",
                       "name": "On=true",
                       "bounds": {
                         "x": 0.0,
@@ -310,7 +310,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                           },
                           "action": {
                             "type": "changeTo",
-                            "to": "1:9",
+                            "to": "1:12",
                             "transition": {
                               "kind": {
                                 "type": "smartAnimate"
@@ -329,7 +329,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
               ]
             },
             {
-              "id": "1:37",
+              "id": "1:49",
               "name": "Card",
               "bounds": {
                 "x": 24.0,
@@ -337,10 +337,10 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                 "width": 327.0,
                 "height": 120.0
               },
-              "initial": "1:16",
+              "initial": "1:19",
               "states": [
                 {
-                  "variant": "1:16",
+                  "variant": "1:19",
                   "name": "Open=false",
                   "bounds": {
                     "x": 0.0,
@@ -350,7 +350,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                   },
                   "hotspots": [
                     {
-                      "node": "1:16",
+                      "node": "1:19",
                       "name": "Open=false",
                       "bounds": {
                         "x": 0.0,
@@ -365,7 +365,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                           },
                           "action": {
                             "type": "changeTo",
-                            "to": "1:17",
+                            "to": "1:20",
                             "transition": {
                               "kind": {
                                 "type": "dissolve"
@@ -382,7 +382,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                   ]
                 },
                 {
-                  "variant": "1:17",
+                  "variant": "1:20",
                   "name": "Open=true",
                   "bounds": {
                     "x": 0.0,
@@ -392,7 +392,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                   },
                   "hotspots": [
                     {
-                      "node": "1:19",
+                      "node": "1:25",
                       "name": "Fold",
                       "bounds": {
                         "x": 16.0,
@@ -407,7 +407,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                           },
                           "action": {
                             "type": "changeTo",
-                            "to": "1:16",
+                            "to": "1:19",
                             "transition": {
                               "kind": {
                                 "type": "dissolve"
@@ -424,7 +424,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                   ],
                   "components": [
                     {
-                      "id": "1:21",
+                      "id": "1:28",
                       "name": "Inner switch",
                       "bounds": {
                         "x": 247.0,
@@ -432,10 +432,10 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                         "width": 64.0,
                         "height": 36.0
                       },
-                      "initial": "1:9",
+                      "initial": "1:12",
                       "states": [
                         {
-                          "variant": "1:9",
+                          "variant": "1:12",
                           "name": "On=false",
                           "bounds": {
                             "x": 0.0,
@@ -445,7 +445,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                           },
                           "hotspots": [
                             {
-                              "node": "1:9",
+                              "node": "1:12",
                               "name": "On=false",
                               "bounds": {
                                 "x": 0.0,
@@ -460,7 +460,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                                   },
                                   "action": {
                                     "type": "changeTo",
-                                    "to": "1:11",
+                                    "to": "1:14",
                                     "transition": {
                                       "kind": {
                                         "type": "smartAnimate"
@@ -477,7 +477,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                           ]
                         },
                         {
-                          "variant": "1:11",
+                          "variant": "1:14",
                           "name": "On=true",
                           "bounds": {
                             "x": 0.0,
@@ -487,7 +487,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                           },
                           "hotspots": [
                             {
-                              "node": "1:11",
+                              "node": "1:14",
                               "name": "On=true",
                               "bounds": {
                                 "x": 0.0,
@@ -502,7 +502,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                                   },
                                   "action": {
                                     "type": "changeTo",
-                                    "to": "1:9",
+                                    "to": "1:12",
                                     "transition": {
                                       "kind": {
                                         "type": "smartAnimate"
@@ -525,7 +525,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
               ]
             },
             {
-              "id": "1:38",
+              "id": "1:50",
               "name": "Toast",
               "bounds": {
                 "x": 72.0,
@@ -533,10 +533,10 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                 "width": 232.0,
                 "height": 48.0
               },
-              "initial": "1:23",
+              "initial": "1:30",
               "states": [
                 {
-                  "variant": "1:23",
+                  "variant": "1:30",
                   "name": "Shown=true",
                   "bounds": {
                     "x": 0.0,
@@ -546,7 +546,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                   },
                   "hotspots": [
                     {
-                      "node": "1:23",
+                      "node": "1:30",
                       "name": "Shown=true",
                       "bounds": {
                         "x": 0.0,
@@ -562,7 +562,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                           },
                           "action": {
                             "type": "changeTo",
-                            "to": "1:24",
+                            "to": "1:31",
                             "transition": {
                               "kind": {
                                 "type": "dissolve"
@@ -579,7 +579,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                   ]
                 },
                 {
-                  "variant": "1:24",
+                  "variant": "1:31",
                   "name": "Shown=false",
                   "bounds": {
                     "x": 0.0,
@@ -673,7 +673,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
           ]
         },
         {
-          "id": "1:8",
+          "id": "1:11",
           "name": "Switch",
           "bounds": {
             "x": 300.0,
@@ -683,7 +683,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
           },
           "hotspots": [
             {
-              "node": "1:9",
+              "node": "1:12",
               "name": "On=false",
               "bounds": {
                 "x": 24.0,
@@ -698,7 +698,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                   },
                   "action": {
                     "type": "changeTo",
-                    "to": "1:11",
+                    "to": "1:14",
                     "transition": {
                       "kind": {
                         "type": "smartAnimate"
@@ -713,7 +713,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
               ]
             },
             {
-              "node": "1:11",
+              "node": "1:14",
               "name": "On=true",
               "bounds": {
                 "x": 24.0,
@@ -728,7 +728,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                   },
                   "action": {
                     "type": "changeTo",
-                    "to": "1:9",
+                    "to": "1:12",
                     "transition": {
                       "kind": {
                         "type": "smartAnimate"
@@ -745,7 +745,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
           ]
         },
         {
-          "id": "1:15",
+          "id": "1:18",
           "name": "Card",
           "bounds": {
             "x": 0.0,
@@ -755,7 +755,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
           },
           "hotspots": [
             {
-              "node": "1:16",
+              "node": "1:19",
               "name": "Open=false",
               "bounds": {
                 "x": 24.0,
@@ -770,7 +770,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                   },
                   "action": {
                     "type": "changeTo",
-                    "to": "1:17",
+                    "to": "1:20",
                     "transition": {
                       "kind": {
                         "type": "dissolve"
@@ -785,7 +785,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
               ]
             },
             {
-              "node": "1:19",
+              "node": "1:25",
               "name": "Fold",
               "bounds": {
                 "x": 40.0,
@@ -800,7 +800,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                   },
                   "action": {
                     "type": "changeTo",
-                    "to": "1:16",
+                    "to": "1:19",
                     "transition": {
                       "kind": {
                         "type": "dissolve"
@@ -817,7 +817,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
           ],
           "components": [
             {
-              "id": "1:21",
+              "id": "1:28",
               "name": "Inner switch",
               "bounds": {
                 "x": 271.0,
@@ -825,10 +825,10 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                 "width": 64.0,
                 "height": 36.0
               },
-              "initial": "1:9",
+              "initial": "1:12",
               "states": [
                 {
-                  "variant": "1:9",
+                  "variant": "1:12",
                   "name": "On=false",
                   "bounds": {
                     "x": 0.0,
@@ -838,7 +838,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                   },
                   "hotspots": [
                     {
-                      "node": "1:9",
+                      "node": "1:12",
                       "name": "On=false",
                       "bounds": {
                         "x": 0.0,
@@ -853,7 +853,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                           },
                           "action": {
                             "type": "changeTo",
-                            "to": "1:11",
+                            "to": "1:14",
                             "transition": {
                               "kind": {
                                 "type": "smartAnimate"
@@ -870,7 +870,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                   ]
                 },
                 {
-                  "variant": "1:11",
+                  "variant": "1:14",
                   "name": "On=true",
                   "bounds": {
                     "x": 0.0,
@@ -880,7 +880,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                   },
                   "hotspots": [
                     {
-                      "node": "1:11",
+                      "node": "1:14",
                       "name": "On=true",
                       "bounds": {
                         "x": 0.0,
@@ -895,7 +895,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                           },
                           "action": {
                             "type": "changeTo",
-                            "to": "1:9",
+                            "to": "1:12",
                             "transition": {
                               "kind": {
                                 "type": "smartAnimate"
@@ -916,7 +916,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
           ]
         },
         {
-          "id": "1:22",
+          "id": "1:29",
           "name": "Toast",
           "bounds": {
             "x": 400.0,
@@ -926,7 +926,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
           },
           "hotspots": [
             {
-              "node": "1:23",
+              "node": "1:30",
               "name": "Shown=true",
               "bounds": {
                 "x": 24.0,
@@ -942,7 +942,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                   },
                   "action": {
                     "type": "changeTo",
-                    "to": "1:24",
+                    "to": "1:31",
                     "transition": {
                       "kind": {
                         "type": "dissolve"
@@ -959,7 +959,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
           ]
         },
         {
-          "id": "1:26",
+          "id": "1:34",
           "name": "Chip",
           "bounds": {
             "x": 700.0,
@@ -969,7 +969,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
           },
           "hotspots": [
             {
-              "node": "1:27",
+              "node": "1:35",
               "name": "Selected=false",
               "bounds": {
                 "x": 24.0,
@@ -984,14 +984,14 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                   },
                   "action": {
                     "type": "changeTo",
-                    "to": "1:29",
+                    "to": "1:37",
                     "transition": {
                       "kind": {
-                        "type": "dissolve"
+                        "type": "smartAnimate"
                       },
-                      "durationMs": 200,
+                      "durationMs": 250,
                       "easing": {
-                        "type": "easeOut"
+                        "type": "easeInOut"
                       }
                     }
                   }
@@ -999,12 +999,12 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
               ]
             },
             {
-              "node": "1:29",
+              "node": "1:37",
               "name": "Selected=true",
               "bounds": {
                 "x": 24.0,
                 "y": 72.0,
-                "width": 78.0,
+                "width": 84.0,
                 "height": 35.0
               },
               "interactions": [
@@ -1014,14 +1014,14 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
                   },
                   "action": {
                     "type": "changeTo",
-                    "to": "1:27",
+                    "to": "1:35",
                     "transition": {
                       "kind": {
-                        "type": "dissolve"
+                        "type": "smartAnimate"
                       },
-                      "durationMs": 200,
+                      "durationMs": 250,
                       "easing": {
-                        "type": "easeOut"
+                        "type": "easeInOut"
                       }
                     }
                   }

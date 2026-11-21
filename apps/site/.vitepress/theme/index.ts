@@ -3,6 +3,7 @@ import DefaultTheme from "vitepress/theme";
 import type { Theme } from "vitepress";
 import { h } from "vue";
 import Comparison from "./Comparison.vue";
+import DemoGallery from "./DemoGallery.vue";
 import EarlyDays from "./EarlyDays.vue";
 import FeatureMatrix from "./FeatureMatrix.vue";
 import FlipBook from "./FlipBook.vue";
@@ -16,6 +17,7 @@ export default {
   Layout: () => h(DefaultTheme.Layout, null, { "home-hero-before": () => h(EarlyDays) }),
   enhanceApp({ app }) {
     app.component("Comparison", Comparison);
+    app.component("DemoGallery", DemoGallery);
     app.component("FeatureMatrix", FeatureMatrix);
     app.component("FlipBook", FlipBook);
     app.component("Playground", Playground);

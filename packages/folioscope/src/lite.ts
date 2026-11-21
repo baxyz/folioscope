@@ -250,8 +250,10 @@ function renderComponent(
       return;
     }
     if (transition.kind.type === "smartAnimate" && previous?.parts && state.parts) {
-      // The parts of both states move from one to the other, over the new state.
+      // The parts of both states move from one to the other, in place of both images: the
+      // state left behind may be larger than the parts that shrink from it.
       img.style.visibility = "hidden";
+      before.style.visibility = "hidden";
       void playSmart(zone, previous.parts, state.parts, transition, layerUrl).then(() => {
         img.style.visibility = "";
         before.remove();

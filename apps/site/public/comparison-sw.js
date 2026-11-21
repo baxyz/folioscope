@@ -28,6 +28,8 @@ self.addEventListener("message", (event) => {
     owner = { id: source.id, run, folio, left, profile };
     links.left = links.right = 0;
     source.postMessage({ type: "ready", run });
+  } else if (event.data.type === "claim") {
+    event.waitUntil(self.clients.claim());
   } else if (event.data.type === "stop" && owner?.id === source.id) {
     owner = undefined;
   }

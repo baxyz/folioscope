@@ -26,7 +26,7 @@ What plays for each format, and what is left, is on the
 ## Usage
 
 ```html
-<script type="module" src="https://cdn.jsdelivr.net/npm/folioscope"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/folioscope@0.1/dist/index.mjs"></script>
 
 <folioscope-player src="/mockups/app.folio" poster="/mockups/app.folio/poster.webp" controls>
 </folioscope-player>

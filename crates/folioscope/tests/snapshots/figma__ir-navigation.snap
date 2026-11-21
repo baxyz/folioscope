@@ -1,5 +1,5 @@
 ---
-source: crates/folioscope-core/tests/fig.rs
+source: crates/folioscope/tests/figma.rs
 expression: "serde_json::to_string_pretty(&ir).unwrap()"
 ---
 {
@@ -27,7 +27,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
           },
           "hotspots": [
             {
-              "node": "1:4",
+              "node": "1:6",
               "name": "Open details",
               "bounds": {
                 "x": 88.0,
@@ -69,7 +69,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
           },
           "hotspots": [
             {
-              "node": "1:6",
+              "node": "1:9",
               "name": "Back",
               "bounds": {
                 "x": 16.0,

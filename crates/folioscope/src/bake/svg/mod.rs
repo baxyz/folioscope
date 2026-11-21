@@ -36,18 +36,35 @@ pub struct Svg {
     pub missing_fonts: BTreeSet<String>,
 }
 
-/// Renders `id` and its descendants, at the origin, in its own coordinate space.
+/// Renders `id` and its descendants, at the origin, in its own coordinate space. The
+/// `typesetter` lays out the text whose glyphs the file did not store.
 #[must_use]
-pub fn render_node(tree: &Tree<'_>, id: NodeId) -> Option<Svg> {
+pub fn render_node<'t>(
+    tree: &'t Tree<'_>,
+    id: NodeId,
+    typesetter: Option<&'t mut Typesetter>,
+) -> Option<Svg> {
     let node = tree.get(id)?;
     let (width, height) = size(node.value);
-    Some(render(tree, node, Root::WHOLE, Vec::new(), (width, height)))
+    Some(render(
+        tree,
+        node,
+        Root::WHOLE,
+        Vec::new(),
+        (width, height),
+        typesetter,
+    ))
 }
 
 /// Like [`render_node`], leaving out the `hidden` descendants: the interactive components, drawn
 /// as layers of their own.
 #[must_use]
-pub fn render_node_without(tree: &Tree<'_>, id: NodeId, hidden: &[NodeId]) -> Option<Svg> {
+pub fn render_node_without<'t>(
+    tree: &'t Tree<'_>,
+    id: NodeId,
+    hidden: &[NodeId],
+    typesetter: Option<&'t mut Typesetter>,
+) -> Option<Svg> {
     let node = tree.get(id)?;
     let (width, height) = size(node.value);
     Some(render(
@@ -56,6 +73,7 @@ pub fn render_node_without(tree: &Tree<'_>, id: NodeId, hidden: &[NodeId]) -> Op
         Root::WHOLE,
         hidden.to_vec(),
         (width, height),
+        typesetter,
     ))
 }
 
@@ -72,6 +90,104 @@ pub fn render_component_state<'t>(
     typesetter: Option<&'t mut Typesetter>,
     hidden: &[NodeId],
 ) -> Option<Svg> {
+    let (mut ctx, root) = state_context(tree, path, variant, typesetter, hidden)?;
+    let node = root.node();
+    let size = size(&ctx.resolve(&node));
+    ctx.node(&node, true);
+    Some(svg(&ctx, size))
+}
+
+/// A part of a component's state, for smart animate between states: see [`state_parts`].
+pub struct StatePart {
+    /// Its layer's name, under its parents' (`Row/Label`); the background is `""`.
+    pub name: String,
+    pub svg: Svg,
+    /// From its image's top-left corner to the state's.
+    pub matrix: Matrix,
+    /// Its fields, through the instance's overrides and the layout done again.
+    pub value: Value,
+    /// Whether its children are parts of their own (it is drawn without them).
+    pub split: bool,
+}
+
+/// The parts of a component's state, drawn as [`render_component_state`] draws the whole: the
+/// root's own fills, then each layer, a frame's children three levels down as parts of their
+/// own, through the instance's overrides and with the layout done again. Also the fonts the text
+/// needed and was not given.
+#[must_use]
+pub fn state_parts<'t>(
+    tree: &'t Tree<'_>,
+    path: &[NodeId],
+    variant: NodeId,
+    typesetter: Option<&'t mut Typesetter>,
+    hidden: &[NodeId],
+) -> Option<(Vec<StatePart>, BTreeSet<String>)> {
+    let (mut ctx, root) = state_context(tree, path, variant, typesetter, hidden)?;
+    let node = root.node();
+    let resolved = ctx.resolve(&node).into_owned();
+    ctx.root = Root::BACKGROUND;
+    let background = ctx.alone(&node, hidden.to_vec(), size(&resolved));
+    ctx.root = Root::WHOLE;
+    let mut parts = vec![StatePart {
+        name: String::new(),
+        svg: background,
+        matrix: Matrix::IDENTITY,
+        value: resolved.clone(),
+        split: true,
+    }];
+    // An instance's children are its component's, inside its overrides.
+    let source = if node.kind == "INSTANCE" {
+        ctx.overrides.enter(&node, &resolved);
+        resolved
+            .get("symbolData")
+            .and_then(|s| s.get("symbolID"))
+            .and_then(node_id)?
+    } else {
+        node.id
+    };
+    ctx.parts(
+        source,
+        &resolved,
+        "",
+        Matrix::IDENTITY,
+        1,
+        hidden,
+        &mut parts,
+    );
+    Some((parts, std::mem::take(&mut ctx.missing_fonts)))
+}
+
+/// How deep the parts of a state go, and how many it has at most.
+const PART_DEPTH: usize = 3;
+const MAX_PARTS: usize = 80;
+
+/// The node a component's state is drawn from: the instance, or another variant in its place.
+struct StateRoot<'a> {
+    id: NodeId,
+    kind: &'a str,
+    name: &'a str,
+    value: Value,
+}
+
+impl StateRoot<'_> {
+    fn node(&self) -> Node<'_> {
+        Node {
+            id: self.id,
+            kind: self.kind,
+            name: self.name,
+            value: &self.value,
+        }
+    }
+}
+
+/// The context that draws a component's state, inside the instances of `path`, and its root.
+fn state_context<'t, 'a>(
+    tree: &'t Tree<'a>,
+    path: &[NodeId],
+    variant: NodeId,
+    typesetter: Option<&'t mut Typesetter>,
+    hidden: &[NodeId],
+) -> Option<(Ctx<'t, 'a>, StateRoot<'a>)> {
     let (last, outer) = path.split_last()?;
     let mut overrides = Overrides::default();
     for id in outer {
@@ -85,9 +201,13 @@ pub fn render_component_state<'t>(
         .get("symbolData")
         .and_then(|s| s.get("symbolID"))
         .and_then(node_id);
-    let other;
     let root = if shows == Some(variant) {
-        instance
+        StateRoot {
+            id: instance.id,
+            kind: instance.kind,
+            name: instance.name,
+            value: instance.value.clone(),
+        }
     } else {
         // The instance's overrides follow it to the other variant, matched by layer names.
         if let Some(shows) = shows {
@@ -107,15 +227,13 @@ pub fn render_component_state<'t>(
             );
         }
         overrides.enter(instance, &resolved);
-        other = value;
-        &Node {
+        StateRoot {
             id: target.id,
             kind: target.kind,
             name: target.name,
-            value: &other,
+            value,
         }
     };
-    let other_variant = shows != Some(variant);
     let mut ctx = Ctx {
         tree,
         defs: String::new(),
@@ -131,12 +249,24 @@ pub fn render_component_state<'t>(
         relaid: HashSet::new(),
         backdrop: Backdrop::default(),
     };
-    if other_variant {
-        ctx.fit(root);
+    if shows == Some(variant) {
+        // The variant shown: Figma stored its layout, but a file written by another tool may
+        // not have; only texts without stored glyphs are laid out again.
+        let node = root.node();
+        let resolved = ctx.resolve(&node).into_owned();
+        if let Some(symbol) = shows {
+            ctx.overrides.enter(&node, &resolved);
+            let fitted = ctx.fit_stack(symbol, &resolved, true);
+            ctx.overrides.leave();
+            let own = size(&resolved);
+            if (fitted.0 - own.0).abs() > 0.5 || (fitted.1 - own.1).abs() > 0.5 {
+                ctx.resized.insert(node.id, fitted);
+            }
+        }
+    } else {
+        ctx.fit(&root.node(), false);
     }
-    let size = size(&ctx.resolve(root));
-    ctx.node(root, true);
-    Some(svg(&ctx, size))
+    Some((ctx, root))
 }
 
 /// A layer of a scrolling frame (the layer split of docs/spec/folio.md).
@@ -155,15 +285,21 @@ pub enum Part<'f> {
 
 /// Renders one [`Part`] of the frame `id`, leaving out the `hidden` descendants.
 #[must_use]
-pub fn render_part(tree: &Tree<'_>, id: NodeId, part: Part<'_>, hidden: &[NodeId]) -> Option<Svg> {
+pub fn render_part<'t>(
+    tree: &'t Tree<'_>,
+    id: NodeId,
+    part: Part<'_>,
+    hidden: &[NodeId],
+    typesetter: Option<&'t mut Typesetter>,
+) -> Option<Svg> {
     let node = tree.get(id)?;
     let frame_size = size(node.value);
     let mut hidden = hidden.to_vec();
     Some(match part {
-        Part::Background => render(tree, node, Root::BACKGROUND, hidden, frame_size),
+        Part::Background => render(tree, node, Root::BACKGROUND, hidden, frame_size, typesetter),
         Part::Content { fixed, size } => {
             hidden.extend_from_slice(fixed);
-            render(tree, node, Root::CONTENT, hidden, size)
+            render(tree, node, Root::CONTENT, hidden, size, typesetter)
         }
         Part::Fixed { fixed } => {
             hidden.extend(
@@ -171,7 +307,7 @@ pub fn render_part(tree: &Tree<'_>, id: NodeId, part: Part<'_>, hidden: &[NodeId
                     .map(|c| c.id)
                     .filter(|c| !fixed.contains(c)),
             );
-            render(tree, node, Root::CONTENT, hidden, frame_size)
+            render(tree, node, Root::CONTENT, hidden, frame_size, typesetter)
         }
     })
 }
@@ -202,12 +338,13 @@ impl Root {
     };
 }
 
-fn render(
-    tree: &Tree<'_>,
+fn render<'t>(
+    tree: &'t Tree<'_>,
     node: &Node<'_>,
     root: Root,
     hidden: Vec<NodeId>,
     (width, height): (f32, f32),
+    typesetter: Option<&'t mut Typesetter>,
 ) -> Svg {
     let mut ctx = Ctx {
         tree,
@@ -217,7 +354,7 @@ fn render(
         hidden,
         root,
         overrides: Overrides::default(),
-        typesetter: None,
+        typesetter,
         missing_fonts: BTreeSet::new(),
         shifts: HashMap::new(),
         resized: HashMap::new(),
@@ -231,7 +368,6 @@ fn render(
     svg(&ctx, (width, height))
 }
 
-/// Copies the `names` fields of `from` onto `to`.
 /// A rectangle with rounded corners, as SVG path data.
 fn rounded_rect(left: f32, top: f32, width: f32, height: f32, radius: f32) -> String {
     let (width, height) = (width.max(0.0), height.max(0.0));
@@ -259,6 +395,7 @@ fn hugs(frame: &Value, field: &str) -> bool {
         .is_some_and(|sizing| sizing.starts_with("RESIZE_TO_FIT"))
 }
 
+/// Copies the `names` fields of `from` onto `to`.
 fn take_fields(to: &mut Value, from: &Value, names: &[&str]) {
     let Value::Object(fields) = to else {
         return;
@@ -353,24 +490,122 @@ impl Ctx<'_, '_> {
         Cow::Owned(value)
     }
 
+    /// Draws `node` on its own, at the origin, leaving out `hidden`, on a canvas of `size`.
+    fn alone(&mut self, node: &Node<'_>, hidden: Vec<NodeId>, size: (f32, f32)) -> Svg {
+        let kept = std::mem::replace(&mut self.hidden, hidden);
+        self.body.clear();
+        self.defs.clear();
+        self.node(node, true);
+        let drawn = svg(self, size);
+        self.hidden = kept;
+        drawn
+    }
+
+    /// The parts of `source`'s children (the parent's fields are `parent`), then of theirs: see
+    /// [`state_parts`]. `to_root` maps the parent's coordinates to the state's.
+    #[allow(clippy::too_many_arguments)]
+    fn parts(
+        &mut self,
+        source: NodeId,
+        parent: &Value,
+        path: &str,
+        to_root: Matrix,
+        depth: usize,
+        hidden: &[NodeId],
+        out: &mut Vec<StatePart>,
+    ) {
+        let children: Vec<NodeId> = self.tree.children(source).map(|c| c.id).collect();
+        self.reflow(parent, &children);
+        for id in children {
+            if out.len() >= MAX_PARTS {
+                return;
+            }
+            let Some(child) = self.tree.get(id) else {
+                continue;
+            };
+            let resolved = self.resolve(child).into_owned();
+            if hidden.contains(&id) || matches!(resolved.get("visible"), Some(Value::Bool(false))) {
+                continue;
+            }
+            let name = if path.is_empty() {
+                child.name.to_owned()
+            } else {
+                format!("{path}/{}", child.name)
+            };
+            let (dx, dy) = self.shifts.get(&id).copied().unwrap_or((0.0, 0.0));
+            let m = |k: &str, default: f32| {
+                f64::from(
+                    resolved
+                        .get("transform")
+                        .and_then(|m| m.get(k))
+                        .and_then(Value::as_f32)
+                        .unwrap_or(default),
+                )
+            };
+            let local = Matrix::new(
+                m("m00", 1.0),
+                m("m10", 0.0),
+                m("m01", 0.0),
+                m("m11", 1.0),
+                m("m02", 0.0) + f64::from(dx),
+                m("m12", 0.0) + f64::from(dy),
+            );
+            let matrix = to_root.multiply(local);
+            // Containers split into their children, which move on their own; instances, texts
+            // and shapes are drawn whole.
+            let split = depth < PART_DEPTH
+                && matches!(child.kind, "FRAME" | "GROUP" | "SECTION")
+                && self.tree.children(id).next().is_some();
+            let mut leave_out = hidden.to_vec();
+            if split {
+                leave_out.extend(self.tree.children(id).map(|c| c.id));
+            }
+            let drawn = self.alone(child, leave_out, size(&resolved));
+            out.push(StatePart {
+                name: name.clone(),
+                svg: drawn,
+                matrix,
+                value: resolved.clone(),
+                split,
+            });
+            if split {
+                self.parts(id, &resolved, &name, matrix, depth + 1, hidden, out);
+            }
+        }
+    }
+
     /// Lays out again a variant other than the one an instance shows, for the instance's
     /// overrides, as Figma does when the instance changes variant (the file holds the layout of
     /// the variant shown only): a text whose characters changed and that grows with its content
     /// is measured with its font, and an auto-layout frame that hugs its content takes the size
     /// of what it holds. Returns the node's size.
-    fn fit(&mut self, node: &Node<'_>) -> (f32, f32) {
+    /// With `stored_wins`, a text whose glyphs the file stored keeps its layout.
+    fn fit(&mut self, node: &Node<'_>, stored_wins: bool) -> (f32, f32) {
         let resolved = self.resolve(node).into_owned();
         let own = size(&resolved);
         match node.kind {
-            "TEXT" => self.fit_text(node, &resolved).unwrap_or(own),
-            "FRAME" | "SYMBOL" => self.fit_stack(node, &resolved),
+            "TEXT" => self.fit_text(node, &resolved, stored_wins).unwrap_or(own),
+            "FRAME" | "SYMBOL" => {
+                let fitted = self.fit_stack(node.id, &resolved, stored_wins);
+                if (fitted.0 - own.0).abs() > 0.5 || (fitted.1 - own.1).abs() > 0.5 {
+                    self.resized.insert(node.id, fitted);
+                }
+                fitted
+            }
             _ => own,
         }
     }
 
-    fn fit_text(&mut self, node: &Node<'_>, text: &Value) -> Option<(f32, f32)> {
+    fn fit_text(&mut self, node: &Node<'_>, text: &Value, stored_wins: bool) -> Option<(f32, f32)> {
         let characters = |v: &Value| v.get("textData").and_then(|t| t.get("characters")).cloned();
         if characters(text) == characters(node.value) {
+            return None;
+        }
+        let stored = text
+            .get("derivedTextData")
+            .and_then(|d| d.get("glyphs"))
+            .is_some_and(|g| !g.as_array().is_empty());
+        if stored_wins && stored {
             return None;
         }
         let grows = text.get("textAutoResize").and_then(Value::as_str);
@@ -389,15 +624,16 @@ impl Ctx<'_, '_> {
         Some((width, set.height))
     }
 
-    fn fit_stack(&mut self, node: &Node<'_>, frame: &Value) -> (f32, f32) {
+    /// `source` holds the children: the frame itself, or an instance's component.
+    fn fit_stack(&mut self, source: NodeId, frame: &Value, stored_wins: bool) -> (f32, f32) {
         let own = size(frame);
-        let children: Vec<NodeId> = self.tree.children(node.id).map(|c| c.id).collect();
+        let children: Vec<NodeId> = self.tree.children(source).map(|c| c.id).collect();
         let mut sizes = Vec::new();
         for &id in &children {
             let Some(child) = self.tree.get(id) else {
                 continue;
             };
-            let fitted = self.fit(child);
+            let fitted = self.fit(child, stored_wins);
             let child = self.resolve(child);
             if !matches!(child.get("visible"), Some(Value::Bool(false)))
                 && child.get("stackPositioning").and_then(Value::as_str) != Some("ABSOLUTE")
@@ -439,9 +675,6 @@ impl Ctx<'_, '_> {
         }
         if hugs(frame, "stackCounterSizing") {
             *counter.0 = across + counter.1;
-        }
-        if (w - own.0).abs() > 0.5 || (h - own.1).abs() > 0.5 {
-            self.resized.insert(node.id, (w, h));
         }
         (w, h)
     }
