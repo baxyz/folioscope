@@ -39,11 +39,71 @@ export interface FontRegistration {
   data?: ArrayBuffer | Uint8Array;
   /** A family name the font also answers to, besides its own. */
   family?: string;
-  /** Family names or patterns (`SF Pro*`, `*` and `?`) it also answers to: it stands in for them. */
+  /**
+   * Family names or patterns it also answers to, standing in for them: globs (`SF Pro*`, `*` and
+   * `?`, case-insensitive) or regular expressions (`/^Helvetica( Neue)?$/i`).
+   */
   match?: string | string[];
   weight?: number | string;
   /** `italic` or `oblique`; anything else is upright. */
   style?: string;
+  /** A folder with a `folioscope-fonts.json` manifest: its fonts, fetched when the design uses them. */
+  base?: string;
+  /** A stylesheet whose `@font-face` rules give fonts, fetched when the design uses them. */
+  css?: string;
+}
+
+/** A font as the bake takes it, from what the page says. */
+function toDeclaration(font: FontRegistration | string, src?: string): FontDeclaration {
+  const given = typeof font === "string" ? { family: font, src } : font;
+  const url = (value: string) => new URL(value, document.baseURI).href;
+  return {
+    url: given.src && url(given.src),
+    data: given.data && new Uint8Array(given.data),
+    family: given.family,
+    match: given.match === undefined ? undefined : [given.match].flat(),
+    weight: given.weight === undefined ? undefined : Number(given.weight),
+    italic: given.style === undefined ? undefined : /^(italic|oblique)/.test(given.style),
+    base: given.base && url(given.base.endsWith("/") ? given.base : `${given.base}/`),
+    css: given.css && url(given.css),
+  };
+}
+
+/** The rules of a `match` attribute: one regular expression, or globs separated by commas. */
+function rules(value: string): string[] {
+  const trimmed = value.trim();
+  if (/^\/.+\/[dgimsuvy]*$/.test(trimmed)) return [trimmed];
+  return trimmed
+    .split(",")
+    .map((pattern) => pattern.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Fonts shared by several players, in JavaScript: `player.fonts = new FolioscopeFontSet().add({
+ * base: "/fonts/" })`. The same as a `<folioscope-fonts>` element; a player's own fonts come first.
+ */
+export class FolioscopeFontSet {
+  readonly #fonts: FontDeclaration[] = [];
+  readonly #listeners = new Set<() => void>();
+
+  /** Adds a font (as `registerFont()` takes it); the players using the set bake again. */
+  add(font: FontRegistration | string, src?: string): this {
+    this.#fonts.push(toDeclaration(font, src));
+    for (const listener of this.#listeners) listener();
+    return this;
+  }
+
+  /** The fonts of the set, in the order they were added. */
+  get declarations(): readonly FontDeclaration[] {
+    return this.#fonts;
+  }
+
+  /** Calls `listener` when a font is added; returns what stops it. */
+  watch(listener: () => void): () => void {
+    this.#listeners.add(listener);
+    return () => this.#listeners.delete(listener);
+  }
 }
 
 /** A raw design file, played by the full player when no `.folio` sits next to it. */
@@ -104,6 +164,9 @@ export class FolioscopePlayer extends BaseElement {
   private loadedSrc?: string;
   /** Fonts given with `registerFont()`, after those declared in the page. */
   private readonly registered: FontDeclaration[] = [];
+  /** A shared set given in JavaScript (`player.fonts = set`), and what stops watching it. */
+  private fontSet?: FolioscopeFontSet;
+  private unwatchFonts?: () => void;
   /** Watches the `<folioscope-font>` children, to bake again when fonts come or go. */
   private fontObserver?: MutationObserver;
   /** Set once the raw file's bake starts: before, a font declared in the page is just on time. */
@@ -319,15 +382,19 @@ export class FolioscopePlayer extends BaseElement {
    * baked again with it.
    */
   registerFont(font: FontRegistration | string, src?: string): void {
-    const given = typeof font === "string" ? { family: font, src } : font;
-    this.registered.push({
-      url: given.src && new URL(given.src, document.baseURI).href,
-      data: given.data && new Uint8Array(given.data),
-      family: given.family,
-      match: given.match === undefined ? undefined : [given.match].flat(),
-      weight: given.weight === undefined ? undefined : Number(given.weight),
-      italic: given.style === undefined ? undefined : /^(italic|oblique)/.test(given.style),
-    });
+    this.registered.push(toDeclaration(font, src));
+    this.fontsChanged();
+  }
+
+  /** A shared font set given in JavaScript; the player's own fonts come first. */
+  get fonts(): FolioscopeFontSet | undefined {
+    return this.fontSet;
+  }
+
+  set fonts(set: FolioscopeFontSet | undefined) {
+    this.unwatchFonts?.();
+    this.fontSet = set;
+    this.unwatchFonts = set?.watch(() => this.fontsChanged());
     this.fontsChanged();
   }
 
@@ -340,25 +407,23 @@ export class FolioscopePlayer extends BaseElement {
       ...this.querySelectorAll(":scope > folioscope-font"),
     ];
     const declared = tags.flatMap((tag): FontDeclaration[] => {
-      const src = tag.getAttribute("src");
-      if (!src) return [];
-      const weight = tag.getAttribute("weight");
-      const style = tag.getAttribute("style");
-      const match = tag.getAttribute("match");
+      const attribute = (name: string) => tag.getAttribute(name) ?? undefined;
+      const [src, base, css] = [attribute("src"), attribute("base"), attribute("css")];
+      if (!src && !base && !css) return [];
+      const match = attribute("match");
       return [
-        {
-          url: new URL(src, document.baseURI).href,
-          family: tag.getAttribute("family") ?? undefined,
-          match: match
-            ?.split(",")
-            .map((pattern) => pattern.trim())
-            .filter(Boolean),
-          weight: weight === null ? undefined : Number(weight),
-          italic: style === null ? undefined : /^(italic|oblique)/.test(style),
-        },
+        toDeclaration({
+          src,
+          base,
+          css,
+          family: attribute("family"),
+          match: match === undefined ? undefined : rules(match),
+          weight: attribute("weight"),
+          style: attribute("style"),
+        }),
       ];
     });
-    return [...declared, ...this.registered];
+    return [...declared, ...this.registered, ...(this.fontSet?.declarations ?? [])];
   }
 
   /** Fonts came or went: a raw file already baked, or being baked, is baked again. */

@@ -3,6 +3,7 @@
 // by the file's hash (Cache API), so a second visit skips the bake.
 import { createFileStore, sha256Hex } from "helpers4/browser";
 import { fetchOrThrow } from "helpers4/fetch";
+import { fontFaces, needed } from "./fonts.ts";
 import type { BakeMessage, BakeRequest, FontDeclaration } from "./index.ts";
 
 interface Glue {
@@ -14,6 +15,7 @@ interface Glue {
     densities?: Uint8Array,
     hints?: string,
   ): { files: Map<string, Uint8Array>; missingFonts: string[] };
+  families(input: Uint8Array): string[];
 }
 
 /** Bumped when the bake's output changes, so stale entries are not reused. */
@@ -71,19 +73,19 @@ async function loadFonts(declared: FontDeclaration[]) {
 
 async function bake({ url, density, fonts: declared }: BakeRequest): Promise<void> {
   post({ type: "progress", value: "download" });
-  const [response, loaded] = await Promise.all([fetchOrThrow(url), loadFonts(declared)]);
-  if (declared.length) post({ type: "progress", value: "fonts" });
-  const source = new Uint8Array(await response.arrayBuffer());
-  // What decides the bake: the file, and the fonts with what is said about them.
-  const hintsJson = JSON.stringify(loaded.hints);
-  let fontKey = "";
-  for (const [name, bytes] of loaded.fonts) {
-    fontKey += `${name}:${await sha256Hex(bytes as Uint8Array<ArrayBuffer>, 16)},`;
-  }
+  const source = new Uint8Array(await (await fetchOrThrow(url)).arrayBuffer());
+  // What decides the bake: the file, and the fonts as the page declares them (by URL), so a
+  // second visit reads the cache without loading the WebAssembly.
+  const declarations = await Promise.all(
+    declared.map(async (font) => ({
+      ...font,
+      data: font.data && (await sha256Hex(font.data as Uint8Array<ArrayBuffer>, 16)),
+    })),
+  );
   const key = [
     await sha256Hex(source, 32),
     density,
-    await sha256Hex(new TextEncoder().encode(fontKey + hintsJson), 16),
+    await sha256Hex(new TextEncoder().encode(JSON.stringify(declarations)), 16),
   ].join("/");
 
   const stored = await store.get(key, CACHE_VERSION);
@@ -97,16 +99,27 @@ async function bake({ url, density, fonts: declared }: BakeRequest): Promise<voi
     return done(files, missing ? (JSON.parse(await missing.text()) as string[]) : []);
   }
 
-  post({ type: "progress", value: "bake" });
   const glue = (await import(
     new URL("../../wasm/folioscope_wasm.js", import.meta.url).href
   )) as Glue;
   await glue.default({
     module_or_path: new URL("../../wasm/folioscope_wasm_bg.wasm", import.meta.url),
   });
-  const result = glue.bake(source, false, loaded.fonts, Uint8Array.of(density), hintsJson);
+  // Only the fonts the design's text uses are fetched.
+  const used = glue.families(source);
+  const expanded = await expand(declared);
+  const loaded = await loadFonts(expanded.fonts.filter((font) => needed(font, used)));
+  if (declared.length) post({ type: "progress", value: "fonts" });
+  post({ type: "progress", value: "bake" });
+  const result = glue.bake(
+    source,
+    false,
+    loaded.fonts,
+    Uint8Array.of(density),
+    JSON.stringify(loaded.hints),
+  );
   const files = [...result.files];
-  const missingFonts = [...loaded.failed, ...result.missingFonts];
+  const missingFonts = [...expanded.failed, ...loaded.failed, ...result.missingFonts];
   await store.put(
     key,
     {
@@ -116,6 +129,57 @@ async function bake({ url, density, fonts: declared }: BakeRequest): Promise<voi
     CACHE_VERSION,
   );
   return done(files, missingFonts);
+}
+
+/** One face of a `folioscope-fonts.json` manifest, as `folioscope fonts` writes it. */
+interface ManifestFace {
+  family: string;
+  weight: [number, number];
+  italic: boolean;
+  source: string;
+}
+
+/**
+ * The declared fonts with their `base` folders and `css` stylesheets read: one declaration per
+ * face, with its family, so it is fetched only when used. Folders and sheets that cannot be read
+ * are reported.
+ */
+async function expand(declared: FontDeclaration[]) {
+  const fonts: FontDeclaration[] = [];
+  const failed: string[] = [];
+  for (const font of declared) {
+    if (font.base) {
+      const manifest = new URL("folioscope-fonts.json", font.base);
+      const faces = await fetchOrThrow(manifest)
+        .then((r) => r.json() as Promise<ManifestFace[]>)
+        .catch(() => undefined);
+      if (!faces) {
+        failed.push(`${manifest.href} (not reachable)`);
+        continue;
+      }
+      for (const face of faces) {
+        fonts.push({
+          url: new URL(face.source, manifest).href,
+          family: face.family,
+          match: font.match,
+          weight: face.weight[0] === face.weight[1] ? face.weight[0] : undefined,
+          italic: face.italic,
+        });
+      }
+    } else if (font.css) {
+      const sheet = await fetchOrThrow(font.css)
+        .then((r) => r.text())
+        .catch(() => undefined);
+      if (sheet === undefined) {
+        failed.push(`${font.css} (not reachable)`);
+        continue;
+      }
+      fonts.push(...fontFaces(sheet, font.css));
+    } else {
+      fonts.push(font);
+    }
+  }
+  return { fonts, failed };
 }
 
 function done(files: [string, Uint8Array][], missingFonts: string[]): void {

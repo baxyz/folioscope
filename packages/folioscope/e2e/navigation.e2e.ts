@@ -3,7 +3,8 @@
 // Run with `pnpm --filter folioscope test:e2e` after `vp pack` and `cargo build -p folioscope`.
 import assert from "node:assert/strict";
 import { firefox } from "playwright";
-import { copyFileSync, mkdirSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { bakeFixtures, serve } from "./serve.ts";
@@ -33,6 +34,15 @@ copyFileSync(join(fixtures, "figma/navigation.fig"), join(site, "navigation.fig"
 copyFileSync(join(fixtures, "sketch/text.sketch"), join(site, "raw/text.sketch"));
 mkdirSync(join(site, "fonts"));
 copyFileSync(join(fixtures, "fonts/Inter-Latin.ttf"), join(site, "fonts/Inter-Latin.ttf"));
+// The folder's manifest, as `folioscope fonts` writes it, and a stylesheet naming it Brand.
+execFileSync(process.env.FOLIOSCOPE_CLI ?? join(fixtures, "../target/debug/folioscope"), [
+  "fonts",
+  join(site, "fonts"),
+]);
+writeFileSync(
+  join(site, "fonts/fonts.css"),
+  '@font-face { font-family: "Brand"; src: url("Inter-Latin.ttf") format("truetype"); font-weight: 700; }',
+);
 const server = await serve(
   site,
   (query) => `<!doctype html><meta charset="utf-8">
@@ -509,6 +519,23 @@ try {
   await loaded(2);
   assert.equal((await seen()).missing.length, 2, "nothing more is missing after the second bake");
   console.log("✓ fonts: <folioscope-font>, a family or a pattern, a shared set and registerFont()");
+
+  // A folder with its manifest, a regular expression, a stylesheet; fonts the design does not use
+  // are not fetched.
+  await open({ children: '<folioscope-font base="/fonts/" match="/^Brand$/"></folioscope-font>' });
+  await loaded(1);
+  assert.deepEqual((await seen()).missing, []);
+  await open({ children: '<folioscope-font css="/fonts/fonts.css"></folioscope-font>' });
+  await loaded(1);
+  assert.deepEqual((await seen()).missing, []);
+  await open({
+    children: `${inter}></folioscope-font><folioscope-font family="Unused" src="/fonts/nowhere.ttf"></folioscope-font>`,
+  });
+  await loaded(1);
+  assert.deepEqual((await seen()).missing, ["Brand-Bold"], "the unused font is not fetched");
+  console.log(
+    "✓ fonts: a folder's manifest, a stylesheet, a regular expression, only what is used",
+  );
 
   // Without a poster, the frame's baked placeholder shows while its layers load.
   const slow = await browser.newPage();
