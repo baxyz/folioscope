@@ -353,7 +353,9 @@ function components(): FigmaBuilder {
   figma.on(shown, "AFTER_TIMEOUT", { kind: "changeTo", to: hidden, transition: toggle }, 1000);
 
   // A chip whose label the instance changes: in its other state, laid out again around the
-  // longer label (auto layout that hugs its content). The label is 16 px Inter, 19 px tall.
+  // longer label (auto layout that hugs its content). Selected, it shows a check before the
+  // label, so it grows: smart animate stretches it and slides the label. The label is 16 px
+  // Inter, 19 px tall.
   const chips = figma.componentSet(
     library,
     "Chip",
@@ -361,23 +363,27 @@ function components(): FigmaBuilder {
     "Selected",
     ["false", "true"],
   );
-  // The selected chip has more room around its label: another size than the one shown.
-  const chip = (y: number, padding: number, fill: string, color: string) => {
+  const chip = (y: number, selected: boolean) => {
+    const check = selected ? 8 + 6 : 0;
     const variant = figma.variant(
       chips,
-      `Selected=${y > 24}`,
-      { x: 24, y, width: 38 + 2 * padding, height: 35 },
-      fill,
+      `Selected=${selected}`,
+      { x: 24, y, width: 16 + check + 38 + 16, height: 35 },
+      selected ? BLUE : GREY,
       18,
     );
-    figma.row(variant, [padding, 8]);
-    const box = { x: padding, y: 8, width: 38, height: 19 };
+    figma.row(variant, [16, 8], 6);
+    if (selected)
+      figma.ellipse(variant, "Check", { x: 16, y: 13.5, width: 8, height: 8 }, "#FFFFFF");
+    const box = { x: 16 + check, y: 8, width: 38, height: 19 };
+    const color = selected ? "#FFFFFF" : "#111827";
     return [variant, figma.text(variant, "Label", box, "Chip", color)];
   };
-  const [unselected, label] = chip(24, 16, GREY, "#111827");
-  const [selected] = chip(72, 20, BLUE, "#FFFFFF");
-  figma.on(unselected!, "ON_CLICK", { kind: "changeTo", to: selected!, transition: toggle });
-  figma.on(selected!, "ON_CLICK", { kind: "changeTo", to: unselected!, transition: toggle });
+  const [unselected, label] = chip(24, false);
+  const [selected] = chip(72, true);
+  const morph = { type: "SMART_ANIMATE", durationMs: 250, easing: "INOUT_CUBIC" } as const;
+  figma.on(unselected!, "ON_CLICK", { kind: "changeTo", to: selected!, transition: morph });
+  figma.on(selected!, "ON_CLICK", { kind: "changeTo", to: unselected!, transition: morph });
 
   const home = figma.frame(page, "Home", { x: 0, y: 0, ...PHONE });
   figma.flowStart(home, "Components flow");
