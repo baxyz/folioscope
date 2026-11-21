@@ -39,34 +39,67 @@ export function renderFrame(
   el.setAttribute("aria-label", frame.name);
   el.tabIndex = -1;
   // A scrolling frame: background layers, then a scroller holding the content and its hotspots,
-  // then fixed layers and hotspots on top.
+  // then fixed layers and hotspots on top. Frames that scroll inside the screen get scrollers of
+  // their own, in the content they are part of.
   let content: HTMLElement | undefined;
+  const inner = new Map<string, HTMLElement>();
+  const scroller = (
+    direction: "vertical" | "horizontal" | "both",
+    size: { width: number; height: number },
+  ) => {
+    const box = document.createElement("div");
+    box.className = "scroll";
+    box.style.overflowX = direction === "vertical" ? "hidden" : "auto";
+    box.style.overflowY = direction === "horizontal" ? "hidden" : "auto";
+    const area = document.createElement("div");
+    area.className = "content";
+    area.style.width = `${size.width}px`;
+    area.style.height = `${size.height}px`;
+    box.append(area);
+    return [box, area] as const;
+  };
+  const innerOf = (id: string) => {
+    let area = inner.get(id);
+    const spec = frame.scrollers?.find((s) => s.id === id);
+    if (!area && spec) {
+      const [box, made] = scroller(spec.direction, spec.content);
+      place(box, spec.bounds);
+      box.classList.add("inner");
+      (content ?? el).append(box);
+      inner.set(id, made);
+      area = made;
+    }
+    return area;
+  };
   for (const layer of frame.layers) {
     const img = document.createElement("img");
     img.src = layerUrl(layer);
     img.alt = "";
     img.draggable = false;
     place(img, layer.bounds);
-    if (layer.scrolls && frame.scroll) {
-      const scroller = document.createElement("div");
-      scroller.className = "scroll";
-      const { direction } = frame.scroll;
-      scroller.style.overflowX = direction === "vertical" ? "hidden" : "auto";
-      scroller.style.overflowY = direction === "horizontal" ? "hidden" : "auto";
-      content = document.createElement("div");
-      content.className = "content";
-      content.style.width = `${frame.scroll.content.width}px`;
-      content.style.height = `${frame.scroll.content.height}px`;
-      content.append(img);
-      scroller.append(content);
-      el.append(scroller);
-    } else {
-      el.append(img);
+    let parent: HTMLElement = el;
+    if (layer.scroller) {
+      parent = innerOf(layer.scroller) ?? el;
+    } else if (layer.scrolls && frame.scroll) {
+      if (!content) {
+        const [box, area] = scroller(frame.scroll.direction, frame.scroll.content);
+        content = area;
+        el.append(box);
+      }
+      parent = content;
     }
+    parent.append(img);
+    if (layer.sticky) stick(img, layer.bounds, parent.parentElement!);
   }
   for (const hotspot of frame.hotspots) {
     const area = renderHotspot(hotspot, on);
-    if (area) (hotspot.fixed ? el : (content ?? el)).append(area);
+    if (!area) continue;
+    const parent = hotspot.scroller
+      ? innerOf(hotspot.scroller)
+      : hotspot.fixed
+        ? el
+        : (content ?? el);
+    (parent ?? el).append(area);
   }
   // Components go last: they sit above the frame's own hotspots, as in the design file.
   for (const component of frame.components ?? []) {
@@ -74,6 +107,20 @@ export function renderFrame(
     (component.fixed ? el : (content ?? el)).append(zone);
   }
   return el;
+}
+
+/**
+ * Keeps a sticky layer in its scroller's view once the scroll reaches it: it moves with the
+ * content, then holds at the top (or left) edge.
+ */
+function stick(img: HTMLElement, bounds: Rect, box: HTMLElement): void {
+  img.style.zIndex = "1";
+  const update = () => {
+    const dy = Math.max(0, box.scrollTop - bounds.y);
+    const dx = box.style.overflowX === "hidden" ? 0 : Math.max(0, box.scrollLeft - bounds.x);
+    img.style.transform = dx || dy ? `translate(${dx}px, ${dy}px)` : "";
+  };
+  box.addEventListener("scroll", update, { passive: true });
 }
 
 /**
