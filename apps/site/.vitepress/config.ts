@@ -15,7 +15,7 @@ export default defineConfig({
   },
   themeConfig: {
     nav: [
-      { text: "Getting started", link: "/guide/getting-started" },
+      { text: "Guide", link: "/guide/getting-started", activeMatch: "^/guide/(?!api)" },
       { text: "API", link: "/guide/api" },
       { text: "Demos", link: "/demos" },
       { text: "Playground", link: "/playground" },
@@ -24,6 +24,23 @@ export default defineConfig({
       { text: "Comparison", link: "/comparison" },
       { text: "About", link: "/about" },
     ],
+    sidebar: {
+      "/guide/": [
+        {
+          text: "Guide",
+          items: [
+            { text: "Getting started", link: "/guide/getting-started" },
+            { text: "Your design file", link: "/guide/design-files" },
+            { text: "Embed the player", link: "/guide/player" },
+            { text: "Bake with Vite", link: "/guide/vite" },
+            { text: "Bake with the CLI", link: "/guide/cli" },
+            { text: "Raw design files", link: "/guide/raw-files" },
+            { text: "Fonts", link: "/guide/fonts" },
+          ],
+        },
+        { text: "Reference", items: [{ text: "API", link: "/guide/api" }] },
+      ],
+    },
     socialLinks: [{ icon: "github", link: "https://github.com/baxyz/folioscope" }],
     footer: {
       message:

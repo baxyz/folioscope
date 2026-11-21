@@ -1,127 +1,96 @@
+---
+title: Getting started
+description: "What Folioscope does, the three ways to use it, and a first prototype on a page."
+---
+
 # Getting started
 
-::: warning Not published yet
-The `folioscope` npm package and CLI are not released yet. Until then, build them from the [repository](https://github.com/baxyz/folioscope).
-:::
+Folioscope plays the clickable prototype of a design file on a web page: screens, clicks,
+hovers, overlays, scrolling and transitions, from a `.fig` (Figma), `.sketch`, `.xd` or
+`.penpot` file. No account, no design tool and no third-party server for your visitors.
 
-## 1. Bake your design file
+It has two parts:
 
-Baking turns a design file into a `.folio` folder: a small `index.json` and one image per screen, at 1x and 2x. It runs once, ahead of time, so visitors never wait for a renderer.
+- **The bake** turns a design file into a `.folio` folder: one image per screen (or per layer)
+  and a small `index.json` that says where the links go. It runs once, ahead of time.
+- **The player**, `<folioscope-player>`, is a web component of about 11 KB (gzipped) that plays a
+  `.folio` folder. Your visitors download only the screens they see.
+
+## What you need
+
+- A **design file** with a prototype in it: at least one flow (a starting screen) and some links.
+  See [Your design file](./design-files) for how to save one from each tool.
+- A **web page** to put it on: any site, static or not.
+
+## Pick a way
+
+| Your site                                            | Bake with                                 | Guide                           |
+| ---------------------------------------------------- | ----------------------------------------- | ------------------------------- |
+| Built with **Vite** (Vue, React, Svelte, Astro, …)   | the Vite plugin, while the site builds    | [Bake with Vite](./vite)        |
+| Built another way, or plain HTML                     | the `folioscope` command, then copy files | [Bake with the CLI](./cli)      |
+| No build at all, or files you cannot bake (uploads…) | nothing: the player bakes in the browser  | [Raw design files](./raw-files) |
+
+Baking ahead of time is the fast path: the first screen shows in under a second on a phone on 4G.
+Baking in the browser costs each visitor about 2 MB of WebAssembly and a few seconds, once.
+
+## A first prototype, with the CLI
+
+The command line tool is a Rust program, published on crates.io. With
+[Rust](https://rustup.rs) installed:
+
+```sh
+cargo install folioscope
+```
+
+Bake your file into the folder your site publishes (`public/` here):
 
 ```sh
 folioscope bake app.fig public/app.folio
 ```
 
-Fonts are not needed for `.fig` files: Figma stores the outline of every letter, and the bake draws them.
-
-### Or let Vite bake them
-
-With Vite, `folioscope/vite` bakes your design files while the site builds, and serves them in
-dev. It runs the bake as WebAssembly, so nothing else needs installing, and caches each result by
-the hash of its source file.
-
-```ts
-// vite.config.ts
-import { folioscope } from "folioscope/vite";
-
-export default {
-  plugins: [folioscope({ include: "designs/*.fig" })],
-};
-```
-
-`designs/app.fig` is then served as `/folio/app.folio/`. Options: `include` (globs, relative to
-the Vite root), `base` (URL folder, `folio` by default), `cacheDir`, `avif` (`false` keeps every
-screen in lossless WebP; by default, photo-heavy screens become AVIF when it is much lighter), `svg`
-(`false` keeps every screen an image; by default, a flat screen with no photo, blur or shadow is
-served as SVG when that is lighter: sharp at any zoom), `maxStates` (the most states drawn per
-interactive component, 16 by default; the build warns about a component that has more), `fonts` (font files or folders, for text the design file stores no glyphs for; a `.fig` file rarely needs any).
-
-## 2. Add the player
+It prints what it made (screens, layers, weight) and warns about what it could not do. Then put
+the player on a page:
 
 ```html
-<script type="module" src="https://cdn.jsdelivr.net/npm/folioscope"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/folioscope@0.1/dist/index.mjs"></script>
 
 <folioscope-player src="/app.folio" poster="/app.folio/poster.webp" controls></folioscope-player>
 ```
 
-The poster shows as soon as the player's script runs, before the prototype's description
-arrives.
+Open the page: the first screen of the first flow shows, and its links work. `controls` adds a bar
+to restart, go back, pick another flow or page, and go fullscreen.
 
-### A first screen in under a second
+## A first prototype, with Vite
 
-To have the first screen up in under a second on a phone on 4G, give a `poster` and have the
-browser fetch the prototype's `index.json` along with the player:
-
-```html
-<link rel="preload" href="/app.folio/index.json" as="fetch" crossorigin />
+```sh
+npm install folioscope
 ```
 
-CI checks this setup on every change: on a simulated 4G connection with a phone's CPU, the poster
-shows at about 550 ms and the first playable screen at about 750 ms (900 ms without the poster and
-the preload).
+```ts
+// vite.config.ts
+import { defineConfig } from "vite";
+import { folioscope } from "folioscope/vite";
 
-### Without a build step
-
-`src` can also point at the design file itself:
-
-```html
-<folioscope-player src="/designs/app.fig" controls></folioscope-player>
+export default defineConfig({
+  plugins: [folioscope({ include: "designs/*.fig" })],
+});
 ```
 
-If `app.folio/` sits next to it, the player plays that. Otherwise it bakes the file in the
-browser, in a Web Worker, with the WebAssembly bake (about 2 MB, downloaded once and cached), then
-keeps the result in the browser's cache for the next visit. Baking ahead of time stays the fast
-path: a visitor waits a few seconds the first time.
-
-### Fonts for raw `.sketch` and `.penpot` files
-
-A `.fig` file stores the outline of every glyph, but `.sketch` and `.penpot` files only name their
-fonts: given nothing, their text is left out. Give the player the font files:
-
-```html
-<folioscope-player src="/designs/app.sketch">
-  <!-- The file says its own family: Inter -->
-  <folioscope-font src="/fonts/Inter.woff2"></folioscope-font>
-  <!-- A family it also answers to -->
-  <folioscope-font src="/fonts/Roboto.woff2" family="Brand"></folioscope-font>
-  <!-- A stand-in for a font you may not serve (patterns: * and ?) -->
-  <folioscope-font src="/fonts/Inter.woff2" match="SF Pro*"></folioscope-font>
-</folioscope-player>
+```ts
+// main.ts: defines <folioscope-player>
+import "folioscope";
 ```
 
-- `src` is a TrueType, OpenType, WOFF or WOFF2 file. `weight` and `style="italic"` say what the file
-  does not, if need be.
-- Several players can share fonts: put the `<folioscope-font>` elements in a
-  `<folioscope-fonts id="portfolio">` and give each player `fonts="portfolio"`.
-- From JavaScript: `player.registerFont({ src, family, match, weight, style })`, or
-  `registerFont("Brand", "/fonts/Brand.woff2")`. A file already baked is baked again with it.
-- A font the file needs and you did not give is announced by `folioscope:font-missing`.
-- Baking ahead of time takes the same fonts: `folioscope bake --fonts ./fonts`, or the `fonts`
-  option of the Vite plugin.
+```html
+<folioscope-player src="/folio/app.folio" controls></folioscope-player>
+```
 
-## Attributes
+`designs/app.fig` is baked while the site builds (and on the fly in `vite dev`) and served as
+`/folio/app.folio/`. Nothing else to install: the plugin runs the bake as WebAssembly.
 
-| Attribute  | Values                              | Role                                                                                               |
-| ---------- | ----------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `src`      | URL                                 | The `.folio` folder                                                                                |
-| `poster`   | URL                                 | Image shown until the first screen is ready; without it, a blurred preview baked into the `.folio` |
-| `preload`  | `neighbors`, `all`, `start`, `none` | Screens to fetch ahead: those the current one links to (default), the whole page once, or none     |
-| `flow`     | name or index                       | Starting point; the page's first flow by default                                                   |
-| `page`     | name or index                       | Page; the first page with a flow by default                                                        |
-| `fit`      | `contain`, `none`                   | `contain` scales the prototype to the element's width                                              |
-| `hotspots` | `on-miss`, `always`, `never`        | Shows the clickable areas: flashed after a click beside them (default), always, or never           |
-| `controls` | boolean                             | Shows the control bar: restart, back, page and flow, fullscreen                                    |
+## Next
 
-## Methods and events
-
-- `restart()`, `back()`, `goTo(frameId)`
-- `folioscope:load`, `folioscope:navigate` (`detail.frame`, `detail.name`), `folioscope:error` (`detail.error`)
-- `folioscope:progress` (`detail.stage`: `download`, `fonts`, `cache` or `bake`) and `folioscope:font-missing` (`detail.font`), when a raw design file is baked in the browser
-
-## Keyboard
-
-Hotspots are buttons: <kbd>Tab</kbd> to reach them, <kbd>Enter</kbd> to follow them, <kbd>Escape</kbd> to go back.
-
-## Styling
-
-The element is a block that takes its width from the page and its height from the prototype's aspect ratio. The control bar is `::part(controls)`, coloured with `--folioscope-controls-background` and `--folioscope-controls-color`.
+- [Embed the player](./player): size, poster, flows and pages, frameworks, events, styling.
+- [Fonts](./fonts): when a design file needs them, and how to give them.
+- [API reference](./api): every attribute, property, method, event and export.
+- [Demos](/demos) to see what plays, and the [Playground](/playground) to try your own file.
