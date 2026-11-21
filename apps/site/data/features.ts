@@ -627,6 +627,12 @@ export const FEATURES: Feature[] = [
     formats: { all: works("e2e: full player: a dropped file (a blob: URL) plays") },
   },
   {
+    id: "api-reference",
+    group: "Site",
+    name: "API reference: every attribute, method, event and export, checked against the code",
+    formats: { all: works("vitest: names every export") },
+  },
+  {
     id: "browser-fonts",
     group: "Player",
     name: "Fonts in the browser: <folioscope-font> (src, family, match), shared sets, registerFont()",
