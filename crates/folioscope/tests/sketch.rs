@@ -154,6 +154,12 @@ mod effects {
     }
 
     #[test]
+    fn sketch_tiles() {
+        // The 8 px checker tiles at its own size.
+        assert!(svg().contains(r#"width="8" height="8" preserveAspectRatio="none""#));
+    }
+
+    #[test]
     fn sketch_rich_text() {
         let svg = svg();
         // Three runs, three colours; the underline and strikethrough are drawn.

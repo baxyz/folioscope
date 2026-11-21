@@ -103,6 +103,24 @@ mod features {
     }
 
     #[test]
+    fn figma_masks_and_images() {
+        let svg = svg();
+        assert!(
+            svg.contains("<mask id=") && svg.contains(r#"mask-type="alpha""#),
+            "mask"
+        );
+        // A tile at the image's own size, and a crop placing the image's unit square.
+        assert!(
+            svg.contains(r#"width="16" height="16" preserveAspectRatio="none""#),
+            "tile"
+        );
+        assert!(
+            svg.contains(r#"width="1" height="1" preserveAspectRatio="none" transform="#),
+            "crop"
+        );
+    }
+
+    #[test]
     fn figma_blend_modes() {
         assert!(svg().contains("mix-blend-mode:multiply"));
     }
