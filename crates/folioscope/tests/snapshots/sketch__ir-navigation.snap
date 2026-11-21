@@ -1,5 +1,5 @@
 ---
-source: crates/folioscope-core/tests/sketch.rs
+source: crates/folioscope/tests/sketch.rs
 expression: "serde_json::to_string_pretty(&ir).unwrap()"
 ---
 {
@@ -26,7 +26,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
           },
           "hotspots": [
             {
-              "node": "00000000-0000-4000-8000-00000000000D",
+              "node": "00000000-0000-4000-8000-00000000000F",
               "name": "Open details",
               "bounds": {
                 "x": 88.0,
@@ -69,7 +69,7 @@ expression: "serde_json::to_string_pretty(&ir).unwrap()"
           },
           "hotspots": [
             {
-              "node": "00000000-0000-4000-8000-00000000000F",
+              "node": "00000000-0000-4000-8000-000000000013",
               "name": "Back",
               "bounds": {
                 "x": 16.0,
