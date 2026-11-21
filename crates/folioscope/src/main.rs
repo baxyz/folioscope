@@ -10,7 +10,7 @@ use folioscope::figma::{self, tree::Tree};
 
 const USAGE: &str = "usage:
   folioscope inspect <file.fig|.sketch|.xd|.penpot>
-  folioscope render <file.fig> <node-id> <out.png> [scale]   (also writes <out>.svg)
+  folioscope render <file.fig> <node-id> <out.png> [scale] [--fonts <file or folder>]...   (also writes <out>.svg)
   folioscope bake <file.fig|.sketch|.xd|.penpot> <out.folio> [--config <file>] [--no-avif] [--no-svg] [--max-states <n>]
       [--all-pages] [--fonts <file or folder>
       [--family <name>] [--match <name or pattern>]... [--weight <100-900>] [--italic]]...
@@ -21,8 +21,9 @@ fn main() -> ExitCode {
     let args: Vec<&str> = args.iter().map(String::as_str).collect();
     let result = match args.as_slice() {
         ["inspect", path] => inspect(path),
-        ["render", path, node, out] => render(path, node, out, "1"),
-        ["render", path, node, out, scale] => render(path, node, out, scale),
+        ["render", path, node, out, rest @ ..] => {
+            render_args(rest).and_then(|(scale, fonts)| render(path, node, out, scale, &fonts))
+        }
         ["bake", rest @ ..] => match bake_args(rest) {
             Ok((path, out, options)) => bake(path, out, &options),
             Err(message) if message == USAGE => {
@@ -71,12 +72,45 @@ fn inspect(path: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn render(path: &str, node: &str, out: &str, scale: &str) -> Result<(), String> {
+/// `[scale] [--fonts <path>]...`: the scale (1 by default) and the fonts for text the file
+/// stores no glyphs for.
+fn render_args<'a>(args: &[&'a str]) -> Result<(&'a str, Vec<&'a str>), String> {
+    let (scale, mut rest) = match args {
+        [scale, rest @ ..] if !scale.starts_with("--") => (*scale, rest),
+        rest => ("1", rest),
+    };
+    let mut fonts = Vec::new();
+    while let ["--fonts", font, more @ ..] = rest {
+        fonts.push(*font);
+        rest = more;
+    }
+    if rest.is_empty() {
+        Ok((scale, fonts))
+    } else {
+        Err(USAGE.to_owned())
+    }
+}
+
+fn render(path: &str, node: &str, out: &str, scale: &str, fonts: &[&str]) -> Result<(), String> {
     let file = load(path)?;
     let tree = Tree::new(&file);
     let id = node.parse()?;
     let scale: f32 = scale.parse().map_err(|e| format!("scale {scale:?}: {e}"))?;
-    let svg = folioscope::bake::svg::render_node(&tree, id).ok_or(format!("no node {node}"))?;
+    let mut library = FontLibrary::default();
+    for font in fonts {
+        add_fonts(
+            &mut library,
+            Path::new(font),
+            Path::new(font),
+            &FontHints::default(),
+        )?;
+    }
+    let mut typesetter = folioscope::bake::text::Typesetter::new(library);
+    let svg = folioscope::bake::svg::render_node(&tree, id, Some(&mut typesetter))
+        .ok_or(format!("no node {node}"))?;
+    for missing in &svg.missing_fonts {
+        eprintln!("warning: no font for {missing}");
+    }
     let png = folioscope::bake::rasterize(&svg.markup, scale).map_err(|e| e.to_string())?;
     let svg_path = Path::new(out).with_extension("svg");
     std::fs::write(&svg_path, &svg.markup).map_err(|e| format!("{}: {e}", svg_path.display()))?;
