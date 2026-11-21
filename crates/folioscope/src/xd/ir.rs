@@ -48,6 +48,7 @@ pub fn to_ir(file: &XdFile) -> Document {
                         },
                     ),
                     fixed: false,
+                    scroller: None,
                 });
             }
             if let (Some(tree), Some(all)) = (file.artboards.get(&entry.id), interactions) {
@@ -91,8 +92,10 @@ pub fn to_ir(file: &XdFile) -> Document {
                         height: entry.bounds.height,
                     },
                     fixed: Vec::new(),
+                    sticky: Vec::new(),
                 }),
                 components: Vec::new(),
+                scrollers: Vec::new(),
             }
         })
         .collect();
@@ -209,6 +212,7 @@ fn collect(
             bounds,
             interactions: interactions_of(list, bounds),
             fixed: false,
+            scroller: None,
         });
     }
     for child in children(node) {

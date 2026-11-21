@@ -73,8 +73,10 @@ pub fn to_ir(file: &SketchFile) -> Document {
                                     .filter(|l| l["isFixedToViewport"] == true)
                                     .map(|l| string(l, "do_objectID"))
                                     .collect(),
+                                sticky: Vec::new(),
                             }),
                             components: Vec::new(),
+                            scrollers: Vec::new(),
                         }
                     })
                     .collect(),
@@ -133,6 +135,7 @@ fn collect(
                 action,
             }],
             fixed,
+            scroller: None,
         });
     }
     // An instance draws its master's layers, which may carry links of their own.
