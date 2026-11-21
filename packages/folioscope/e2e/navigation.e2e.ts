@@ -130,6 +130,28 @@ try {
   );
   console.log("✓ controls: set before the element is inserted, they show");
 
+  // A framework that sets attributes as properties (Vue does, when the element has the property)
+  // must not break the element: controls, fit, preload, fonts.
+  await tab.evaluate(() => {
+    const player = document.createElement("folioscope-player") as unknown as HTMLElement &
+      Record<string, unknown>;
+    player.id = "framework";
+    for (const [key, value] of Object.entries({
+      controls: "",
+      fit: "contain",
+      preload: "all",
+      fonts: "none",
+    })) {
+      if (key in player) player[key] = value;
+      else player.setAttribute(key, value);
+    }
+    player.setAttribute("src", "/navigation.folio");
+    document.body.append(player);
+  });
+  await tab.locator("#framework .stage > .frame").waitFor();
+  assert.equal(await tab.locator("#framework .controls").isVisible(), true);
+  console.log("✓ controls: properties set by a framework do not break the element");
+
   // A click beside every hotspot flashes them, unless hotspots="never".
   const missClick = async () => {
     const stage = (await tab.locator("folioscope-player .stage").boundingBox())!;
@@ -485,6 +507,15 @@ try {
   await settledOn("Home");
   assert.deepEqual(stages.slice(2), ["download", "cache"]);
   console.log("✓ full player: a raw .fig plays, baked in the browser, then from the cache");
+
+  // A file the visitor drops: a blob: URL, whose format the bake reads from its contents.
+  await tab.goto(`${server.origin}/?src=about:blank`);
+  await tab.evaluate(async () => {
+    const bytes = await (await fetch("/raw/navigation.fig")).blob();
+    document.querySelector("folioscope-player")!.setAttribute("src", URL.createObjectURL(bytes));
+  });
+  await settledOn("Home");
+  console.log("✓ full player: a dropped file (a blob: URL) plays");
 
   // Fonts for a raw .sketch, which stores no glyphs: given as children, by a shared set, or by
   // registerFont(). Which fonts the bake lacks is told by folioscope:font-missing.
