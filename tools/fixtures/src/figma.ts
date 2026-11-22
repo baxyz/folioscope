@@ -274,6 +274,18 @@ export class FigmaBuilder {
     });
   }
 
+  /** Overrides fields of the node at `path` (instances down to it) inside `instance`. */
+  override(instance: FigGuid, path: FigGuid[], fields: Record<string, unknown>): void {
+    this.node(instance).symbolData.symbolOverrides.push({ guidPath: { guids: path }, ...fields });
+  }
+
+  /** Binds `node`'s visibility to the boolean component property `property`. */
+  showWhen(node: FigGuid, property: FigGuid): void {
+    this.node(node).componentPropRefs = [
+      { defID: property, componentPropNodeField: "VISIBLE", isDeleted: false },
+    ];
+  }
+
   /**
    * An instance of `component`, with no override. Like Figma, it carries the component's own
    * look (fills, corners, auto layout): only its children come from the component.
