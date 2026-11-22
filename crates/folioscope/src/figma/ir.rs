@@ -377,10 +377,7 @@ fn symbol_of(node: &Node<'_>) -> Option<NodeId> {
     if node.kind != "INSTANCE" {
         return None;
     }
-    node.value
-        .get("symbolData")
-        .and_then(|s| s.get("symbolID"))
-        .and_then(node_id)
+    crate::figma::instance::instance_symbol(node.value)
 }
 
 fn parent<'t, 'a>(tree: &'t Tree<'a>, node: &Node<'_>) -> Option<&'t Node<'a>> {
