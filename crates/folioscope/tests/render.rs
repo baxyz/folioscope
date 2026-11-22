@@ -125,3 +125,28 @@ mod features {
         assert!(svg().contains("mix-blend-mode:multiply"));
     }
 }
+
+/// `fixtures/figma/instances.fig`: a header swaps its tab for the active variant (whose icon a
+/// property of its own hides) and its account icon for a person. Drawn from the components
+/// alone, the gear and the inactive tab would show instead.
+#[test]
+fn swapped_instances_draw_the_component_they_were_swapped_for() {
+    let path = format!(
+        "{}/../../fixtures/figma/instances.fig",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let file = folioscope::figma::decode(&std::fs::read(path).unwrap()).unwrap();
+    let tree = Tree::new(&file);
+    let home = tree.nodes().find(|n| n.name == "Home").unwrap().id;
+    let svg = folioscope::bake::svg::render_node(&tree, home, None)
+        .unwrap()
+        .markup;
+    let has = |rgb: &str| svg.contains(&format!("rgb({rgb})"));
+    assert!(has("37 99 235"), "the active tab");
+    assert!(!has("229 231 235"), "no inactive tab");
+    assert!(has("22 163 74"), "the person icon");
+    assert!(
+        !has("220 38 38"),
+        "no gear: the account's is swapped, the tab's hidden"
+    );
+}

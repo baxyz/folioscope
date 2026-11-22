@@ -1607,9 +1607,73 @@ function xdText(): XdBuilder {
   return xd;
 }
 
+/**
+ * Instance swaps, as a design system uses them: a header holds an inactive link and a gear icon;
+ * on this screen it swaps the link for its active variant, whose icon a property of its own hides,
+ * and the icon for a person. Drawn from the components alone, the gear and the inactive link's
+ * icon would show instead.
+ */
+function instances(): FigmaBuilder {
+  const figma = new FigmaBuilder();
+  const page = figma.page("Prototype");
+  const library = figma.page("Components");
+
+  const icons = figma.componentSet(
+    library,
+    "Icon",
+    { x: 0, y: 0, width: 120, height: 72 },
+    "Shape",
+    ["Gear", "Person"],
+  );
+  const box = { width: 24, height: 24 };
+  const gear = figma.variant(icons, "Shape=Gear", { x: 16, y: 24, ...box }, "#DC2626", 4);
+  const person = figma.variant(icons, "Shape=Person", { x: 72, y: 24, ...box }, "#16A34A", 12);
+
+  // Each variant of the link shows its icon by a property of its own, as Figma stores them.
+  const links = figma.componentSet(
+    library,
+    "Link",
+    { x: 200, y: 0, width: 160, height: 136 },
+    "State",
+    ["Inactive", "Active"],
+  );
+  const link = { width: 120, height: 40 };
+  const inactive = figma.variant(links, "State=Inactive", { x: 20, y: 20, ...link }, GREY, 8);
+  const active = figma.variant(links, "State=Active", { x: 20, y: 76, ...link }, BLUE, 8);
+  const inactiveIcon = figma.instance(inactive, gear, "icon", { x: 8, y: 8, ...box });
+  figma.showWhen(inactiveIcon, { sessionID: 9, localID: 1 });
+  const activeIcon = figma.instance(active, gear, "icon", { x: 8, y: 8, ...box });
+  figma.showWhen(activeIcon, { sessionID: 9, localID: 2 });
+
+  const header = figma.componentSet(
+    library,
+    "Header",
+    { x: 400, y: 0, width: 375, height: 100 },
+    "Kind",
+    ["Default"],
+  );
+  const bar = figma.variant(header, "Kind=Default", { x: 0, y: 20, width: 375, height: 60 }, INK);
+  const tab = figma.instance(bar, inactive, "Tab", { x: 16, y: 10, ...link });
+  const account = figma.instance(bar, gear, "Account", { x: 335, y: 18, ...box });
+
+  const home = figma.frame(page, "Home", { x: 0, y: 0, ...PHONE });
+  figma.flowStart(home, "Instances flow");
+  const top = figma.instance(home, bar, "Header", { x: 0, y: 0, width: 375, height: 60 });
+  // The tab is the active one, with its icon hidden; the account icon is a person.
+  figma.override(top, [tab], {
+    overriddenSymbolID: active,
+    componentPropAssignments: [
+      { defID: { sessionID: 9, localID: 2 }, value: { boolValue: false } },
+    ],
+  });
+  figma.override(top, [account], { overriddenSymbolID: person });
+  return figma;
+}
+
 const fixtures: Record<string, () => { toBytes(): Uint8Array }> = {
   "figma/navigation.fig": navigation,
   "figma/components.fig": components,
+  "figma/instances.fig": instances,
   "figma/overlay.fig": overlay,
   "figma/smart-animate.fig": smartAnimate,
   "figma/scroll.fig": scroll,
