@@ -1,24 +1,40 @@
 ---
 title: Comparison
-description: The same prototype through Folioscope and through the other ways to show one on a site, side by side.
+description: "The same prototype through Figma's embed and through Folioscope, side by side, and the other ways to show a prototype on a site."
 ---
 
 # Comparison
 
-Showing a prototype on a site today usually means an iframe pointing at the design tool, a screen
-recording, or a picture of each screen. Here is the same prototype each way next to Folioscope,
-loading at the same time, in your browser, on the network you pick.
+## Figma's embed and Folioscope
+
+The same Figma prototype, loaded at the same time in your browser: on the left, Figma's own
+embed; on the right, the same file baked by Folioscope.
 
 <Comparison />
 
-## Why it is lighter
+Folioscope does the heavy work once, when the site is built: it turns each screen into images and
+keeps the links as plain areas on top. Your visitors download those images and a few kilobytes of
+JavaScript; no design tool runs in their browser, and no third-party server is contacted.
 
-Folioscope does the heavy work once, when you build your site: it renders each screen to an image
-and keeps the links as plain areas on top. A visitor downloads those images and a few kilobytes of
-JavaScript; nothing is drawn by a design tool's engine in their browser, and no third-party server is
-contacted. The price is that a baked prototype is a picture of the design, not the design: no
-layers to inspect, no editing. That is the point.
+## Other ways to show a prototype
 
-The full player can take the design file itself and bake it in the browser, for a file you cannot
-bake ahead (a visitor's own, in the [Playground](/playground)): it costs the WebAssembly bake, once
-per visitor.
+What each design tool offers to show a prototype on your own page, and the usual stand-ins. Only
+Figma's embed can be loaded live here: the others need the file hosted on the tool's own service,
+under an account.
+
+| Way                                                                                               | Clickable | Where it runs                 | What it needs                                                      |
+| ------------------------------------------------------------------------------------------------- | --------- | ----------------------------- | ------------------------------------------------------------------ |
+| **Figma** embed ([docs](https://developers.figma.com/docs/embeds/embed-figma-prototype))          | yes       | Figma's servers, in an iframe | the file on Figma, shared publicly                                 |
+| **Sketch** prototype link ([docs](https://www.sketch.com/docs/prototyping/sharing-prototypes/))   | yes       | Sketch's web app              | a Sketch workspace; embedding through oEmbed                       |
+| **Penpot** view mode link ([docs](https://help.penpot.app/user-guide/view-mode/))                 | yes       | the Penpot instance           | the file on Penpot; no official embed                              |
+| **Adobe XD** shared link ([docs](https://helpx.adobe.com/xd/help/share-prototypes.html))          | yes       | Adobe's servers, in an iframe | Creative Cloud; XD is in maintenance mode                          |
+| Open-source `.sketch` viewer ([sketch-web-viewer](https://github.com/AnimaApp/sketch-web-viewer)) | no        | your page                     | a still view of old Sketch files; unmaintained since 2019          |
+| Screen recording                                                                                  | no        | your page                     | one path through the prototype, as a video                         |
+| One picture per screen                                                                            | no        | your page                     | an export of each screen                                           |
+| **Folioscope**, design file in the page                                                           | yes       | your page                     | the design file and its fonts published; 2 MB of WebAssembly, once |
+| **Folioscope**, baked `.folio`                                                                    | yes       | your page                     | a bake at build time                                               |
+
+The design tools' links run their own player: the prototype plays exactly as in the tool, and
+stays on their service. Folioscope plays a picture of each screen on your page, with no account
+and nothing to keep paying for; what it plays of each format is on the
+[Compatibility](/compatibility) page.
