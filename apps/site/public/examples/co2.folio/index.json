@@ -55,12 +55,12 @@
           ],
           "layers": [
             {
-              "src": "c93090ee7c9929ce",
+              "src": "6ae00f94d588d0a8",
               "format": "avif",
               "bounds": { "x": 0.0, "y": 0.0, "width": 1440.0, "height": 1156.0 }
             }
           ],
-          "placeholder": "i+eBBIAPCVaYm5aKuPv2yn8eAhIRERERAQ=="
+          "placeholder": "i+eBBIAPCVWYm5aauOr2un8fAhIRERERAQ=="
         },
         {
           "id": "102:4707",
@@ -127,12 +127,12 @@
           ],
           "layers": [
             {
-              "src": "f05a8ea946f99016",
+              "src": "7c657a69e1c8bee7",
               "format": "avif",
               "bounds": { "x": 0.0, "y": 0.0, "width": 1440.0, "height": 1153.0 }
             }
           ],
-          "placeholder": "i+eBBIAPsCDEi/dyZvdFV29RUKClBQVaAA=="
+          "placeholder": "i+eBBIAPsCDFi+dyZvdFV29RUKClBQVaAA=="
         },
         {
           "id": "303:7466",
@@ -199,12 +199,12 @@
           ],
           "layers": [
             {
-              "src": "37916553b6438f13",
+              "src": "8264108631b0791b",
               "format": "avif",
               "bounds": { "x": 0.0, "y": 0.0, "width": 1440.0, "height": 1173.0 }
             }
           ],
-          "placeholder": "jNeBBIAPAjenm7Irusr3u3tvZ2dmBmZmBg=="
+          "placeholder": "jOeBBIAPAjenmrIrusr3u3tvZ2dmBmZmBg=="
         },
         {
           "id": "102:4684",
@@ -252,12 +252,12 @@
           ],
           "layers": [
             {
-              "src": "6b05e22dcd56b46e",
+              "src": "8e4aaeb3ed3d61b1",
               "format": "avif",
               "bounds": { "x": 0.0, "y": 0.0, "width": 1440.0, "height": 1011.0 }
             }
           ],
-          "placeholder": "jOeBBIAPBUTFvKGsqNr3q30/NDQzMzM3AA=="
+          "placeholder": "jOeBBIAPBVS2vKGsqNr3qn0/NDQzMzM3AA=="
         }
       ]
     }
