@@ -391,7 +391,11 @@ impl Draw for FigmaDraw<'_, '_> {
         drawn
             .into_iter()
             .map(|part| {
-                let m = part.matrix;
+                // The image starts `pad` before the box, up and left of it.
+                let pad = f64::from(part.pad);
+                let m = part
+                    .matrix
+                    .multiply(Matrix::new(1.0, 0.0, 0.0, 1.0, -pad, -pad));
                 let turned = (m.a - 1.0).abs() > 1e-6
                     || m.b.abs() > 1e-6
                     || m.c.abs() > 1e-6
@@ -478,16 +482,25 @@ fn figma_parts(
         } else {
             Vec::new()
         };
-        let Some(svg) = svg::render_node_without(tree, child.id, &hidden, Some(&mut *typesetter))
+        let Some((svg, pad)) = svg::render_layer(tree, child.id, &hidden, Some(&mut *typesetter))
         else {
             continue;
         };
+        // The image starts `pad` before the box, up and left of it.
+        let image = matrix.multiply(Matrix::new(
+            1.0,
+            0.0,
+            0.0,
+            1.0,
+            -f64::from(pad),
+            -f64::from(pad),
+        ));
         missing_fonts.extend(svg.missing_fonts.iter().cloned());
         #[allow(clippy::cast_possible_truncation)] // design coordinates fit in f32
-        let turned = (matrix.a - 1.0).abs() > 1e-6
-            || matrix.b.abs() > 1e-6
-            || matrix.c.abs() > 1e-6
-            || (matrix.d - 1.0).abs() > 1e-6;
+        let turned = (image.a - 1.0).abs() > 1e-6
+            || image.b.abs() > 1e-6
+            || image.c.abs() > 1e-6
+            || (image.d - 1.0).abs() > 1e-6;
         #[allow(clippy::cast_possible_truncation)]
         let as_f32 = |m: Matrix| [m.a, m.b, m.c, m.d, m.e, m.f].map(|v| v as f32);
         #[allow(clippy::cast_possible_truncation)]
@@ -495,12 +508,12 @@ fn figma_parts(
             name: name.clone(),
             markup: svg.markup,
             bounds: Rect {
-                x: matrix.e as f32,
-                y: matrix.f as f32,
+                x: image.e as f32,
+                y: image.f as f32,
                 width: svg.width,
                 height: svg.height,
             },
-            matrix: turned.then(|| as_f32(matrix)),
+            matrix: turned.then(|| as_f32(image)),
             shape: if nested { None } else { plain_box(child.value) },
         });
         if nested {
