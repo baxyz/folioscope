@@ -359,16 +359,21 @@ export async function playSmart(
   }
   const partnerOf = (j: number) => [...pairs].find(([, k]) => k === j)?.[0];
   const moves: [HTMLElement, Keyframe[]][] = [];
+  /** The element of each part: `from[i]`, `to[j]` (none when a box of `from` stands for both). */
+  const fromEls: HTMLElement[] = [];
+  const toEls: (HTMLElement | undefined)[] = [];
   for (const [i, part] of from.parts.entries()) {
     const j = pairs.get(i);
     const end = j === undefined ? undefined : to.parts[j]!;
     // Two plain boxes: one box changes size, corners, colour and place; nothing to cross-fade.
     if (end && part.shape && end.shape) {
       const box = partElement(layer, part, layerUrl);
+      fromEls[i] = box;
       moves.push([box, [boxFrame(part), boxFrame(end)]]);
       continue;
     }
     const el = partElement(layer, part, layerUrl);
+    fromEls[i] = el;
     moves.push([
       el,
       // A paired part stays opaque under its partner fading in: a cross-fade of two half
@@ -383,6 +388,7 @@ export async function playSmart(
     const start = i === undefined ? undefined : from.parts[i]!;
     if (start?.shape && part.shape) continue;
     const el = partElement(layer, part, layerUrl);
+    toEls[j] = el;
     moves.push([
       el,
       start
@@ -393,6 +399,21 @@ export async function playSmart(
         : [{ opacity: 0 }, { opacity: 1 }],
     ]);
   }
+  // Stacked as the screen it goes to stacks them, each part's partner just under it: a layer
+  // that covers another in the design keeps covering it while they move. A part that only
+  // leaves stays above the part it was above.
+  const order: HTMLElement[] = [];
+  for (const j of to.parts.keys()) {
+    const i = partnerOf(j);
+    if (i !== undefined) order.push(fromEls[i]!);
+    if (toEls[j]) order.push(toEls[j]!);
+  }
+  for (const [i, el] of fromEls.entries()) {
+    if (pairs.has(i)) continue;
+    const below = fromEls.slice(0, i).findLast((_, k) => pairs.has(k));
+    order.splice(below ? order.indexOf(below) + 1 : 0, 0, el);
+  }
+  layer.append(...order);
   stage.append(layer);
   await decoded(layer);
   await Promise.all(
