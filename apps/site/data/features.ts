@@ -722,7 +722,7 @@ export const FEATURES: Feature[] = [
     formats: {
       all: works(
         "e2e: comparison",
-        "Figma's embed, the raw file baked in the browser, a screen recording and one PNG per screen, each against the .folio, on the network the visitor picks",
+        "Figma's embed against the .folio, live in the visitor's browser; the other ways to show a prototype, per design tool, in a table",
       ),
     },
   },
