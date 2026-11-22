@@ -11,17 +11,127 @@
   box-shadow: 0 8px 32px rgb(0 0 0 / 0.18);
 }
 
+/* Home: the title on one line on a wide screen, the tagline as wide as the title. */
+@media (min-width: 960px) {
+  .VPHome .VPHero.has-image .main {
+    max-width: 620px;
+  }
+  .VPHome .VPHero .text {
+    font-size: 46px;
+    line-height: 1.15;
+    white-space: nowrap;
+  }
+  .VPHome .VPHero .tagline {
+    max-width: 620px;
+    font-size: 20px;
+    line-height: 1.6;
+  }
+}
+/* Below 960 px the theme sizes the hero picture for a logo: the phone takes its own size, under
+   the text. */
+@media (max-width: 959px) {
+  .VPHome .VPHero .image {
+    order: 2;
+    margin: 32px 0 0;
+  }
+  .VPHome .VPHero .image-container {
+    width: auto;
+    height: auto;
+  }
+}
+.VPHome .VPFeature .icon {
+  color: var(--vp-c-brand-1);
+  background: var(--vp-c-brand-soft);
+}
+.VPHome .VPFeature .icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.home-sections {
+  max-width: 1152px;
+  margin: 0 auto;
+  padding: 48px 24px 64px;
+}
+.home-sections h2 {
+  margin: 0 0 20px;
+  padding-top: 0;
+  border-top: 0;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+/* How it works: three steps in a row, stacked on a narrow screen. */
+.steps ol {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: none;
+}
+.steps li,
+.steps li + li {
+  position: relative;
+  margin: 0;
+  padding: 20px 20px 16px;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 12px;
+}
+.steps .step {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: var(--vp-c-brand-1);
+  color: var(--vp-c-white);
+  font-size: 14px;
+  font-weight: 700;
+}
+.steps li p {
+  margin: 10px 0 0;
+  color: var(--vp-c-text-2);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.formats {
+  margin: 20px 0 0;
+  color: var(--vp-c-text-2);
+  font-size: 14px;
+}
+.formats span {
+  display: inline-block;
+  margin: 0 6px 6px 0;
+  padding: 2px 10px;
+  border-radius: 12px;
+  background: var(--vp-c-default-soft);
+  color: var(--vp-c-text-1);
+  font-weight: 600;
+}
+
 /* "Why Folioscope?": the flip book beside the text, above it on a narrow screen. */
 .why {
   display: flex;
   align-items: center;
-  gap: 32px;
+  gap: 40px;
+  margin-top: 56px;
+  padding: 32px;
+  border-radius: 16px;
+  background: var(--vp-c-bg-soft);
 }
 .why p {
   margin: 0;
+  line-height: 1.7;
 }
 @media (max-width: 720px) {
+  .steps ol {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .why {
     flex-direction: column;
+    padding: 24px;
   }
 }
