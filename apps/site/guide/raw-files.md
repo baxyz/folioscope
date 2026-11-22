@@ -1,11 +1,11 @@
 ---
-title: Raw design files
-description: "Play a .fig, .sketch, .xd or .penpot file directly: the full player bakes it in the visitor's browser."
+title: Play a design file
+description: "Give the player a .fig, .sketch, .xd or .penpot file: it bakes it in the visitor's browser. How it works, and what it costs."
 ---
 
-# Raw design files
+# Play a design file
 
-`src` can point at the design file itself:
+The player plays a design file as it is, with no build step: give its URL to `src`.
 
 ```html
 <folioscope-player src="/designs/app.fig" controls></folioscope-player>
