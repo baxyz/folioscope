@@ -180,8 +180,8 @@ export const FEATURES: Feature[] = [
         FIG_CHECK,
       ),
       sketch: na,
-      penpot: todo("needs interactive components first"),
-      xd: todo("needs component states first"),
+      penpot: todo("interactive components first"),
+      xd: todo("component states first"),
     },
   },
   {
@@ -195,7 +195,7 @@ export const FEATURES: Feature[] = [
       ),
       sketch: na,
       penpot: na,
-      xd: todo("needs component states first"),
+      xd: todo("component states first"),
     },
   },
   {
@@ -220,7 +220,7 @@ export const FEATURES: Feature[] = [
     group: "Prototype",
     name: "Prototype variables, conditions and expressions",
     formats: {
-      fig: todo("no .fig file with prototype variables to test with"),
+      fig: todo("a .fig file with prototype variables to test with: none we know of is public"),
       sketch: na,
       penpot: na,
       xd: na,
@@ -661,7 +661,7 @@ export const FEATURES: Feature[] = [
     group: "Player",
     name: "Dynamic layers (variables, conditions) drawn on the fly",
     formats: {
-      fig: todo("no .fig file with prototype variables to test with"),
+      fig: todo("a .fig file with prototype variables to test with: none we know of is public"),
       sketch: na,
       penpot: na,
       xd: na,
@@ -689,7 +689,7 @@ export const FEATURES: Feature[] = [
     name: "Screen readers",
     formats: {
       all: todo(
-        "frames, hotspots and controls are labelled and pass an automated audit; a person using a screen reader (NVDA, VoiceOver) has not checked them yet",
+        "a person using a screen reader (NVDA, VoiceOver) to check it: frames, hotspots and controls are labelled and pass an automated audit",
       ),
     },
   },

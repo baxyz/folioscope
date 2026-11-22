@@ -1,20 +1,18 @@
 ---
 title: Roadmap
-description: What Folioscope plays, what is not validated yet, and what is left to do.
+description: "Where Folioscope stands: what is left to do, what waits for a real file, what is done."
 ---
 
 # Roadmap
 
-Every feature of Folioscope, by status. The same list, per design format, is on the
-[Compatibility](/compatibility) page. Both are generated from the project's feature list, and every
-feature marked as working names the test that proves it.
+Where Folioscope stands, from the project's feature list. Every feature marked as done names the
+test that proves it. The same data, per format, is on the [Compatibility](/compatibility) page.
+
+<Roadmap />
 
 ## Help with a file
 
-Many features wait for a file to test with: a design file that uses the feature, made in the real
-tool. Files we make ourselves are checked in Figma, Sketch-compatible editors, Penpot or Adobe XD
-when we can; a file you share **under a free licence (CC BY 4.0 or CC0)** can join the test suite.
-Open a pull request adding it to `fixtures/<format>/`, with its licence next to it, on
+Most of what is left waits for a design file to test with, made in the real tool. A file you
+share **under a free licence (CC BY 4.0 or CC0)** can join the test suite: open a pull request
+adding it to `fixtures/<format>/`, with its licence next to it, on
 [GitHub](https://github.com/baxyz/folioscope).
-
-<Roadmap />
