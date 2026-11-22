@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import DefaultTheme from "vitepress/theme";
 import type { Theme } from "vitepress";
-import { h } from "vue";
 import Comparison from "./Comparison.vue";
 import DemoGallery from "./DemoGallery.vue";
-import EarlyDays from "./EarlyDays.vue";
 import FeatureMatrix from "./FeatureMatrix.vue";
 import FlipBook from "./FlipBook.vue";
 import Playground from "./Playground.vue";
@@ -13,8 +11,6 @@ import "./style.css";
 
 export default {
   extends: DefaultTheme,
-  // The early-days notice sits on top of the home page, above the hero.
-  Layout: () => h(DefaultTheme.Layout, null, { "home-hero-before": () => h(EarlyDays) }),
   enhanceApp({ app }) {
     app.component("Comparison", Comparison);
     app.component("DemoGallery", DemoGallery);
