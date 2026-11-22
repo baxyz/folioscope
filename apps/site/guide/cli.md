@@ -5,7 +5,8 @@ description: "Install the folioscope command, bake design files, inspect them, a
 
 # Bake with the CLI
 
-The `folioscope` command bakes design files into `.folio` folders, for any site and any build.
+The `folioscope` command bakes design files into [`.folio`](./folio) folders, for any site and
+any build: plain HTML, a static site generator, a CI job.
 
 ## Install
 

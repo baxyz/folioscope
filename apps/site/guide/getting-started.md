@@ -1,96 +1,91 @@
 ---
 title: Getting started
-description: "What Folioscope does, the three ways to use it, and a first prototype on a page."
+description: "Put a prototype on your page in two steps: add the player, point it at your design file. Then bake it for production."
 ---
 
 # Getting started
 
-Folioscope plays the clickable prototype of a design file on a web page: screens, clicks,
-hovers, overlays, scrolling and transitions, from a `.fig` (Figma), `.sketch`, `.xd` or
-`.penpot` file. No account, no design tool and no third-party server for your visitors.
+Folioscope plays the clickable prototype of a design file on your web page: its screens, and the
+links the designer drew between them. It reads `.fig` (Figma), `.sketch`, `.xd` and `.penpot`
+files. Your visitors need no account and no design tool.
 
-It has two parts:
+## 1. Add the player
 
-- **The bake** turns a design file into a `.folio` folder: one image per screen (or per layer)
-  and a small `index.json` that says where the links go. It runs once, ahead of time.
-- **The player**, `<folioscope-player>`, is a web component of about 11 KB (gzipped) that plays a
-  `.folio` folder. Your visitors download only the screens they see.
-
-## What you need
-
-- A **design file** with a prototype in it: at least one flow (a starting screen) and some links.
-  See [Your design file](./design-files) for how to save one from each tool.
-- A **web page** to put it on: any site, static or not.
-
-## Pick a way
-
-| Your site                                            | Bake with                                 | Guide                           |
-| ---------------------------------------------------- | ----------------------------------------- | ------------------------------- |
-| Built with **Vite** (Vue, React, Svelte, Astro, …)   | the Vite plugin, while the site builds    | [Bake with Vite](./vite)        |
-| Built another way, or plain HTML                     | the `folioscope` command, then copy files | [Bake with the CLI](./cli)      |
-| No build at all, or files you cannot bake (uploads…) | nothing: the player bakes in the browser  | [Raw design files](./raw-files) |
-
-Baking ahead of time is the fast path: the first screen shows in under a second on a phone on 4G.
-Baking in the browser costs each visitor about 2 MB of WebAssembly and a few seconds, once.
-
-## A first prototype, with the CLI
-
-The command line tool is a Rust program, published on crates.io. With
-[Rust](https://rustup.rs) installed:
-
-```sh
-cargo install folioscope
-```
-
-Bake your file into the folder your site publishes (`public/` here):
-
-```sh
-folioscope bake app.fig public/app.folio
-```
-
-It prints what it made (screens, layers, weight) and warns about what it could not do. Then put
-the player on a page:
+The player is a web component, `<folioscope-player>`. Load it from a CDN:
 
 ```html
 <script type="module" src="https://cdn.jsdelivr.net/npm/folioscope@0.1/dist/index.mjs"></script>
-
-<folioscope-player src="/app.folio" poster="/app.folio/poster.webp" controls></folioscope-player>
 ```
 
-Open the page: the first screen of the first flow shows, and its links work. `controls` adds a bar
-to restart, go back, pick another flow or page, and go fullscreen.
-
-## A first prototype, with Vite
+Or install it with npm, if your site has a build step:
 
 ```sh
 npm install folioscope
 ```
 
 ```ts
-// vite.config.ts
-import { defineConfig } from "vite";
-import { folioscope } from "folioscope/vite";
-
-export default defineConfig({
-  plugins: [folioscope({ include: "designs/*.fig" })],
-});
+import "folioscope"; // defines <folioscope-player>
 ```
 
-```ts
-// main.ts: defines <folioscope-player>
-import "folioscope";
-```
+## 2. Point it at your design file
+
+Put your design file with your site's files (`public/designs/app.fig` here), and add the tag
+where the prototype goes:
 
 ```html
-<folioscope-player src="/folio/app.folio" controls></folioscope-player>
+<folioscope-player src="/designs/app.fig" controls></folioscope-player>
 ```
 
-`designs/app.fig` is baked while the site builds (and on the fly in `vite dev`) and served as
-`/folio/app.folio/`. Nothing else to install: the plugin runs the bake as WebAssembly.
+That's it: open the page, the first screen of the first flow shows, and its links work.
+`controls` adds a bar to restart, go back, switch flows and go fullscreen.
+
+What happens: the player reads the file in the visitor's browser and turns it into screens it can
+play (it **bakes** it). The first visit downloads the bake engine (about 2 MB) and waits a few
+seconds; the next visits are instant, from the browser's cache.
+
+::: tip Not sure your file has a prototype?
+It needs at least one flow (a starting screen) and some links. See
+[Your design file](./design-files), or drop it in the [Playground](/playground) to try it.
+:::
+
+### `.sketch`, `.xd` and `.penpot` files need their fonts
+
+A `.fig` stores the shape of every letter. The other formats only name their fonts: give the
+player the font files, or the text is left out.
+
+```html
+<folioscope-player src="/designs/app.sketch" controls>
+  <folioscope-font src="/fonts/Inter.woff2"></folioscope-font>
+</folioscope-player>
+```
+
+All the ways to give fonts: [Fonts](./fonts).
+
+## 3. For production: bake it ahead
+
+Playing the design file directly is the quickest way to start. For a public site, **bake it
+ahead** into a [`.folio`](./folio) folder and publish that instead:
+
+- **faster**: the first screen shows in under a second on a phone, with no bake engine to download;
+- **lighter**: visitors download only the screens they see;
+- **private**: your design file is not published. Its layers, hidden pages and comments stay
+  with you; pictures of the prototype's screens go online.
+
+```html
+<folioscope-player src="/app.folio" poster="/app.folio/poster.webp" controls></folioscope-player>
+```
+
+Bake it while your site builds with [Vite](./vite), or with the [command line](./cli):
+
+```sh
+folioscope bake app.fig public/app.folio
+```
+
+Keep the same tag if you like: when `app.folio/` sits next to `app.fig`, the player plays the
+`.folio`.
 
 ## Next
 
-- [Embed the player](./player): size, poster, flows and pages, frameworks, events, styling.
-- [Fonts](./fonts): when a design file needs them, and how to give them.
-- [API reference](./api): every attribute, property, method, event and export.
-- [Demos](/demos) to see what plays, and the [Playground](/playground) to try your own file.
+- [The `.folio` format](./folio): what a baked prototype is.
+- [Embed the player](./player): size, start screen, events, frameworks, styling.
+- [Demos](/demos): what plays, from each format.

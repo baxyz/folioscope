@@ -5,6 +5,9 @@ description: "The folioscope/vite plugin bakes design files while the site build
 
 # Bake with Vite
 
+Baking turns a design file into a [`.folio`](./folio) folder, the fast and private way to publish
+a prototype.
+
 `folioscope/vite` bakes the design files of your project while Vite builds the site, and on the
 fly in `vite dev`. It runs the bake as WebAssembly: nothing to install besides the npm package.
 
