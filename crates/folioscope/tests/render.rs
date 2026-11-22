@@ -50,6 +50,37 @@ mod features {
         svg.markup
     }
 
+    /// A part drawn on its own, for smart animate, keeps what overflows its box: the shadow of
+    /// a card, the blur of a circle. A plain gradient square needs no room.
+    #[test]
+    fn a_layer_drawn_alone_keeps_its_shadow_and_blur() {
+        let file = file();
+        let tree = Tree::new(&file);
+        let id = |name: &str| tree.nodes().find(|n| n.name == name).unwrap().id;
+        let pad = |name: &str| {
+            let (svg, pad) =
+                folioscope::bake::svg::render_layer(&tree, id(name), &[], None).unwrap();
+            let node = tree.get(id(name)).unwrap();
+            let width = node
+                .value
+                .get("size")
+                .and_then(|s| s.get("x"))
+                .and_then(folioscope::kiwi::Value::as_f32)
+                .unwrap();
+            assert!((svg.width - (width + 2.0 * pad)).abs() < 0.01, "{name}");
+            assert!(
+                svg.markup
+                    .contains(&format!(r#"viewBox="{0} {0}"#, 0.0 - pad)),
+                "{name}"
+            );
+            pad
+        };
+        // A shadow 4 px down with a 12 px blur reaches 4 + 18 px.
+        assert_eq!(pad("Drop shadow"), 22.0);
+        assert_eq!(pad("Layer blur"), 12.0);
+        assert_eq!(pad("GRADIENT_LINEAR"), 0.0);
+    }
+
     #[test]
     fn figma_ir_reads_open_url() {
         let ir = to_ir(&file());

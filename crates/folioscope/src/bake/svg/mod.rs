@@ -102,7 +102,9 @@ pub struct StatePart {
     /// Its layer's name, under its parents' (`Row/Label`); the background is `""`.
     pub name: String,
     pub svg: Svg,
-    /// From its image's top-left corner to the state's.
+    /// The room around its box in its image, for what overflows it: its box starts at `pad`.
+    pub pad: f32,
+    /// From its box's top-left corner to the state's.
     pub matrix: Matrix,
     /// Its fields, through the instance's overrides and the layout done again.
     pub value: Value,
@@ -126,11 +128,12 @@ pub fn state_parts<'t>(
     let node = root.node();
     let resolved = ctx.resolve(&node).into_owned();
     ctx.root = Root::BACKGROUND;
-    let background = ctx.alone(&node, hidden.to_vec(), size(&resolved));
+    let background = ctx.alone(&node, hidden.to_vec(), size(&resolved), 0.0);
     ctx.root = Root::WHOLE;
     let mut parts = vec![StatePart {
         name: String::new(),
         svg: background,
+        pad: 0.0,
         matrix: Matrix::IDENTITY,
         value: resolved.clone(),
         split: true,
@@ -277,6 +280,103 @@ pub enum Part<'f> {
     Fixed { fixed: &'f [NodeId] },
 }
 
+/// How far a node draws outside its box: its stroke, unless inside, and its shadows and blurs.
+/// A part of a frame drawn on its own is given that much room, or it would be cut off.
+#[must_use]
+pub fn overflow(tree: &Tree<'_>, v: &Value) -> f32 {
+    // Paints through the shared style a node uses, if any.
+    let list = |k: &str| paints_of(tree, v, k).iter().filter(|p| visible(p));
+    let number = |e: &Value, k: &str| e.get(k).and_then(Value::as_f32).unwrap_or(0.0);
+    let mut pad: f32 = 0.0;
+    if list("strokePaints").next().is_some() {
+        let weight = v.get("strokeWeight").and_then(Value::as_f32).unwrap_or(1.0);
+        pad = match v.get("strokeAlign").and_then(Value::as_str) {
+            Some("INSIDE") => 0.0,
+            Some("OUTSIDE") => weight,
+            _ => weight / 2.0,
+        };
+    }
+    // The outlines Figma stored win over the settings: they are what is drawn, and they may
+    // reach further (a stroke said inside, stored centred).
+    let (width, height) = size(v);
+    let reach = std::cell::Cell::new(pad);
+    for key in ["fillGeometry", "strokeGeometry"] {
+        for geometry in v.get(key).map_or(&[][..], Value::as_array) {
+            if let Some(bytes) = geometry
+                .get("commandsBlob")
+                .and_then(Value::as_u32)
+                .and_then(|blob| tree.blob(blob))
+            {
+                path_commands(bytes, &mut String::new(), |x, y| {
+                    reach.set(reach.get().max(-x).max(-y).max(x - width).max(y - height));
+                    (x, y)
+                });
+            }
+        }
+    }
+    // So may the glyphs of a text, around its box (descenders, a line taller than the box).
+    for glyph in v
+        .get("derivedTextData")
+        .and_then(|d| d.get("glyphs"))
+        .map_or(&[][..], Value::as_array)
+    {
+        let Some(bytes) = glyph
+            .get("commandsBlob")
+            .and_then(Value::as_u32)
+            .and_then(|blob| tree.blob(blob))
+        else {
+            continue;
+        };
+        let size = number(glyph, "fontSize");
+        let at = |axis: &str| glyph.get("position").map_or(0.0, |p| number(p, axis));
+        let (gx, gy) = (at("x"), at("y"));
+        path_commands(bytes, &mut String::new(), |x, y| {
+            let (x, y) = (gx + x * size, gy - y * size);
+            reach.set(reach.get().max(-x).max(-y).max(x - width).max(y - height));
+            (x, y)
+        });
+    }
+    pad = reach.get();
+    for effect in list("effects") {
+        // A Gaussian blur fades out at about one and a half times its radius.
+        let blur = number(effect, "radius") * 1.5;
+        let reach = match effect.get("type").and_then(Value::as_str) {
+            Some("DROP_SHADOW") => {
+                let offset = effect.get("offset");
+                let shift = offset.map_or(0.0, |o| number(o, "x").abs().max(number(o, "y").abs()));
+                blur + number(effect, "spread").max(0.0) + shift
+            }
+            Some("FOREGROUND_BLUR" | "LAYER_BLUR") => blur,
+            _ => 0.0,
+        };
+        pad = pad.max(reach);
+    }
+    pad.ceil()
+}
+
+/// Renders `id` on its own, as a part for smart animate: like [`render_node_without`], with
+/// room around it for what overflows its box ([`overflow`]). Also the room given.
+#[must_use]
+pub fn render_layer<'t>(
+    tree: &'t Tree<'_>,
+    id: NodeId,
+    hidden: &[NodeId],
+    typesetter: Option<&'t mut Typesetter>,
+) -> Option<(Svg, f32)> {
+    let node = tree.get(id)?;
+    let pad = overflow(tree, node.value);
+    let svg = render_padded(
+        tree,
+        node,
+        Root::WHOLE,
+        hidden.to_vec(),
+        size(node.value),
+        typesetter,
+        pad,
+    );
+    Some((svg, pad))
+}
+
 /// Renders one [`Part`] of the frame `id`, leaving out the `hidden` descendants.
 #[must_use]
 pub fn render_part<'t>(
@@ -337,8 +437,20 @@ fn render<'t>(
     node: &Node<'_>,
     root: Root,
     hidden: Vec<NodeId>,
-    (width, height): (f32, f32),
+    size: (f32, f32),
     typesetter: Option<&'t mut Typesetter>,
+) -> Svg {
+    render_padded(tree, node, root, hidden, size, typesetter, 0.0)
+}
+
+fn render_padded<'t>(
+    tree: &'t Tree<'_>,
+    node: &Node<'_>,
+    root: Root,
+    hidden: Vec<NodeId>,
+    size: (f32, f32),
+    typesetter: Option<&'t mut Typesetter>,
+    pad: f32,
 ) -> Svg {
     let mut ctx = Ctx {
         tree,
@@ -359,7 +471,7 @@ fn render<'t>(
         },
     };
     ctx.node(node, true);
-    svg(&ctx, (width, height))
+    svg_padded(&ctx, size, pad)
 }
 
 /// A rectangle with rounded corners, as SVG path data.
@@ -405,9 +517,18 @@ fn take_fields(to: &mut Value, from: &Value, names: &[&str]) {
     }
 }
 
-fn svg(ctx: &Ctx<'_, '_>, (width, height): (f32, f32)) -> Svg {
+fn svg(ctx: &Ctx<'_, '_>, size: (f32, f32)) -> Svg {
+    svg_padded(ctx, size, 0.0)
+}
+
+/// The SVG document of what `ctx` drew, a node of `width` × `height` with `pad` of room around it
+/// for what overflows its box (strokes, shadows, blurs): the document's origin is `-pad`.
+fn svg_padded(ctx: &Ctx<'_, '_>, (width, height): (f32, f32), pad: f32) -> Svg {
+    let (width, height) = (width + 2.0 * pad, height + 2.0 * pad);
+    // `0.0 - pad`, not `-pad`: no room is `0`, not `-0`.
+    let origin = 0.0 - pad;
     let markup = format!(
-        r#"<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="0 0 {width} {height}"><defs>{}</defs>{}</svg>"#,
+        r#"<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" viewBox="{origin} {origin} {width} {height}"><defs>{}</defs>{}</svg>"#,
         ctx.defs, ctx.body
     );
     Svg {
@@ -537,12 +658,12 @@ impl Ctx<'_, '_> {
     }
 
     /// Draws `node` on its own, at the origin, leaving out `hidden`, on a canvas of `size`.
-    fn alone(&mut self, node: &Node<'_>, hidden: Vec<NodeId>, size: (f32, f32)) -> Svg {
+    fn alone(&mut self, node: &Node<'_>, hidden: Vec<NodeId>, size: (f32, f32), pad: f32) -> Svg {
         let kept = std::mem::replace(&mut self.hidden, hidden);
         self.body.clear();
         self.defs.clear();
         self.node(node, true);
-        let drawn = svg(self, size);
+        let drawn = svg_padded(self, size, pad);
         self.hidden = kept;
         drawn
     }
@@ -606,10 +727,12 @@ impl Ctx<'_, '_> {
             if split {
                 leave_out.extend(self.tree.children(id).map(|c| c.id));
             }
-            let drawn = self.alone(child, leave_out, size(&resolved));
+            let pad = overflow(self.tree, &resolved);
+            let drawn = self.alone(child, leave_out, size(&resolved), pad);
             out.push(StatePart {
                 name: name.clone(),
                 svg: drawn,
+                pad,
                 matrix,
                 value: resolved.clone(),
                 split,
