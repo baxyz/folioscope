@@ -134,6 +134,22 @@ impl Overrides {
     }
 }
 
+/// The component an instance draws, given its fields as resolved through the instances around
+/// it: the one an instance swap put in its place (`overriddenSymbolID`, an override of an outer
+/// instance or of a component property), else its own (`symbolData.symbolID`).
+#[must_use]
+pub fn instance_symbol(fields: &Value) -> Option<NodeId> {
+    fields
+        .get("overriddenSymbolID")
+        .and_then(node_id)
+        .or_else(|| {
+            fields
+                .get("symbolData")
+                .and_then(|s| s.get("symbolID"))
+                .and_then(node_id)
+        })
+}
+
 /// The key a node is known by in `guidPath`s: its `overrideKey`, else its id.
 fn key(node: &Node<'_>) -> NodeId {
     node.value

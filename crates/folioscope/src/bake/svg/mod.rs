@@ -12,7 +12,7 @@ use std::borrow::Cow;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fmt::Write;
 
-use crate::figma::instance::Overrides;
+use crate::figma::instance::{Overrides, instance_symbol};
 use crate::figma::tree::{Node, NodeId, Tree, node_id};
 use crate::kiwi::Value;
 
@@ -138,10 +138,7 @@ pub fn state_parts<'t>(
     // An instance's children are its component's, inside its overrides.
     let source = if node.kind == "INSTANCE" {
         ctx.overrides.enter(&node, &resolved);
-        resolved
-            .get("symbolData")
-            .and_then(|s| s.get("symbolID"))
-            .and_then(node_id)?
+        instance_symbol(&resolved)?
     } else {
         node.id
     };
@@ -197,10 +194,7 @@ fn state_context<'t, 'a>(
     }
     let instance = tree.get(*last)?;
     let resolved = overrides.resolve(instance);
-    let shows = resolved
-        .get("symbolData")
-        .and_then(|s| s.get("symbolID"))
-        .and_then(node_id);
+    let shows = instance_symbol(&resolved);
     let root = if shows == Some(variant) {
         StateRoot {
             id: instance.id,
@@ -471,7 +465,7 @@ impl Ctx<'_, '_> {
     /// `node`'s fields through the instances entered, at the size [`Ctx::fit`] gave it, if any:
     /// its stored outlines, made for the old size, are then dropped.
     fn resolve<'v>(&self, node: &Node<'v>) -> Cow<'v, Value> {
-        let resolved = self.overrides.resolve(node);
+        let resolved = self.swapped(node, self.overrides.resolve(node));
         let Some(&(w, h)) = self.resized.get(&node.id) else {
             return resolved;
         };
@@ -486,6 +480,58 @@ impl Ctx<'_, '_> {
                     ("y".into(), Value::Float(h)),
                 ]),
             ));
+        }
+        Cow::Owned(value)
+    }
+
+    /// An instance swapped for another component (`overriddenSymbolID`) looks like that one: the
+    /// fields of its own look that no override changed come from the new component, as in Figma.
+    fn swapped<'v>(&self, node: &Node<'v>, resolved: Cow<'v, Value>) -> Cow<'v, Value> {
+        const LOOK: [&str; 10] = [
+            "fillPaints",
+            "strokePaints",
+            "strokeWeight",
+            "strokeAlign",
+            "effects",
+            "cornerRadius",
+            "fillGeometry",
+            "strokeGeometry",
+            "styleIdForFill",
+            "styleIdForStrokeFill",
+        ];
+        if node.kind != "INSTANCE" {
+            return resolved;
+        }
+        let own = node
+            .value
+            .get("symbolData")
+            .and_then(|s| s.get("symbolID"))
+            .and_then(node_id);
+        let Some(component) = instance_symbol(&resolved)
+            .filter(|&id| Some(id) != own)
+            .and_then(|id| self.tree.get(id))
+        else {
+            return resolved;
+        };
+        // The component's outlines fit its own size: at another size, they are drawn from the
+        // instance's rounded bounds instead.
+        let same_size = size(component.value) == size(&resolved);
+        let mut value = resolved.into_owned();
+        if let Value::Object(fields) = &mut value {
+            for name in LOOK {
+                // Overridden for this instance: kept.
+                if fields.iter().find(|(n, _)| &**n == name).map(|(_, v)| v) != node.value.get(name)
+                {
+                    continue;
+                }
+                fields.retain(|(n, _)| &**n != name);
+                let outline = matches!(name, "fillGeometry" | "strokeGeometry");
+                if let Some(v) = component.value.get(name)
+                    && (same_size || !outline)
+                {
+                    fields.push((name.into(), v.clone()));
+                }
+            }
         }
         Cow::Owned(value)
     }
@@ -844,11 +890,7 @@ impl Ctx<'_, '_> {
         let container = matches!(node.kind, "FRAME" | "SYMBOL" | "INSTANCE" | "COMPONENT_SET");
         // Instances do not store their children: draw the component's, without overrides.
         let source = if node.kind == "INSTANCE" {
-            node.value
-                .get("symbolData")
-                .and_then(|s| s.get("symbolID"))
-                .and_then(node_id)
-                .unwrap_or(node.id)
+            instance_symbol(node.value).unwrap_or(node.id)
         } else {
             node.id
         };
