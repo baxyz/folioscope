@@ -77,8 +77,7 @@
         </ul>
         <ul v-if="f.items.some((i) => i.missing !== f.usual)" class="own-needs">
           <li v-for="item in f.items.filter((i) => i.missing !== f.usual)" :key="item.name">
-            <strong>{{ item.name }}</strong
-            >: needs {{ item.missing }}.
+            <strong>{{ item.name }}</strong>: needs {{ item.missing }}.
           </li>
         </ul>
       </article>
