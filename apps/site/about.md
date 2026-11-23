@@ -1,6 +1,6 @@
 # About
 
-**Folioscope** plays design prototypes on your own site. It is free software under the [GNU AGPL v3.0 or later](https://github.com/baxyz/folioscope/blob/main/LICENSE). The design files you play remain yours: the licence covers the player, not your mockups.
+**Folioscope** plays design prototypes on your own site. It is free software under the [GNU AGPL v3.0 or later](https://github.com/baxyz/folioscope/blob/main/LICENSE). The design files you play remain yours: the licence covers the player, not your mockups. The same goes for the real design this site plays as an example (the CO₂ dashboard of the [demos](/demos) and of the [comparison](/comparison)): it is its author's, all rights reserved.
 
 ## Why it exists
 

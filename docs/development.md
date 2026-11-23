@@ -103,7 +103,10 @@ from the Conventional Commits, trusted publishing (OIDC) everywhere, provenance 
   (`packages/folioscope/`, `crates/folioscope/`), since a registry only takes files from there. The
   npm package also ships code of others, compiled into its WebAssembly or bundled in the player:
   `build:wasm` writes their licences to `THIRD-PARTY-LICENSES.md`, from the crates Cargo resolved.
-- **Design files are not covered**: the files the player reads remain their authors'.
+- **Design files are not covered**: the files the player reads remain their authors'. That goes
+  for the one real design in the repository, the website's example
+  (`apps/site/public/examples/`): all rights reserved, as its `LICENSE.txt` says. It is in no
+  package and no test.
 - **Reading `.fig` files is reverse engineering for interoperability**: no use of Figma's API or
   code, no third-party file redistributed.
 - **Trademarks**: never "Figma", "Sketch", "Adobe", "XD" or "Penpot" in a package, element or logo

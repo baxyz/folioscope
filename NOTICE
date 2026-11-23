@@ -2,6 +2,10 @@ Folioscope
 Copyright (C) 2026 baxyz
 Licensed under the GNU Affero General Public License v3.0 or later (see LICENSE).
 
+Not covered by that license: apps/site/public/examples/ holds a design of the
+author's, shown on the website as an example. All rights reserved; see the
+LICENSE.txt of that folder.
+
 This product includes or builds upon the following third-party work.
 
 --------------------------------------------------------------------------------
