@@ -3,10 +3,10 @@
 //! A design file is not trusted: whatever it says, a bake ends, and nothing of the file becomes
 //! markup or a script in what the bake writes (docs/spec/bake.md).
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 use std::io::{Cursor, Read, Write};
 
-use folioscope::bake::draw::Draw;
+use folioscope::bake::draw::{Draw, FigmaDraw};
 use folioscope::bake::folio::{BakeOptions, bake_file_into};
 use folioscope::bake::fonts::FontLibrary;
 use folioscope::bake::penpot::PenpotDraw;
@@ -14,8 +14,11 @@ use folioscope::bake::sketch::SketchDraw;
 use folioscope::bake::svg_safe;
 use folioscope::bake::text::Typesetter;
 use folioscope::bake::xd::XdDraw;
+use folioscope::figma::instance::instance_symbol;
+use folioscope::figma::tree::{NodeId, Tree, node_id};
 use folioscope::ir::Document;
-use folioscope::{Format, detect, penpot, sketch, summarize, xd};
+use folioscope::kiwi::Value as Kiwi;
+use folioscope::{Format, detect, figma, penpot, sketch, summarize, xd};
 use serde_json::Value;
 
 /// What a file would write to leave an attribute and start a script.
@@ -70,26 +73,29 @@ fn objects(value: &mut Value, visit: &mut dyn FnMut(&mut serde_json::Map<String,
     }
 }
 
-/// Everything the bake would draw of the file, without rasterizing it: each frame, its layers,
-/// what scrolls in it and its parts. `None` when the file no longer decodes.
-fn markups(archive: &[u8]) -> Option<Vec<String>> {
-    fn drawn(document: &Document, draw: &mut dyn Draw) -> Vec<String> {
-        let mut out = Vec::new();
-        for frame in document.pages.iter().flat_map(|p| &p.frames) {
-            let Some(whole) = draw.frame(frame) else {
-                continue;
-            };
-            if let Ok(layers) = draw.layers(frame, &whole) {
-                out.extend(layers.into_iter().map(|(markup, _, _)| markup));
-            }
-            if let Ok(layers) = draw.scroll_layers(frame) {
-                out.extend(layers.into_iter().map(|layer| layer.markup));
-            }
-            out.extend(draw.parts(frame).into_iter().map(|part| part.markup));
-            out.push(whole);
+/// Everything `draw` makes of the document's frames, without rasterizing: each frame, its layers,
+/// what scrolls in it and its parts.
+fn drawn(document: &Document, draw: &mut dyn Draw) -> Vec<String> {
+    let mut out = Vec::new();
+    for frame in document.pages.iter().flat_map(|p| &p.frames) {
+        let Some(whole) = draw.frame(frame) else {
+            continue;
+        };
+        if let Ok(layers) = draw.layers(frame, &whole) {
+            out.extend(layers.into_iter().map(|(markup, _, _)| markup));
         }
-        out
+        if let Ok(layers) = draw.scroll_layers(frame) {
+            out.extend(layers.into_iter().map(|layer| layer.markup));
+        }
+        out.extend(draw.parts(frame).into_iter().map(|part| part.markup));
+        out.push(whole);
     }
+    out
+}
+
+/// Everything the bake would draw of the file: see [`drawn`]. `None` when the file no longer
+/// decodes, or is a `.fig` (the tests here rewrite JSON).
+fn markups(archive: &[u8]) -> Option<Vec<String>> {
     let typesetter = || Typesetter::new(FontLibrary::default());
     Some(match detect(archive)? {
         Format::Penpot => {
@@ -268,6 +274,73 @@ fn a_symbol_that_holds_itself_ends() {
     assert!(artboards > 0, "the fixture has no artboard");
     assert!(summarize(&archive).is_ok());
     assert!(markups(&archive).is_some_and(|markups| !markups.is_empty()));
+}
+
+/// A field of a Kiwi object, to change it.
+fn field<'v>(value: &'v mut Kiwi, name: &str) -> Option<&'v mut Kiwi> {
+    match value {
+        Kiwi::Object(fields) => fields
+            .iter_mut()
+            .find(|(key, _)| &**key == name)
+            .map(|(_, value)| value),
+        _ => None,
+    }
+}
+
+#[test]
+fn a_component_that_holds_itself_ends() {
+    let mut file = figma::decode(&fixture("figma/instances.fig")).unwrap();
+    // Every component the file has an instance of gets two more instances of itself, as its own
+    // children: followed without a guard, drawing one never ends.
+    let Some(Kiwi::Array(nodes)) = field(&mut file.message, "nodeChanges") else {
+        panic!("the fixture has no nodes");
+    };
+    let guid_of = |id: NodeId| {
+        nodes
+            .iter()
+            .filter_map(|node| node.get("guid"))
+            .find(|guid| node_id(guid) == Some(id))
+            .cloned()
+    };
+    let mut next = nodes
+        .iter()
+        .filter_map(|node| node.get("guid").and_then(node_id))
+        .map(|id| id.local)
+        .max()
+        .unwrap_or(0);
+    let mut looped = HashSet::new();
+    let mut copies = Vec::new();
+    for node in nodes.iter() {
+        let Some(symbol) = instance_symbol(node) else {
+            continue;
+        };
+        let Some(parent) = guid_of(symbol) else {
+            continue;
+        };
+        if !looped.insert(symbol) {
+            continue;
+        }
+        for _ in 0..2 {
+            next += 1;
+            let mut copy = node.clone();
+            *field(field(&mut copy, "guid").unwrap(), "localID").unwrap() = Kiwi::Uint(next);
+            *field(field(&mut copy, "parentIndex").unwrap(), "guid").unwrap() = parent.clone();
+            copies.push(copy);
+        }
+    }
+    assert!(!copies.is_empty(), "the fixture has no instance to loop");
+    nodes.extend(copies);
+
+    let tree = Tree::new(&file);
+    let document = figma::ir::to_ir(&file);
+    assert!(document.pages.iter().any(|page| !page.frames.is_empty()));
+    let summary = figma::prototype::summarize(&file);
+    assert!(summary.pages.iter().any(|page| !page.frames.is_empty()));
+    let markups = drawn(
+        &document,
+        &mut FigmaDraw::new(&tree, Typesetter::new(FontLibrary::default())),
+    );
+    assert!(markups.iter().any(|markup| markup.starts_with("<svg")));
 }
 
 #[test]
