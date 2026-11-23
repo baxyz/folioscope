@@ -884,6 +884,62 @@ function sketchFeatures(): SketchBuilder {
   return sketch;
 }
 
+/**
+ * Symbols: a button whose instances override its label, one of them stretched; a card holding an
+ * instance of the button, overridden through the card (its label, then the button itself, swapped
+ * for a dark one); a back button whose link lives in its master.
+ */
+function sketchSymbols(): SketchBuilder {
+  const sketch = new SketchBuilder();
+  const page = sketch.page("Prototype");
+  const home = sketch.artboard(page, "Home", { x: 0, y: 0, ...PHONE });
+  const details = sketch.artboard(page, "Details", { x: 475, y: 0, ...PHONE }, "#F9FAFB");
+  sketch.flowHome(home);
+  const font = { name: "Inter-SemiBold", size: 16 };
+
+  const symbols = sketch.page("Symbols");
+  const buttonBox = { x: 0, y: 0, width: 160, height: 48 };
+  const labelBox = { x: 24, y: 14, width: 112, height: 20 };
+  const button = sketch.symbol(symbols, "Button", buttonBox);
+  sketch.rect(button, "Background", buttonBox, BLUE, 24);
+  const label = sketch.text(button, "Label", labelBox, "Label", font, "#FFFFFF");
+  const dark = sketch.symbol(symbols, "Button/Dark", { ...buttonBox, x: 200 });
+  sketch.rect(dark, "Background", buttonBox, INK, 24);
+  const darkLabel = sketch.text(dark, "Label", labelBox, "Label", font, "#FFFFFF");
+
+  const cardBox = { x: 0, y: 0, width: 327, height: 120 };
+  const card = sketch.symbol(symbols, "Card", { ...cardBox, y: 100 });
+  sketch.rect(card, "Background", cardBox, "#DBEAFE", 16);
+  sketch.text(card, "Title", { x: 16, y: 16, width: 200, height: 20 }, "A card", font, INK);
+  const action = sketch.instance(card, "Action", { ...buttonBox, x: 151, y: 56 }, button);
+
+  const back = sketch.symbol(symbols, "Back", { x: 400, y: 0, width: 80, height: 32 });
+  const backArea = sketch.rect(back, "Area", { x: 0, y: 0, width: 80, height: 32 }, GREY, 8);
+  sketch.link(backArea, "back");
+  sketch.text(back, "Arrow", { x: 12, y: 6, width: 60, height: 20 }, "← Back", font, INK);
+
+  // An instance at its master's size, its label overridden; the link is on the instance.
+  const open = sketch.instance(home, "Open details", { ...buttonBox, x: 24, y: 120 }, button);
+  sketch.override(open, [label], "stringValue", "Open details");
+  sketch.link(open, details, "slideFromRight");
+  // Half as large again: the master's layers are scaled.
+  const large = { x: 24, y: 200, width: 240, height: 72 };
+  sketch.override(sketch.instance(home, "Large", large, button), [label], "stringValue", "Large");
+  // The button inside the card, reached through the card.
+  const read = sketch.instance(home, "Card", { ...cardBox, x: 24, y: 320 }, card);
+  sketch.override(read, [action, label], "stringValue", "Read more");
+  const night = sketch.instance(home, "Dark card", { ...cardBox, x: 24, y: 470 }, card);
+  sketch.override(night, [action], "symbolID", dark.symbolID);
+  sketch.override(night, [action, darkLabel], "stringValue", "Dark");
+
+  sketch.instance(details, "Back", { x: 16, y: 56, width: 80, height: 32 }, back);
+  sketch.text(details, "Title", { x: 24, y: 120, width: 200, height: 30 }, "Details", {
+    name: "Inter-Bold",
+    size: 24,
+  });
+  return sketch;
+}
+
 /** An artboard taller than its viewport: it scrolls under a fixed header; a link at the bottom. */
 function sketchScroll(): SketchBuilder {
   const sketch = new SketchBuilder();
@@ -1684,6 +1740,7 @@ const fixtures: Record<string, () => { toBytes(): Uint8Array }> = {
   "sketch/text.sketch": sketchText,
   "sketch/features.sketch": sketchFeatures,
   "sketch/scroll.sketch": sketchScroll,
+  "sketch/symbols.sketch": sketchSymbols,
   "penpot/navigation.penpot": penpotNavigation,
   "penpot/features.penpot": penpotFeatures,
   "xd/navigation.xd": xdNavigation,

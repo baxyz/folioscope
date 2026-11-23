@@ -24,7 +24,7 @@ const ANIMATIONS: Record<SketchAnimation, number> = {
 };
 
 type Layer = FileFormat.Rectangle | FileFormat.Hotspot | FileFormat.Oval | FileFormat.Bitmap;
-type Parent = FileFormat.Artboard | FileFormat.Group;
+type Parent = FileFormat.Artboard | FileFormat.Group | FileFormat.SymbolMaster;
 
 /**
  * Builds a `.sketch` file, typed against Sketch's published file format. Ids are deterministic so
@@ -122,7 +122,7 @@ export class SketchBuilder {
    * glyphs are not stored: whoever draws it needs the font.
    */
   text(
-    artboard: FileFormat.Artboard,
+    artboard: Parent,
     name: string,
     box: Box,
     string: string,
@@ -419,8 +419,77 @@ export class SketchBuilder {
     return hotspot;
   }
 
+  /**
+   * A symbol: a master other layers are instances of. Sketch keeps masters on a page of their
+   * own, beside the artboards; `symbolID` is what instances name.
+   */
+  symbol(page: FileFormat.Page, name: string, box: Box): FileFormat.SymbolMaster {
+    const master: FileFormat.SymbolMaster = {
+      ...this.base(name, box),
+      _class: "symbolMaster",
+      ...this.container(),
+      hasClickThrough: true,
+      horizontalRulerData: { _class: "rulerData", base: 0, guides: [] },
+      verticalRulerData: { _class: "rulerData", base: 0, guides: [] },
+      backgroundColor: color("#FFFFFF"),
+      hasBackgroundColor: false,
+      includeBackgroundColorInInstance: false,
+      includeBackgroundColorInExport: true,
+      isFlowHome: false,
+      resizesContent: false,
+      symbolID: this.id(),
+      allowsOverrides: true,
+      overrideProperties: [],
+      layers: [],
+    };
+    page.layers.push(master);
+    return master;
+  }
+
+  /** An instance of `master` at `box`: it draws the master's layers, scaled to its size. */
+  instance(
+    parent: Parent,
+    name: string,
+    box: Box,
+    master: FileFormat.SymbolMaster,
+  ): FileFormat.SymbolInstance {
+    const instance: FileFormat.SymbolInstance = {
+      ...this.base(name, box),
+      _class: "symbolInstance",
+      style: this.style(),
+      overrideValues: [],
+      scale: 1,
+      symbolID: master.symbolID,
+      verticalSpacing: 0,
+      horizontalSpacing: 0,
+    };
+    parent.layers.push(instance);
+    return instance;
+  }
+
+  /**
+   * Overrides, in `instance`, the text (`stringValue`) or the symbol (`symbolID`) of a layer of
+   * its master. `path` leads to that layer: the nested instances down to it, then the layer.
+   */
+  override(
+    instance: FileFormat.SymbolInstance,
+    path: { do_objectID: string }[],
+    property: "stringValue" | "symbolID",
+    value: string,
+  ): void {
+    instance.overrideValues.push({
+      _class: "overrideValue",
+      overrideName: `${path.map((layer) => layer.do_objectID).join("/")}_${property}`,
+      value,
+    });
+  }
+
   /** Sketch's only trigger is a click or tap. */
-  link(layer: Layer, to: FileFormat.Artboard | "back", animation: SketchAnimation = "none"): void {
+  link(
+    layer: Layer | FileFormat.SymbolInstance,
+    to: FileFormat.Artboard | "back",
+    animation: SketchAnimation = "none",
+  ): void {
     layer.flow = {
       _class: "MSImmutableFlowConnection",
       destinationArtboardID: to === "back" ? "back" : to.do_objectID,
