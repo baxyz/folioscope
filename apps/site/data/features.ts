@@ -710,6 +710,12 @@ export const FEATURES: Feature[] = [
     formats: { all: works("rust: navigation_bakes_to_a_folio_folder") },
   },
   {
+    id: "untrusted-files",
+    group: "Bake",
+    name: "A design file cannot run code: its strings never become markup, a layer is served as SVG only when it holds shapes alone, a file that loops still bakes",
+    formats: { all: works("rust: no_string_of_a_file_becomes_markup") },
+  },
+  {
     id: "vite",
     group: "Bake",
     name: "Vite plugin: bakes at build time, serves in dev, caches",

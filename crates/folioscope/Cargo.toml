@@ -41,6 +41,10 @@ required-features = ["bake"]
 name = "render"
 required-features = ["bake"]
 
+[[test]]
+name = "untrusted"
+required-features = ["bake"]
+
 [dependencies]
 helpers4 = { workspace = true, features = [
   "bytes",
