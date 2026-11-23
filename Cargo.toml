@@ -19,18 +19,18 @@ helpers4 = { version = "0.0.11", default-features = false }
 image-webp = "0.2"
 insta = "1.49"
 # Text layout for the formats that store no glyph outlines (docs/spec/bake.md): pure Rust, no system font.
-parley = { version = "0.12", default-features = false, features = ["std"] }
+parley = { version = "0.13", default-features = false, features = ["std"] }
 # Pure Rust, no assembly or threads, so it also builds for WebAssembly.
 ravif = { version = "0.13", default-features = false }
 # `/regex/flags` font rules: small, pure Rust, builds for WebAssembly.
 regex-lite = "0.1"
 # Glyphs come as outlines in the files, so resvg needs no text shaping or system fonts.
-resvg = { version = "0.48", default-features = false, features = ["raster-images"] }
+resvg = { version = "0.50", default-features = false, features = ["raster-images"] }
 ruzstd = "0.9"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11"
-skrifa = "0.44"
+skrifa = "0.49"
 thiserror = "2"
 thumbhash = "0.1"
 wuff = "0.2"

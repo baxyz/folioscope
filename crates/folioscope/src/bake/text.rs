@@ -150,14 +150,15 @@ impl Typesetter {
         }
         builder.push_default(StyleProperty::LetterSpacing(paragraph.letter_spacing));
         let mut layout: Layout<()> = builder.build(paragraph.text);
-        layout.break_all_lines(paragraph.width);
         let alignment = match paragraph.align {
             Align::Left => Alignment::Left,
             Align::Center => Alignment::Center,
             Align::Right => Alignment::Right,
             Align::Justify => Alignment::Justify,
         };
-        layout.align(alignment, AlignmentOptions::default());
+        // Applied when the lines are broken, within the width given or the longest line.
+        layout.set_alignment(alignment, AlignmentOptions::default());
+        layout.break_all_lines(paragraph.width);
 
         let (width, height) = (layout.width(), layout.height());
         let baseline = layout
@@ -260,14 +261,15 @@ impl Typesetter {
             builder.push(StyleProperty::Brush(i), range);
         }
         let mut layout: Layout<usize> = builder.build(rich.text);
-        layout.break_all_lines(rich.width);
         let alignment = match rich.align {
             Align::Left => Alignment::Left,
             Align::Center => Alignment::Center,
             Align::Right => Alignment::Right,
             Align::Justify => Alignment::Justify,
         };
-        layout.align(alignment, AlignmentOptions::default());
+        // Applied when the lines are broken, within the width given or the longest line.
+        layout.set_alignment(alignment, AlignmentOptions::default());
+        layout.break_all_lines(rich.width);
         let mut paths = vec![String::new(); rich.spans.len()];
         let baseline = layout
             .lines()
