@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-23
+
+_No notable change._
+
 ## [1.0.0] - 2026-11-23
 
 **The first stable release.** From 1.0, Folioscope follows [semantic versioning](https://semver.org)
@@ -134,7 +138,8 @@ fonts for the text a file stores no glyphs for.
 0.0.2 to 0.0.6 and 0.0.8 (October 2026) set up the packages and their publishing to npm, JSR and
 crates.io, with nothing to note for the people using them.
 
-[Unreleased]: https://github.com/baxyz/folioscope/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/baxyz/folioscope/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/baxyz/folioscope/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/baxyz/folioscope/compare/v0.1.0...v1.0.0
 [0.1.0]: https://github.com/baxyz/folioscope/compare/v0.0.8...v0.1.0
 [0.0.7]: https://github.com/baxyz/folioscope/compare/v0.0.6...v0.0.7
