@@ -163,7 +163,10 @@ impl<'t, 'a> Walk<'t, 'a> {
         if matches!(node.value.get("visible"), Some(Value::Bool(false))) {
             return;
         }
-        let symbol = symbol_of(node).and_then(|id| self.tree.get(id));
+        // A component walked inside itself would never end.
+        let symbol = symbol_of(node)
+            .filter(|&id| !self.overrides.inside(id))
+            .and_then(|id| self.tree.get(id));
         if let Some(symbol) = symbol
             && in_state < MAX_NESTING
             && (has_change_to(&interactions(node)) || self.changes_state(symbol))

@@ -46,7 +46,14 @@ pub fn to_ir(file: &SketchFile) -> Document {
                         let mut hotspots = Vec::new();
                         for child in layers(artboard) {
                             let fixed = child["isFixedToViewport"] == true;
-                            collect(child, (0.0, 0.0), fixed, &masters, &mut hotspots);
+                            collect(
+                                child,
+                                (0.0, 0.0),
+                                fixed,
+                                &masters,
+                                &mut Vec::new(),
+                                &mut hotspots,
+                            );
                         }
                         let whole = rect(&artboard["frame"]);
                         // An artboard taller than its prototype's viewport scrolls under it.
@@ -112,11 +119,14 @@ pub(crate) fn symbol_masters(file: &SketchFile) -> HashMap<&str, &Value> {
 }
 
 /// Walks a layer; `origin` is its parent's top-left corner in the artboard's coordinates.
-fn collect(
-    layer: &Value,
+/// `open` lists the symbols of the instances walked into: one that holds an instance of itself
+/// is not walked again inside itself.
+fn collect<'f>(
+    layer: &'f Value,
     origin: (f32, f32),
     fixed: bool,
-    masters: &HashMap<&str, &Value>,
+    masters: &HashMap<&'f str, &'f Value>,
+    open: &mut Vec<&'f str>,
     out: &mut Vec<Hotspot>,
 ) {
     if layer["isVisible"] == false {
@@ -139,16 +149,23 @@ fn collect(
         });
     }
     // An instance draws its master's layers, which may carry links of their own.
+    let symbol = (layer["_class"] == "symbolInstance")
+        .then(|| layer["symbolID"].as_str())
+        .flatten()
+        .filter(|id| !open.contains(id));
     let children = if layer["_class"] == "symbolInstance" {
-        layer["symbolID"]
-            .as_str()
+        symbol
             .and_then(|id| masters.get(id))
             .map_or(&Value::Null, |master| &master["layers"])
     } else {
         &layer["layers"]
     };
+    open.extend(symbol);
     for child in children.as_array().into_iter().flatten() {
-        collect(child, (bounds.x, bounds.y), fixed, masters, out);
+        collect(child, (bounds.x, bounds.y), fixed, masters, open, out);
+    }
+    if symbol.is_some() {
+        open.pop();
     }
 }
 

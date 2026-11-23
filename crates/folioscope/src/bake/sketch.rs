@@ -97,6 +97,7 @@ impl SketchDraw<'_> {
             body: String::new(),
             next_id: 0,
             overrides: Vec::new(),
+            expanding: Vec::new(),
             artboard: Some(artboard),
             backdrop: fx::Backdrop::default(),
             top: match part {
@@ -191,6 +192,9 @@ struct Svg<'d, 'f> {
     /// Overrides of the symbol instances being drawn, outermost first, with the ids of the
     /// nested instances since each: Sketch keys them `<id>/<id>_<property>`.
     overrides: Vec<(&'f [Value], Vec<String>)>,
+    /// The symbols of the instances being drawn, outermost first: one that holds an instance of
+    /// itself, straight or through others, is not drawn again inside itself.
+    expanding: Vec<String>,
     /// The artboard drawn, for background blurs (none in a second drawing).
     artboard: Option<&'f Value>,
     backdrop: fx::Backdrop,
@@ -326,6 +330,7 @@ impl<'f> Svg<'_, 'f> {
             body: String::new(),
             next_id: 0,
             overrides: Vec::new(),
+            expanding: Vec::new(),
             artboard: None,
             top: self.top.clone(),
             backdrop: fx::Backdrop {
@@ -405,12 +410,16 @@ impl<'f> Svg<'_, 'f> {
         let Some(id) = self
             .override_value(layer, "symbolID")
             .or(layer["symbolID"].as_str())
+            .map(str::to_owned)
         else {
             return;
         };
-        let Some(master) = self.masters.get(id).copied() else {
+        let Some(master) = self.masters.get(id.as_str()).copied() else {
             return;
         };
+        if self.expanding.contains(&id) {
+            return;
+        }
         let (mw, mh) = (n(&master["frame"], "width"), n(&master["frame"], "height"));
         let (sx, sy) = (w / mw.max(1.0), h / mh.max(1.0));
         let _ = write!(self.body, r#"<g transform="scale({sx} {sy})">"#);
@@ -440,7 +449,9 @@ impl<'f> Svg<'_, 'f> {
             .as_array()
             .map_or(&[][..], Vec::as_slice);
         self.overrides.push((values, Vec::new()));
+        self.expanding.push(id);
         self.children(master);
+        self.expanding.pop();
         self.overrides.pop();
         for (_, path) in &mut self.overrides {
             path.pop();
