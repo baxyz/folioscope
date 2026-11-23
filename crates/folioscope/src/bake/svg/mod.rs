@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Phase 0 spike: renders a `.fig` node to SVG, straight from the decoded tree (there is no IR
-//! yet). Shapes come from the geometry Figma stores with each node, text from its glyph outlines,
-//! so no font is needed.
+//! Renders a `.fig` node to SVG, straight from the decoded tree. Shapes come from the geometry
+//! Figma stores with each node, text from its glyph outlines, so no font is needed.
 //!
 //! Where the file stores no layout, for a variant other than the one an instance shows, the bake
 //! lays out again what the instance's overrides change: texts that grow with their content, and

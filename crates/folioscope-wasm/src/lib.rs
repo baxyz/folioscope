@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! WebAssembly bindings: the same decoding and baking as the CLI, for Node (the Vite plugin) and,
-//! later, the browser (the full player).
+//! WebAssembly bindings: the same decoding and baking as the CLI, for Node (the Vite plugin) and
+//! the browser (the full player).
 
 use folioscope::bake::folio::{BakeOptions, bake_file_into};
 use folioscope::bake::fonts::{FontHints, FontLibrary};

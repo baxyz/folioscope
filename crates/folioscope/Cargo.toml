@@ -1,6 +1,6 @@
 [package]
 name = "folioscope"
-description = "Reads interactive .fig, .sketch and .penpot prototypes and bakes them into .folio folders for the Folioscope player; the folioscope command-line tool"
+description = "Reads interactive .fig, .sketch, .xd and .penpot prototypes and bakes them into .folio folders for the Folioscope player; the folioscope command-line tool"
 keywords = ["prototype", "design", "mockup", "player", "cli"]
 categories = ["command-line-utilities", "parser-implementations", "multimedia::images"]
 readme = "README.md"

@@ -89,7 +89,7 @@ HTTP headers (COOP and COEP, for WebAssembly threads), which GitHub Pages cannot
 | npm             | `folioscope`: the player, `folioscope/full`, `folioscope/vite`, the WebAssembly |
 | JSR             | `@baxyz/folioscope`: the lite player's sources only                             |
 | crates.io       | `folioscope`: the CLI and the library                                           |
-| jsDelivr, unpkg | automatic from npm; `dist/folioscope.js` is self-contained                      |
+| jsDelivr, unpkg | automatic from npm; `dist/index.mjs` loads its chunks next to it                |
 
 Releases go through `helpers4/action-release` (the **Release** workflow): version and changelog
 from the Conventional Commits, trusted publishing (OIDC) everywhere, provenance on npm. Details in

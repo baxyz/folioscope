@@ -41,9 +41,13 @@ WebAssembly, loaded only then), and caches the result.
 Or `import "folioscope";` from a bundled app. The player is a vanilla custom element, under 15 KB
 of JS gzipped, with no WebAssembly and no fonts.
 
-Attributes: `src`, `poster`, `preload`, `flow`, `page`, `fit`, `hotspots`, `controls`, `fonts`. Methods: `restart()`,
-`back()`, `goTo(frameId)`, `registerFont()`. Events: `folioscope:load`, `folioscope:navigate`, `folioscope:error`.
-Details on [folioscope.baxyz.dev](https://folioscope.baxyz.dev).
+Attributes: `src`, `poster`, `preload`, `flow`, `page`, `fit`, `hotspots`, `controls`, `fonts`.
+Methods: `restart()`, `back()`, `goTo(frameId)`, `registerFont()`. Events: `folioscope:load`,
+`folioscope:navigate`, `folioscope:error`, `folioscope:progress`, `folioscope:font-missing`.
+Details in the [API reference](https://folioscope.baxyz.dev/guide/api).
+
+A design file is played as data: its links open web, e-mail and phone addresses only, and
+nothing of it runs in your page.
 
 ## On JSR
 

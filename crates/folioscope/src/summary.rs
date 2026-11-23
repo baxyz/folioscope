@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-//! Phase 0 spike: a format-neutral, read-only summary of a prototype: pages, top-level frames,
-//! flows and interactions. Every importer produces one; it is not the IR.
+//! A format-neutral, read-only summary of a prototype, as `folioscope inspect` prints it: pages,
+//! top-level frames, flows and interactions. Every importer produces one; it is not the IR.
 
 use std::fmt;
 
