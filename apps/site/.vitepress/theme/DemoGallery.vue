@@ -275,7 +275,7 @@ const demos: Demo[] = [
     format: "fig",
     title: "A dashboard, from a real Figma file",
     about:
-      "Four screens of a freight start-up's emissions dashboard, made in Figma by a designer, baked as it is.",
+      "Four screens of a freight start-up's emissions dashboard, made in Figma by a designer, baked as it is. The design is its author's, all rights reserved.",
     src: "/examples/co2.folio",
     try: [
       "Explore the dashboard's tabs and buttons.",

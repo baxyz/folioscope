@@ -26,7 +26,9 @@ site's [Roadmap](https://folioscope.baxyz.dev/roadmap).
 
 ## License
 
-**AGPL-3.0-or-later** for everything (component, Rust core, CLI). Every source file starts with an
+**AGPL-3.0-or-later** for everything (component, Rust core, CLI) but one folder:
+`apps/site/public/examples/` holds a real design of the author's, all rights reserved (its
+`LICENSE.txt`); never copy it into fixtures, tests or a package. Every source file starts with an
 SPDX header:
 
 ```ts
@@ -123,7 +125,8 @@ What this means when you work here:
 - **Never bump `version` or push a `v*` tag by hand.** In `CHANGELOG.md`, write only under
   `## [Unreleased]`: a human summary there becomes the top of the next version's section and of
   its release notes, above the list generated from the commits. So write Conventional Commits that
-  read well there.
+  read well there: `cliff.toml` lists the `feat`, `fix` and `perf` ones, without their gitmoji, and
+  leaves out the scopes `fixtures`, `test`, `ci`, `ai` and `deps`.
 - Tags v0.0.3 and v0.0.4 were made by the previous design, on release commits that are on no branch:
   `git fetch --tags` to see them. Later tags are on `main`.
 - If a registry step fails after the tag exists, fix the cause and _Re-run failed jobs_ (or run

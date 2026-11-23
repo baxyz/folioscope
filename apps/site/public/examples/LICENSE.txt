@@ -1,0 +1,13 @@
+The files of this folder are not free software.
+
+co2.folio is the prototype of the CO2 Emissions Optimizer, a dashboard designed by
+baxyz. It is published here to show Folioscope playing a real design file.
+
+Copyright (C) baxyz. All rights reserved.
+
+It is not covered by the licence of the Folioscope repository (the GNU Affero
+General Public License): that licence covers the player and the tools, not this
+design. You may look at it, on folioscope.baxyz.dev and in the repository, and
+play it on your own machine to build, test or try Folioscope. You may not copy
+it elsewhere, change it, publish it again or reuse it, in whole or in part,
+without the written permission of its author.
