@@ -24,7 +24,8 @@
   },
   "files": [
     "dist",
-    "wasm"
+    "wasm",
+    "THIRD-PARTY-LICENSES.md"
   ],
   "type": "module",
   "sideEffects": [

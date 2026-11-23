@@ -10,7 +10,7 @@
     "thumbhash": "npm:thumbhash@0.1.1"
   },
   "publish": {
-    "include": ["src", "README.md"],
+    "include": ["src", "README.md", "LICENSE"],
     "exclude": ["src/index.ts", "src/vite", "src/full/worker.ts"]
   }
 }
