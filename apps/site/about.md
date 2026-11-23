@@ -18,4 +18,6 @@ Folioscope is an independent project. It is not affiliated with, endorsed by or 
 
 Folioscope builds on [openfig-core](https://github.com/OpenFig-org/openfig-core) (MIT), [Sketch's file format](https://github.com/sketch-hq/sketch-file-format) (MIT), [Penpot](https://penpot.app) (MPL-2.0), [resvg](https://github.com/linebender/resvg) and many other open-source crates and packages, credited in [NOTICE](https://github.com/baxyz/folioscope/blob/main/NOTICE).
 
-No tracking: this site sets no cookie and runs no analytics.
+No tracking: this site sets no cookie and runs no analytics. One page reaches another service:
+the [Comparison](/comparison) loads Figma's own embed, from figma.com, when you press Play there,
+and only then.

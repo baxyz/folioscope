@@ -10,7 +10,10 @@
       <button class="play" type="button" @click="play">
         {{ started ? "Play again" : "Play" }}
       </button>
-      <span class="hint">Loads both at once, in your browser, on your connection.</span>
+      <span class="hint"
+        >Loads both at once, in your browser, on your connection. Figma's embed comes from
+        figma.com, under its own terms.</span
+      >
     </div>
 
     <div class="sides">
