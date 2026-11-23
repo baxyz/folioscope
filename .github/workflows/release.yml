@@ -7,6 +7,9 @@ name: Release
 #
 # npm validates this file name and the `npm` environment: change neither without updating the
 # trusted publisher of the folioscope package on npmjs.com.
+#
+# Actions are pinned to a commit, here and in ci.yml: this workflow can publish, and a tag can be
+# moved. Dependabot proposes their updates (.github/dependabot.yml).
 on:
   workflow_dispatch:
     inputs:
@@ -37,16 +40,16 @@ jobs:
       contents: write
       id-token: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with: { fetch-depth: 0, persist-credentials: false }
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v6
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with: { node-version-file: .node-version, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: rustup show active-toolchain || rustup toolchain install
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@fe3acb53a98b62c772db35de75ce0e4595e7ca8c # v2
         with: { tool: "wasm-bindgen@0.2.129" }
-      - uses: helpers4/action-release@v0
+      - uses: helpers4/action-release@c6c22ee68ccdc124c7f036bf95617d13062b1294 # v0
         with:
           bump: ${{ inputs.bump }}
           dry-run: ${{ inputs.dry-run }}
