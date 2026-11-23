@@ -1,0 +1,11 @@
+# Response headers of folioscope.baxyz.dev, read by Cloudflare Workers static assets
+# (wrangler.jsonc). The site is static and needs nothing of the browser but to draw itself.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: SAMEORIGIN
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+
+# VitePress names these by their content: an address never changes what it serves.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
