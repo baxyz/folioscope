@@ -1017,6 +1017,10 @@ impl Ctx<'_, '_> {
         } else {
             node.id
         };
+        // A component drawn inside itself would never end.
+        if node.kind == "INSTANCE" && self.overrides.inside(source) {
+            return;
+        }
         let children: Vec<NodeId> = self.tree.children(source).map(|c| c.id).collect();
         if children.is_empty() {
             return;

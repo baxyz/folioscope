@@ -6,7 +6,7 @@
 
 pub mod ir;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::{Cursor, Read};
 
 use serde_json::Value;
@@ -56,6 +56,11 @@ pub fn decode(archive: &[u8]) -> Result<PenpotFile, PenpotError> {
         .file_names()
         .filter_map(|name| name.ok().map(std::borrow::Cow::into_owned))
         .collect();
+    let is_json = |name: &str| {
+        std::path::Path::new(name)
+            .extension()
+            .is_some_and(|e| e.eq_ignore_ascii_case("json"))
+    };
     let manifest = read_json(&mut zip, "manifest.json")?;
     let mut pages = Vec::new();
     for file in manifest["files"].as_array().into_iter().flatten() {
@@ -64,20 +69,18 @@ pub fn decode(archive: &[u8]) -> Result<PenpotFile, PenpotError> {
         for name in names.iter().filter(|n| n.starts_with(&prefix)) {
             let rest = &name[prefix.len()..];
             // `<page>.json` is a page; `<page>/<shape>.json` one of its shapes.
-            if !rest.contains('/')
-                && std::path::Path::new(rest)
-                    .extension()
-                    .is_some_and(|e| e.eq_ignore_ascii_case("json"))
-            {
+            if !rest.contains('/') && is_json(rest) {
                 let page = read_json(&mut zip, name)?;
                 let dir = format!("{prefix}{}/", rest.trim_end_matches(".json"));
                 let mut shapes = HashMap::new();
-                for shape_name in names.iter().filter(|n| n.starts_with(&dir)) {
+                // Only the shapes: an archive may also list the folder itself.
+                for shape_name in names.iter().filter(|n| n.starts_with(&dir) && is_json(n)) {
                     let shape = read_json(&mut zip, shape_name)?;
                     if let Some(id) = shape["id"].as_str() {
                         shapes.insert(id.to_owned(), shape);
                     }
                 }
+                untangle(&mut shapes);
                 file_pages.push(PenpotPage { page, shapes });
             }
         }
@@ -86,11 +89,6 @@ pub fn decode(archive: &[u8]) -> Result<PenpotFile, PenpotError> {
     }
     // `files/<file>/media/<id>.json` points a media id at its bytes, `objects/<mediaId>.<ext>`.
     let mut media = HashMap::new();
-    let is_json = |name: &str| {
-        std::path::Path::new(name)
-            .extension()
-            .is_some_and(|e| e.eq_ignore_ascii_case("json"))
-    };
     for name in names.iter().filter(|n| n.contains("/media/") && is_json(n)) {
         let entry = read_json(&mut zip, name)?;
         let (Some(id), Some(object)) = (entry["id"].as_str(), entry["mediaId"].as_str()) else {
@@ -110,6 +108,52 @@ pub fn decode(archive: &[u8]) -> Result<PenpotFile, PenpotError> {
         pages,
         media,
     })
+}
+
+/// How deep a shape may sit under its page; what is deeper is left out. The walks over the
+/// shapes follow their tree: a file must not be able to make them run out of stack.
+const MAX_DEPTH: usize = 64;
+
+/// Makes a page's shapes a tree, whatever the file says. A shape lists its children by id
+/// (`shapes`): one listed a second time (by itself, by one of its own descendants, by another
+/// parent) or deeper than [`MAX_DEPTH`] is taken out of that list, so every walk ends.
+fn untangle(shapes: &mut HashMap<String, Value>) {
+    let listed: HashSet<String> = shapes
+        .values()
+        .flat_map(|shape| shape["shapes"].as_array().into_iter().flatten())
+        .filter_map(|id| id.as_str().map(str::to_owned))
+        .collect();
+    // From the shapes nothing lists (the page's root), then from what only a loop reaches.
+    let (mut roots, mut rest): (Vec<String>, Vec<String>) =
+        shapes.keys().cloned().partition(|id| !listed.contains(id));
+    roots.sort_unstable();
+    rest.sort_unstable();
+    let mut seen = HashSet::new();
+    for start in roots.into_iter().chain(rest) {
+        if !seen.insert(start.clone()) {
+            continue;
+        }
+        let mut stack = vec![(start, 0)];
+        while let Some((id, depth)) = stack.pop() {
+            let Some(children) = shapes
+                .get_mut(&id)
+                .and_then(|shape| shape.get_mut("shapes"))
+                .and_then(Value::as_array_mut)
+            else {
+                continue;
+            };
+            children.retain(|child| {
+                let Some(child) = child.as_str() else {
+                    return false;
+                };
+                let kept = depth < MAX_DEPTH && seen.insert(child.to_owned());
+                if kept {
+                    stack.push((child.to_owned(), depth + 1));
+                }
+                kept
+            });
+        }
+    }
 }
 
 fn read_json(zip: &mut zip::ZipArchive<Cursor<&[u8]>>, entry: &str) -> Result<Value, PenpotError> {

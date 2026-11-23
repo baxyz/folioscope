@@ -34,6 +34,8 @@ pub struct Overrides {
     flags: Vec<HashMap<NodeId, bool>>,
     /// Keys to read other nodes' overrides under: see [`Overrides::alias`].
     aliases: HashMap<NodeId, NodeId>,
+    /// Per instance: the component it draws.
+    symbols: Vec<Option<NodeId>>,
 }
 
 impl Overrides {
@@ -41,6 +43,7 @@ impl Overrides {
     /// resolved through its overrides until [`Overrides::leave`].
     pub fn enter(&mut self, instance: &Node<'_>, resolved: &Value) {
         self.keys.push(key(instance));
+        self.symbols.push(instance_symbol(resolved));
         let mut entries = Entries::new();
         // What the designer set, then what Figma derived from it, which wins.
         let lists = [
@@ -97,7 +100,15 @@ impl Overrides {
         !self.scopes.is_empty()
     }
 
+    /// Whether a walk is inside an instance of `symbol`. A component that holds an instance of
+    /// itself, straight or through others, has no end: a walk does not enter it again.
+    #[must_use]
+    pub fn inside(&self, symbol: NodeId) -> bool {
+        self.symbols.contains(&Some(symbol))
+    }
+
     pub fn leave(&mut self) {
+        self.symbols.pop();
         self.flags.pop();
         self.scopes.pop();
         self.keys.pop();
