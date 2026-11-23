@@ -30,7 +30,7 @@ ruzstd = "0.9"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11"
-skrifa = "0.49"
+skrifa = "0.50"
 thiserror = "2"
 thumbhash = "0.1"
 wuff = "0.2"
