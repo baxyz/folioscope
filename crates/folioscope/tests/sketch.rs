@@ -170,3 +170,136 @@ mod effects {
         }
     }
 }
+
+#[cfg(feature = "bake")]
+mod symbols {
+    //! `fixtures/sketch/symbols.sketch`: instances of a button (its label overridden, one
+    //! stretched), a card holding one (overridden through the card, then swapped for a dark
+    //! button), and a back button whose link is in its master. Checked on the pixels drawn.
+    use folioscope::bake::draw::Draw;
+    use folioscope::bake::fonts::FontLibrary;
+    use folioscope::bake::render_pixmap;
+    use folioscope::bake::sketch::SketchDraw;
+    use folioscope::bake::text::Typesetter;
+    use folioscope::ir::{Action, Rect, TransitionKind};
+    use folioscope::sketch::{SketchFile, decode, ir::to_ir};
+    use serde_json::Value;
+
+    const BLUE: [u8; 3] = [37, 99, 235];
+    const INK: [u8; 3] = [17, 24, 39];
+    const WHITE: [u8; 3] = [255, 255, 255];
+
+    fn root() -> String {
+        format!("{}/../../fixtures", env!("CARGO_MANIFEST_DIR"))
+    }
+
+    fn file() -> SketchFile {
+        decode(&std::fs::read(format!("{}/sketch/symbols.sketch", root())).unwrap()).unwrap()
+    }
+
+    /// The colour of each pixel asked for, on the Home artboard drawn with Inter.
+    fn pixels(file: &SketchFile, at: &[(u32, u32)]) -> Vec<[u8; 3]> {
+        let mut fonts = FontLibrary::default();
+        let inter = std::fs::read(format!("{}/fonts/Inter-Latin.ttf", root())).unwrap();
+        fonts.add("Inter-Latin.ttf", &inter).unwrap();
+        let mut draw = SketchDraw::new(file, Typesetter::new(fonts));
+        let svg = draw.frame(&to_ir(file).pages[0].frames[0]).unwrap();
+        assert!(draw.missing_fonts().is_empty(), "every label has its font");
+        let pixmap = render_pixmap(&svg, 1.0).unwrap();
+        at.iter()
+            .map(|&(x, y)| {
+                let pixel = pixmap.pixel(x, y).unwrap().demultiply();
+                [pixel.red(), pixel.green(), pixel.blue()]
+            })
+            .collect()
+    }
+
+    /// Whether some pixel of the row `y`, from `from` to `to`, is white: a label's glyph.
+    fn label_reaches(file: &SketchFile, y: std::ops::Range<u32>, x: std::ops::Range<u32>) -> bool {
+        let at: Vec<_> = y.flat_map(|y| x.clone().map(move |x| (x, y))).collect();
+        pixels(file, &at).contains(&WHITE)
+    }
+
+    /// The file with no override: every instance as its master.
+    fn without_overrides(mut file: SketchFile) -> SketchFile {
+        fn clear(value: &mut Value) {
+            match value {
+                Value::Object(map) => {
+                    if let Some(Value::Array(overrides)) = map.get_mut("overrideValues") {
+                        overrides.clear();
+                    }
+                    map.values_mut().for_each(clear);
+                }
+                Value::Array(list) => list.iter_mut().for_each(clear),
+                _ => {}
+            }
+        }
+        file.pages.iter_mut().for_each(clear);
+        file
+    }
+
+    #[test]
+    fn sketch_symbols_carry_their_links() {
+        let ir = to_ir(&file());
+        let frames = &ir.pages[0].frames;
+        // A link on an instance: its own box.
+        let open = &frames[0].hotspots[0];
+        assert_eq!(open.name, "Open details");
+        assert_eq!(
+            open.bounds,
+            Rect {
+                x: 24.0,
+                y: 120.0,
+                width: 160.0,
+                height: 48.0
+            }
+        );
+        assert!(matches!(
+            &open.interactions[0].action,
+            Action::Navigate { to, transition }
+                if *to == frames[1].id && matches!(transition.kind, TransitionKind::SlideIn { .. })
+        ));
+        // A link inside a master: where its instance puts it.
+        let back = &frames[1].hotspots[0];
+        assert_eq!(
+            back.bounds,
+            Rect {
+                x: 16.0,
+                y: 56.0,
+                width: 80.0,
+                height: 32.0
+            }
+        );
+        assert!(matches!(back.interactions[0].action, Action::Back));
+        // The masters are not screens: two artboards, none on the symbols' page.
+        let screens: Vec<usize> = ir.pages.iter().map(|page| page.frames.len()).collect();
+        assert_eq!(screens, [2, 0]);
+    }
+
+    #[test]
+    fn sketch_symbols_draw_their_master_scaled() {
+        // "Large" is 240 by 72, its master 160 by 48: blue reaches where the master would not.
+        let drawn = pixels(&file(), &[(60, 144), (250, 236), (250, 144)]);
+        assert_eq!(drawn, [BLUE, BLUE, WHITE]);
+    }
+
+    #[test]
+    fn sketch_symbols_override_text() {
+        // "Label" ends before x = 100; "Open details" goes on past it.
+        let past_the_label = |file: &SketchFile| label_reaches(file, 134..154, 104..150);
+        assert!(past_the_label(&file()));
+        assert!(!past_the_label(&without_overrides(file())));
+        // The label of the button inside the card, overridden through the card: "Read more".
+        let in_the_card = |file: &SketchFile| label_reaches(file, 390..410, 255..290);
+        assert!(in_the_card(&file()));
+        assert!(!in_the_card(&without_overrides(file())));
+    }
+
+    #[test]
+    fn sketch_symbols_swap_a_nested_symbol() {
+        // The button of each card, left of its label: the second card swaps it for the dark one.
+        let buttons = [(185, 400), (185, 550)];
+        assert_eq!(pixels(&file(), &buttons), [BLUE, INK]);
+        assert_eq!(pixels(&without_overrides(file()), &buttons), [BLUE, BLUE]);
+    }
+}
