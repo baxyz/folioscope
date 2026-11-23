@@ -87,7 +87,7 @@ interface Wasm {
 }
 
 /** Bumped when the bake's output changes, so stale cache entries are not reused. */
-const CACHE_VERSION = "5";
+const CACHE_VERSION = "6";
 
 const FONT_FILE = /\.(ttf|otf|ttc|woff2?)$/i;
 
