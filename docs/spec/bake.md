@@ -61,7 +61,33 @@ Each layer is encoded in the lightest format that keeps it right:
    inline them, a third heavier, without AVIF or a cache of their own); blurs and shadows too (slow
    for the browser to draw, and not quite as `resvg` draws them).
 
+   An SVG is a document, not only a picture: opened on its own, outside the player's `<img>`, it
+   would run a script it carried, in the site's name. So a layer is served as SVG only when it
+   holds **nothing but what the bake draws with** (`svg_safe`): shapes, groups, gradients, clips
+   and masks; no script, no event handler, no foreign content, no link out of the document.
+   Anything else is served as images, which carry nothing.
+
 The poster is lossless WebP at 1x.
+
+## Untrusted files
+
+A design file is not trusted with the machine that bakes it, nor with the site that serves the
+result. Whatever a file says:
+
+- **Nothing of it becomes markup.** The strings the bake copies into an SVG (colours, path data,
+  the attributes of an imported SVG shape) are escaped, and only presentation attributes are
+  copied. The check above stands behind it: a layer that is not shapes alone is never served as
+  SVG.
+- **Nothing is read but the file.** Images come from the archive, inlined; an `href` never
+  reaches a path of the machine or the network.
+- **A link is a web address, an e-mail or a phone number**; any other scheme (`javascript:`,
+  `data:`, `file:`…) comes out as an `unsupported` action, and the player checks again
+  ([player](player.md#lite-player)).
+- **A bake ends.** A shape listed among its own children (Penpot), a symbol or a component that
+  holds an instance of itself (Sketch, Figma) are followed once.
+
+What is not bounded is the work: a file can be made huge once unzipped, or slow to draw. Bake
+files from strangers with limits on memory and time, as any converter.
 
 ### Measures
 
