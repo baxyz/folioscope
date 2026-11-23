@@ -1,34 +1,24 @@
-# One grouped pull request a week per ecosystem. The workflows pin their actions to a commit:
-# these updates are how the pins move.
+# One pull request a week for everything: the crates, the npm packages and the actions together
+# (a multi-ecosystem group), instead of one per ecosystem. The workflows pin their actions to a
+# commit: this is how the pins move. A security advisory still gets a pull request of its own,
+# as soon as it is known.
 version: 2
+multi-ecosystem-groups:
+  dependencies:
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "build(deps)"
 updates:
   - package-ecosystem: "cargo"
     directory: "/"
-    schedule:
-      interval: "weekly"
-    commit-message:
-      prefix: "build(deps)"
-    groups:
-      cargo:
-        patterns:
-          - "*"
+    patterns: ["*"]
+    multi-ecosystem-group: "dependencies"
   - package-ecosystem: "npm"
     directory: "/"
-    schedule:
-      interval: "weekly"
-    commit-message:
-      prefix: "build(deps)"
-    groups:
-      npm:
-        patterns:
-          - "*"
+    patterns: ["*"]
+    multi-ecosystem-group: "dependencies"
   - package-ecosystem: "github-actions"
     directory: "/"
-    schedule:
-      interval: "weekly"
-    commit-message:
-      prefix: "build(deps)"
-    groups:
-      github-actions:
-        patterns:
-          - "*"
+    patterns: ["*"]
+    multi-ecosystem-group: "dependencies"
