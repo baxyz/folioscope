@@ -166,10 +166,7 @@ fn interaction(
         },
         "close-overlay" => Action::Close,
         "prev-screen" => Action::Back,
-        "open-url" => Action::OpenUrl {
-            url: string(interaction, "url"),
-            new_tab: true,
-        },
+        "open-url" => Action::open_url(&string(interaction, "url"), true),
         other => Action::Unsupported {
             name: other.to_owned(),
         },

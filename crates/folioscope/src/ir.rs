@@ -290,6 +290,45 @@ pub enum Action {
     },
 }
 
+impl Action {
+    /// "Open a link": a web address, an e-mail or a phone link, or an address with no scheme
+    /// (the player resolves it against its page). A design file is not trusted with the page
+    /// that plays it: any other scheme (`javascript:`, `data:`, `file:`…) is no link, and comes
+    /// out as [`Action::Unsupported`]. The player checks again (docs/spec/player.md).
+    #[must_use]
+    pub fn open_url(url: &str, new_tab: bool) -> Self {
+        if link_scheme(url).is_none_or(|scheme| LINK_SCHEMES.contains(&scheme.as_str())) {
+            Action::OpenUrl {
+                url: url.to_owned(),
+                new_tab,
+            }
+        } else {
+            Action::Unsupported {
+                name: "URL".to_owned(),
+            }
+        }
+    }
+}
+
+/// The schemes a link may have.
+const LINK_SCHEMES: [&str; 4] = ["http", "https", "mailto", "tel"];
+
+/// The scheme of `url` as a browser reads it, in lower case: it drops the tabs and line breaks
+/// anywhere in it and the spaces and control characters around it first. `None` for an address
+/// with no scheme.
+fn link_scheme(url: &str) -> Option<String> {
+    let cleaned: String = url
+        .trim_matches(|c: char| c <= ' ')
+        .chars()
+        .filter(|c| !matches!(c, '\t' | '\n' | '\r'))
+        .collect();
+    let (scheme, _) = cleaned.split_once(':')?;
+    let mut chars = scheme.chars();
+    (chars.next().is_some_and(|c| c.is_ascii_alphabetic())
+        && chars.all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.')))
+    .then(|| scheme.to_ascii_lowercase())
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Transition {
@@ -368,4 +407,48 @@ pub enum Easing {
     Other {
         name: String,
     },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn open_url_keeps_web_mail_and_phone_links() {
+        for url in [
+            "https://folioscope.baxyz.dev",
+            "HTTP://example.com/a?b#c",
+            "mailto:hello@example.org",
+            "tel:+33123456789",
+            "case-study/page:2",
+            "//example.com/page",
+            "",
+        ] {
+            assert!(
+                matches!(Action::open_url(url, true), Action::OpenUrl { url: kept, new_tab: true } if kept == url),
+                "{url}"
+            );
+        }
+    }
+
+    #[test]
+    fn open_url_refuses_schemes_that_run_code_or_read_files() {
+        for url in [
+            "javascript:alert(document.domain)",
+            "JavaScript:alert(1)",
+            "  javascript:alert(1)",
+            "java\tscript:alert(1)",
+            "java\nscript:alert(1)",
+            "\u{1}javascript:alert(1)",
+            "data:text/html,<script>alert(1)</script>",
+            "vbscript:msgbox(1)",
+            "file:///etc/passwd",
+            "blob:https://example.org/0d5f3a0e",
+        ] {
+            assert!(
+                matches!(Action::open_url(url, false), Action::Unsupported { .. }),
+                "{url}"
+            );
+        }
+    }
 }
