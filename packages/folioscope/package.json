@@ -70,6 +70,9 @@
       "optional": true
     }
   },
+  "engines": {
+    "node": ">=22"
+  },
   "inlinedDependencies": {
     "@helpers4/animation": "3.1.12",
     "@helpers4/binary": "3.1.12",
