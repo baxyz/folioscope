@@ -11,7 +11,7 @@
   },
   "devDependencies": {
     "vite-plus": "catalog:",
-    "wrangler": "4.151.3"
+    "wrangler": "4.165.0"
   },
   "engines": {
     "node": ">=26",
