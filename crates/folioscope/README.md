@@ -92,7 +92,13 @@ what the bake writes carries no script of its own (the
 says how). The work is not bounded, though: an archive can unzip to gigabytes, a drawing can be
 slow. Give a bake of files from strangers limits on memory and time, as for any converter.
 
-The API follows the project: before 1.0, anything may change in a release.
+### Versions
+
+The command line and the `.folio` folders it writes follow semantic versioning from 1.0. The
+library does not yet: its modules are public so that the WebAssembly bindings and the tests reach
+them, and `folioscope::bake` above all still moves with the formats. A minor release may change
+it; pin the version (`folioscope = "=1.0.0"`) if you build on it, and read the
+[changelog](https://github.com/baxyz/folioscope/blob/main/CHANGELOG.md) before you move.
 
 ## License
 

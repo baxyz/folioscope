@@ -14,7 +14,7 @@ files. Your visitors need no account and no design tool.
 The player is a web component, `<folioscope-player>`. Load it from a CDN:
 
 ```html
-<script type="module" src="https://cdn.jsdelivr.net/npm/folioscope@0.1/dist/index.mjs"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/folioscope@1/dist/index.mjs"></script>
 ```
 
 Or install it with npm, if your site has a build step:

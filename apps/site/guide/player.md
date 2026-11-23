@@ -10,7 +10,7 @@ description: "Load the player, size it, start it where you want, use it from a f
 From a CDN, with no build step:
 
 ```html
-<script type="module" src="https://cdn.jsdelivr.net/npm/folioscope@0.1/dist/index.mjs"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/folioscope@1/dist/index.mjs"></script>
 ```
 
 Or from npm, in a bundled app:
