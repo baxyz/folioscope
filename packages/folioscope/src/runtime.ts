@@ -111,7 +111,7 @@ export class Runtime {
       case "back":
         return this.back();
       default:
-        // Scrolling and the rest come with later phases.
+        // "Scroll to" and "open link" are the element's: they change nothing here.
         return undefined;
     }
   }

@@ -27,6 +27,7 @@ import {
   shifted,
 } from "./lite.ts";
 import type { FontDeclaration } from "./full/index.ts";
+import { linkTarget } from "./link.ts";
 import { type OpenOverlay, Runtime, type Step } from "./runtime.ts";
 
 export const TAG_NAME = "folioscope-player";
@@ -148,8 +149,8 @@ const STYLE = `
 `;
 
 /**
- * `<folioscope-player src="app.folio">`: plays a baked prototype. Raw design files need the full
- * player, which comes later.
+ * `<folioscope-player src="app.folio">`: plays a baked prototype, or a raw design file, which the
+ * full player bakes in the browser first (loaded on demand).
  */
 export class FolioscopePlayer extends BaseElement {
   static readonly observedAttributes: readonly string[] = [
@@ -596,8 +597,11 @@ export class FolioscopePlayer extends BaseElement {
         if (action.type === "scrollTo") return scrollFrame(el, action);
         const origin = { ...bounds, x: bounds.x + at.x, y: bounds.y + at.y };
         void this.show(this.runtime?.run(action, origin));
-        if (action.type === "openUrl")
-          window.open(action.url, action.newTab ? "_blank" : "_self", "noopener");
+        if (action.type === "openUrl") {
+          // Only web, e-mail and phone links: the design file must not run code in the page.
+          const target = linkTarget(action.url, document.baseURI);
+          if (target) window.open(target, action.newTab ? "_blank" : "_self", "noopener");
+        }
       },
       hold: (action, kind, bounds) => this.hold(action, kind, bounds),
     });

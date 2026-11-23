@@ -48,6 +48,9 @@ plugin. Vanilla custom elements in a shadow root: no UI framework.
 - **Triggers**: click, hover and press (a frame while they last), mouse enter and leave,
   mouse down and up, after delay. **Actions**: navigate, change to, scroll to, open, swap and
   toggle overlays, back, close, open a URL.
+- **A link opens only a web address, an e-mail or a phone number** (`http:`, `https:`, `mailto:`,
+  `tel:`, resolved against the page): a design file is not trusted with the page it plays in,
+  where a `javascript:` or `data:` link would run its code. Any other link does nothing.
 - **Scrolling**: a scrolling frame's content sits in a native scroller between its background and
   its fixed layers; a frame that scrolls inside the screen gets a native scroller of its own, in
   the content it is part of; a sticky layer moves with its content, then holds at its scroller's
