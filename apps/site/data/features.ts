@@ -657,6 +657,14 @@ export const FEATURES: Feature[] = [
     },
   },
   {
+    id: "safe-links",
+    group: "Player",
+    name: "Links open web, e-mail and phone addresses only: never javascript: or data:",
+    formats: {
+      all: works("vitest: never follows a link that would run the design file's code in the page"),
+    },
+  },
+  {
     id: "dynamic-layers",
     group: "Player",
     name: "Dynamic layers (variables, conditions) drawn on the fly",
