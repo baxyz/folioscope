@@ -4,6 +4,22 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+**Security.** A design file is no longer trusted with the page that plays it, the site that
+serves it or the machine that bakes it. Before this version, a crafted file could:
+
+- run a script in the page playing it, through an "open link" written `javascript:…` (every
+  format with links, baked or played raw);
+- put a `<script>` into a baked SVG layer, which ran when that `.svg` was opened on its own
+  (`.penpot` and `.xd`), or make the bake read an image file of the machine;
+- crash `bake` and `inspect` with a shape or a symbol that contains itself (`.penpot`, `.sketch`).
+
+If you baked files you did not make with 0.1.0 or earlier, bake them again. Links now open web,
+e-mail and phone addresses only; a layer is served as SVG only when it holds shapes alone. See
+`SECURITY.md`.
+
+The npm package, the JSR package and the crate now carry the text of the licence, and the npm
+package the licences of the crates and packages it bundles (`THIRD-PARTY-LICENSES.md`).
+
 ## [0.1.0] - 2026-11-20
 
 Flat screens are now served as SVG when that is lighter than their images: sharp at any zoom,
