@@ -1,0 +1,35 @@
+# How the Release workflow (helpers4/action-release, with git-cliff) lists a version's changes in
+# CHANGELOG.md and in the GitHub release, under the summary written by hand in [Unreleased].
+# Only what changes something for the people who use Folioscope: features, fixes, performance.
+# Documentation, tests, fixtures, CI and build commits are in the history, not in the changelog.
+
+[changelog]
+header = ""
+body = """
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | striptags | trim | upper_first }}
+{% for commit in commits %}
+- {% if commit.scope %}**{{ commit.scope }}**: {% endif %}{{ commit.message | upper_first }}\
+{% endfor %}
+{% endfor %}
+"""
+footer = ""
+trim = true
+
+[git]
+conventional_commits = true
+filter_unconventional = true
+split_commits = false
+filter_commits = true
+# The gitmoji of the commit convention is for the history: `fix(bake): 🐛 draw…` lists as "Draw…".
+commit_preprocessors = [{ pattern = '^([a-z]+(\([^)]*\))?!?: )[^\x00-\x7F]+ ', replace = "${1}" }]
+commit_parsers = [
+  { message = "^[a-z]+\\((fixtures|test|ci|ai|deps)\\)", skip = true },
+  { message = "^[a-z]+(\\(.*\\))?!:", group = "<!-- 0 -->Breaking changes" },
+  { body = "BREAKING[ -]CHANGE", group = "<!-- 0 -->Breaking changes" },
+  { message = "^feat", group = "<!-- 1 -->Features" },
+  { message = "^fix", group = "<!-- 2 -->Bug fixes" },
+  { message = "^perf", group = "<!-- 3 -->Performance" },
+  { message = "^revert", group = "<!-- 4 -->Reverts" },
+  { message = ".*", skip = true },
+]
