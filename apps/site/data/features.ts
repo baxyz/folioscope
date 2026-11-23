@@ -351,6 +351,21 @@ export const FEATURES: Feature[] = [
     },
   },
   {
+    id: "instances",
+    group: "Drawing",
+    name: "Components and symbols: instances with their overrides (text, nested, swapped), scaled",
+    formats: {
+      fig: works("rust: swapped_instances_draw_the_component_they_were_swapped_for"),
+      sketch: unverified("rust: sketch_symbols_override_text", SKETCH_CHECK),
+      penpot: todo(
+        "a .penpot fixture with a component and its copies: a copy stores its own shapes, drawn as any group, which no test covers yet",
+      ),
+      xd: todo(
+        "an .xd fixture with a component and its instances: an instance stores its own children, drawn as any group, which no test covers yet",
+      ),
+    },
+  },
+  {
     id: "gradients",
     group: "Drawing",
     name: "Linear gradients",
