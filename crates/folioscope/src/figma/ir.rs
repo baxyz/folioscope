@@ -509,10 +509,10 @@ fn action(action: &Value) -> Option<Action> {
         "NONE" => return None,
         "BACK" => Action::Back,
         "CLOSE" => Action::Close,
-        "URL" => Action::OpenUrl {
-            url: text("connectionURL").unwrap_or("").to_owned(),
-            new_tab: flag(action, "openUrlInNewTab"),
-        },
+        "URL" => Action::open_url(
+            text("connectionURL").unwrap_or(""),
+            flag(action, "openUrlInNewTab"),
+        ),
         "INTERNAL_NODE" => {
             let Some(to) = action.get("transitionNodeID").and_then(node_id) else {
                 return Some(Action::Unsupported {
