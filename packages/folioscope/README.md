@@ -27,7 +27,7 @@ nothing else is installed, and is cached between builds.
 ## Play
 
 ```html
-<script type="module" src="https://cdn.jsdelivr.net/npm/folioscope@0.1/dist/index.mjs"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/folioscope@1/dist/index.mjs"></script>
 <link rel="preload" href="/folio/app.folio/index.json" as="fetch" crossorigin />
 
 <folioscope-player src="/folio/app.folio" poster="/folio/app.folio/poster.webp" controls>

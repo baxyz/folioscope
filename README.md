@@ -26,7 +26,7 @@ What plays for each format, and what is left, is on the
 ## Usage
 
 ```html
-<script type="module" src="https://cdn.jsdelivr.net/npm/folioscope@0.1/dist/index.mjs"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/folioscope@1/dist/index.mjs"></script>
 
 <folioscope-player src="/mockups/app.folio" poster="/mockups/app.folio/poster.webp" controls>
 </folioscope-player>
@@ -57,10 +57,22 @@ playing whatever happens to the design tool that made them.
   [the player](docs/spec/player.md)
 - [Development](docs/development.md): stack, tests, fixtures, publishing
 
+## Versions
+
+From 1.0, Folioscope follows [semantic versioning](https://semver.org) for what you build on: the
+`<folioscope-player>` element (attributes, methods, events), the `.folio` format (what a 1.x
+release baked plays in every later 1.x player), the options of `folioscope/vite` and the
+`folioscope` command line. The Rust library behind the command line is still settling: see
+[its README](crates/folioscope/README.md).
+
 ## License
 
 [AGPL-3.0-or-later](LICENSE). The design files you play with Folioscope remain yours; the license
 covers the player, not your mockups.
+
+One folder of this repository is not under that license: the example design the website plays
+(`apps/site/public/examples/`) is its author's, all rights reserved; see
+[its notice](apps/site/public/examples/LICENSE.txt).
 
 ## Trademarks
 
