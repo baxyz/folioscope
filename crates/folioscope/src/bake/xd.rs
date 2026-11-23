@@ -16,6 +16,7 @@ use helpers4::font::is_italic;
 use helpers4::geometry::{Matrix, Rect as Box64, ellipse_path, rounded_rect_path};
 use serde_json::Value;
 
+use crate::bake::attr;
 use crate::bake::draw::{Draw, Part};
 use crate::bake::folio::BakeError;
 use crate::bake::fonts::weight_of_style;
@@ -527,10 +528,10 @@ impl<'f> Svg<'_, 'f> {
         let (color, opacity) = color(&stroke["color"]);
         let mut attributes = format!(r#"fill="none" stroke="{color}" stroke-opacity="{opacity}""#);
         if let Some(cap) = stroke["cap"].as_str() {
-            let _ = write!(attributes, r#" stroke-linecap="{cap}""#);
+            let _ = write!(attributes, r#" stroke-linecap="{}""#, attr(cap));
         }
         if let Some(join) = stroke["join"].as_str() {
-            let _ = write!(attributes, r#" stroke-linejoin="{join}""#);
+            let _ = write!(attributes, r#" stroke-linejoin="{}""#, attr(join));
         }
         if let Some(limit) = stroke["miterLimit"].as_f64() {
             let _ = write!(attributes, r#" stroke-miterlimit="{limit}""#);
@@ -821,7 +822,7 @@ fn shape_path(shape: &Value) -> Option<String> {
             d.push('Z');
             d
         }
-        "path" | "compound" => shape["path"].as_str()?.to_owned(),
+        "path" | "compound" => attr(shape["path"].as_str()?),
         _ => return None,
     })
 }

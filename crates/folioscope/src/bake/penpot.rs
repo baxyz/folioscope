@@ -17,6 +17,7 @@ use crate::penpot::{PenpotFile, PenpotPage};
 use helpers4::color::Rgba;
 use serde_json::Value;
 
+use crate::bake::attr;
 use crate::bake::draw::Draw;
 use crate::bake::folio::BakeError;
 use crate::bake::fonts::FontLibrary;
@@ -268,10 +269,18 @@ impl Svg<'_, '_> {
                 let Some(value) = value.as_str() else {
                     continue;
                 };
-                if name == "style" || name.starts_with("on") {
+                // Presentation attributes only: a name that is one, no style, no handler, no
+                // link out of the document.
+                let plain = name.starts_with(|c: char| c.is_ascii_alphabetic())
+                    && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '-');
+                if !plain
+                    || name == "style"
+                    || name.to_ascii_lowercase().starts_with("on")
+                    || (name == "href" && !value.starts_with('#'))
+                {
                     continue;
                 }
-                let _ = write!(element, r#" {}="{}""#, kebab(name), escape(value));
+                let _ = write!(element, r#" {}="{}""#, kebab(name), attr(value));
             }
             if tag == "g" {
                 let _ = write!(self.body, "{element}>");
@@ -351,7 +360,7 @@ impl Svg<'_, '_> {
             x - anchor,
             y - set.baseline,
             set.path,
-            escape(fill)
+            attr(fill)
         );
     }
 
@@ -444,7 +453,10 @@ impl Svg<'_, '_> {
                 &mut self.body,
                 &clip,
                 path,
-                &format!(r#"stroke="{color}" stroke-opacity="{opacity}"{dashes}{cap}"#),
+                &format!(
+                    r#"stroke="{}" stroke-opacity="{opacity}"{dashes}{cap}"#,
+                    attr(color)
+                ),
                 width,
                 align,
             );
@@ -461,7 +473,7 @@ impl Svg<'_, '_> {
                     stops,
                     r#"<stop offset="{}" stop-color="{}" stop-opacity="{}"/>"#,
                     stop["offset"].as_f64().unwrap_or(0.0),
-                    stop["color"].as_str().unwrap_or("#000000"),
+                    attr(stop["color"].as_str().unwrap_or("#000000")),
                     stop["opacity"].as_f64().unwrap_or(1.0)
                 );
                 stops
@@ -494,7 +506,10 @@ impl Svg<'_, '_> {
         }
         let color = fill["fillColor"].as_str()?;
         let opacity = fill["fillOpacity"].as_f64().unwrap_or(1.0);
-        Some(format!(r#"fill="{color}" fill-opacity="{opacity}""#))
+        Some(format!(
+            r#"fill="{}" fill-opacity="{opacity}""#,
+            attr(color)
+        ))
     }
 
     /// A `data:` URI for a media the file holds.
@@ -596,14 +611,6 @@ fn kebab(name: &str) -> String {
         }
     }
     out
-}
-
-/// A value escaped for an XML attribute.
-fn escape(value: &str) -> String {
-    value
-        .replace('&', "&amp;")
-        .replace('"', "&quot;")
-        .replace('<', "&lt;")
 }
 
 fn list(value: &Value) -> impl Iterator<Item = &Value> {
@@ -732,7 +739,7 @@ fn bounds(shape: &Value) -> helpers4::geometry::Rect {
 fn content_path(content: &Value) -> Option<String> {
     // Newer files store the path as SVG path data, in page coordinates.
     if let Some(d) = content.as_str() {
-        return (!d.trim().is_empty()).then(|| d.to_owned());
+        return (!d.trim().is_empty()).then(|| attr(d));
     }
     let commands = content.as_array()?;
     let mut path = String::new();

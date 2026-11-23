@@ -23,7 +23,7 @@ use crate::bake::penpot::PenpotDraw;
 use crate::bake::sketch::SketchDraw;
 use crate::bake::text::Typesetter;
 use crate::bake::xd::XdDraw;
-use crate::bake::{RenderError, render_pixmap, svg_size};
+use crate::bake::{RenderError, render_pixmap, svg_safe, svg_size};
 use crate::xd::{XdFile, ir::to_ir as xd_ir};
 
 /// Version of the `.folio` layout, independent of the IR's.
@@ -428,6 +428,7 @@ fn encode_layer(
     if options.svg
         && svg_eligible(markup)
         && lightest.is_some_and(|lightest| gzipped_len(markup) < lightest)
+        && svg_safe(markup)
     {
         report.bytes += markup.len();
         report.layers += 1;
