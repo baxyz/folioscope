@@ -19,7 +19,7 @@ interface Glue {
 }
 
 /** Bumped when the bake's output changes, so stale entries are not reused. */
-const CACHE_VERSION = "4";
+const CACHE_VERSION = "5";
 const store = createFileStore("folioscope");
 /** Where the cache keeps the fonts the bake lacked, with the files. */
 const MISSING_FONTS = "missing-fonts.json";
