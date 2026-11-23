@@ -33,8 +33,10 @@ temp/
 # Wrangler state
 .wrangler/
 
-# WebAssembly bake, built by `pnpm --filter folioscope build:wasm`
+# WebAssembly bake, built by `pnpm --filter folioscope build:wasm`, and the licences of the
+# crates and packages the npm package carries, written by the same command
 packages/folioscope/wasm/
+packages/folioscope/THIRD-PARTY-LICENSES.md
 
 # Declarations the package build emits next to the site data it imports
 apps/site/data/*.d.ts

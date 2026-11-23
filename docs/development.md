@@ -99,6 +99,10 @@ from the Conventional Commits, trusted publishing (OIDC) everywhere, provenance 
 
 - **AGPL-3.0-or-later** for everything; an SPDX header in every source file. Dependencies must be
   MIT, Apache-2.0, BSD or LGPL-3.0 (`cargo deny` checks the Rust side). Credits in `NOTICE`.
+- **What is published carries its licences.** `LICENSE` sits next to each published manifest
+  (`packages/folioscope/`, `crates/folioscope/`), since a registry only takes files from there. The
+  npm package also ships code of others, compiled into its WebAssembly or bundled in the player:
+  `build:wasm` writes their licences to `THIRD-PARTY-LICENSES.md`, from the crates Cargo resolved.
 - **Design files are not covered**: the files the player reads remain their authors'.
 - **Reading `.fig` files is reverse engineering for interoperability**: no use of Figma's API or
   code, no third-party file redistributed.

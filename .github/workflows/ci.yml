@@ -79,6 +79,15 @@ jobs:
           echo "full player WebAssembly: $size bytes gzipped" | tee -a "$GITHUB_STEP_SUMMARY"
           test "$size" -le 2621440
       - run: pnpm exec vp run -r build
+      - name: The npm package carries its licence and those of what it bundles
+        working-directory: packages/folioscope
+        run: |
+          npm pack --dry-run --json > pack.json
+          for file in LICENSE THIRD-PARTY-LICENSES.md dist/index.mjs wasm/folioscope_wasm_bg.wasm; do
+            node -e 'const [{ files }] = JSON.parse(require("fs").readFileSync("pack.json", "utf8")); process.exit(files.some((f) => f.path === process.argv[1]) ? 0 : 1)' "$file" \
+              || { echo "missing from the npm package: $file"; exit 1; }
+          done
+          rm pack.json
       - name: Vite plugin tests (need the WebAssembly bake)
         run: pnpm --filter folioscope test
       - run: pnpm --filter folioscope exec playwright install --with-deps firefox chromium

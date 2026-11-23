@@ -24,9 +24,9 @@ openfig-core — https://github.com/OpenFig-org/openfig-core
 MIT License, by rcoenen and the OpenFig contributors.
 
 The fixture generator in tools/fixtures uses openfig-core to write .fig files.
-Every generated file under fixtures/fig/ embeds openfig-core's Kiwi schema
+Every generated file under fixtures/figma/ embeds openfig-core's Kiwi schema
 (its own expression of the .fig format) and its empty-document template.
-The format notes in docs/format-fig.md draw on openfig-core's documentation.
+The format notes in docs/format-figma.md draw on openfig-core's documentation.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -56,6 +56,26 @@ the font the text layout tests use. It is not part of any published package.
 helpers4 — https://helpers4.dev
 GNU Lesser General Public License v3.0 or later, by baxyz.
 
-The player bundles a few helpers4 functions (helpers4/browser, helpers4/geometry);
+The player bundles a few helpers4 functions (helpers4/browser, helpers4/geometry…);
 their sources are the published `helpers4` packages on npm. The Rust crates
 depend on the `helpers4` crate.
+
+--------------------------------------------------------------------------------
+ThumbHash — https://github.com/evanw/thumbhash
+MIT License, by Evan Wallace.
+
+The bake writes a ThumbHash placeholder for each screen (the `thumbhash` crate)
+and the player bundles the `thumbhash` npm package to decode it.
+
+--------------------------------------------------------------------------------
+Dependencies
+
+The published npm package carries more than the above: its player bundles the
+npm packages listed in its `inlinedDependencies`, and its WebAssembly bake is
+compiled from Rust crates (resvg, tiny-skia, parley, skrifa, ravif, rav1e,
+image-webp, zip, ruzstd, serde and others), most of them under the MIT,
+Apache-2.0 or BSD licences. Their names, authors, licences and licence texts are
+in THIRD-PARTY-LICENSES.md, at the root of the npm package: it is written by
+`pnpm --filter folioscope build:wasm` from the crates Cargo resolved for that
+build, so it always matches the binary it ships with. `cargo deny check` keeps
+the licences of the Rust dependencies within those the AGPL allows.

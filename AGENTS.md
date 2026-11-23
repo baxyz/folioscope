@@ -34,7 +34,11 @@ SPDX header:
 ```
 
 Dependencies must be MIT, Apache-2.0, BSD or LGPL-3.0 (`cargo deny` enforces it on the Rust side).
-Credit reference projects and Apache-2.0 dependencies in `NOTICE` when they are first used.
+Credit reference projects, and whatever of others is committed here, in `NOTICE` when first used.
+The notices of the dependencies the npm package carries (crates compiled into the WebAssembly,
+packages bundled in the player) are generated: `build:wasm` writes `THIRD-PARTY-LICENSES.md`
+(`packages/folioscope/scripts/third-party.ts`). `LICENSE` is copied next to each published
+manifest (`packages/folioscope/`, `crates/folioscope/`): registries only take files from there.
 
 ## Commit Scopes
 

@@ -2,6 +2,7 @@
 // Builds the WebAssembly bake (crates/folioscope-wasm) into wasm/, for folioscope/vite (docs/architecture.md).
 // Needs Rust with the wasm32-unknown-unknown target and wasm-bindgen-cli at the version pinned in
 // crates/folioscope-wasm/Cargo.toml. Run before publishing; the lite player does not need it.
+// Then writes THIRD-PARTY-LICENSES.md: the licences of the crates that binary is made of.
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
@@ -34,3 +35,6 @@ execFileSync(
   ],
   { stdio: "inherit" },
 );
+execFileSync("node", [fileURLToPath(new URL("./third-party.ts", import.meta.url))], {
+  stdio: "inherit",
+});
